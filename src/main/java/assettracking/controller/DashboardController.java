@@ -197,6 +197,8 @@ public class DashboardController {
         }
     }
 
+    // In src/main/java/assettracking/controller/DashboardController.java
+
     private void loadDailyAndPacingMetrics() {
         String dailySql = "SELECT COUNT(DISTINCT re.serial_number) as count " +
                 "FROM Device_Status ds " +
@@ -219,8 +221,25 @@ public class DashboardController {
             labelsCreatedLabel.setText("Err");
         }
 
+        // --- FIX: Added try-catch blocks and default values to prevent NumberFormatException ---
+        int totalDeviceIntake = 0;
+        int totalMonitorIntake = 0;
+
+        try {
+            totalDeviceIntake = Integer.parseInt(laptopsIntakenLabel.getText()) + Integer.parseInt(tabletsIntakenLabel.getText()) + Integer.parseInt(desktopsIntakenLabel.getText());
+        } catch (NumberFormatException e) {
+            // This can happen if the labels are empty due to a DB error. Default to 0.
+            totalDeviceIntake = 0;
+        }
+
+        try {
+            totalMonitorIntake = Integer.parseInt(monitorsIntakenLabel.getText());
+        } catch (NumberFormatException e) {
+            // Default to 0 if the label is empty.
+            totalMonitorIntake = 0;
+        }
+
         if (weeklyDeviceGoal > 0) {
-            int totalDeviceIntake = Integer.parseInt(laptopsIntakenLabel.getText()) + Integer.parseInt(tabletsIntakenLabel.getText()) + Integer.parseInt(desktopsIntakenLabel.getText());
             double devicePacing = (totalDeviceIntake / weeklyDeviceGoal) * 100;
             animateLabelUpdate(deviceGoalPacingLabel, String.format("%.1f%%", devicePacing));
         } else {
@@ -228,13 +247,12 @@ public class DashboardController {
         }
 
         if (weeklyMonitorGoal > 0) {
-            int totalMonitorIntake = Integer.parseInt(monitorsIntakenLabel.getText());
             double monitorPacing = (totalMonitorIntake / weeklyMonitorGoal) * 100;
             animateLabelUpdate(monitorGoalPacingLabel, String.format("%.1f%%", monitorPacing));
         } else {
             monitorGoalPacingLabel.setText("N/A");
         }
-    }
+
     private void loadStaticKpis() {
         String wipSql = "SELECT COUNT(*) as count " +
                 "FROM Device_Status ds " +

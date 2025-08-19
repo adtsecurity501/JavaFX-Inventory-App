@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+
+    <!-- Step 1: Define the Product Information -->
+    <Product Id="*"
+             Name="Asset Tracking Legacy"
+             Language="1033"
+             Version="1.0.0.0"
+             Manufacturer="ADT LLC"
+             UpgradeCode="PUT-A-NEW-GUID-HERE-1111-4E4D-A82B-54A280AF3D7A">
+
+        <Package InstallerVersion="301" Compressed="yes" InstallScope="perMachine" />
+        <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+        <MediaTemplate EmbedCab="yes" />
+        <Icon Id="icon.ico" SourceFile="src/main/resources/app_icon.ico"/>
+        <Property Id="ARPPRODUCTICON" Value="icon.ico" />
+    </Product>
+
+    <!-- Step 2: Define the Directory Structure -->
+    <Fragment>
+        <Directory Id="TARGETDIR" Name="SourceDir">
+            <Directory Id="ProgramFilesFolder">
+                <!-- The folder where the app will be installed -->
+                <Directory Id="INSTALLFOLDER" Name="Asset Tracking Legacy" />
+            </Directory>
+            <Directory Id="ProgramMenuFolder">
+                <!-- The Start Menu folder -->
+                <Directory Id="ApplicationProgramsFolder" Name="Asset Tracking Legacy"/>
+            </Directory>
+        </Directory>
+    </Fragment>
+
+    <!-- Step 3: Define What Files to Install -->
+    <Fragment>
+        <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+            <!-- This component is our main application JAR file -->
+            <Component Id="ApplicationJar" Guid="PUT-A-NEW-GUID-HERE-2222-4F4D-A82C-54A280AF3D7B">
+                <!-- IMPORTANT: The Source path must be correct. This path assumes
+                     the JAR is in the 'target' folder relative to this WXS file. -->
+                <File Id="ATLegMav.jar"
+                      Source="target/ATLegMav-1.0-SNAPSHOT.jar"
+                      KeyPath="yes" />
+            </Component>
+        </ComponentGroup>
+    </Fragment>
+
+    <!-- Step 4: Create the Start Menu Shortcut -->
+    <Fragment>
+        <DirectoryRef Id="ApplicationProgramsFolder">
+            <Component Id="ApplicationShortcut" Guid="PUT-A-NEW-GUID-HERE-3333-4F4D-A82D-54A280AF3D7C">
+                 <Shortcut Id="ApplicationStartMenuShortcut"
+                           Name="Asset Tracking Legacy"
+                           Description="Asset Tracking & Inventory Management"
+                           Target="[!ATLegMav.jar]"
+                           Icon="icon.ico"
+                           WorkingDirectory="INSTALLFOLDER"/>
+                <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
+                <RegistryValue Root="HKCU" Key="Software\ADT\AssetTrackingLegacy" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
+            </Component>
+        </DirectoryRef>
+    </Fragment>
+
+    <!-- Step 5: Tell the Installer Which Components to Include -->
+    <Fragment>
+        <Feature Id="ProductFeature" Title="Installer" Level="1">
+            <ComponentGroupRef Id="ProductComponents" />
+            <ComponentRef Id="ApplicationShortcut" />
+        </Feature>
+    </Fragment>
+</Wix>

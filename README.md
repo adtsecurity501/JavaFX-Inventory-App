@@ -1,106 +1,113 @@
-# Asset Tracking & Inventory Management System
+# JavaFX Inventory Management System
 
-A comprehensive desktop application built with JavaFX for managing the lifecycle of internal IT assets. This tool provides a robust solution for tracking devices from initial package intake to final deployment, complete with an integrated ZPL label printing module for streamlined workflows.
+A powerful desktop application built with JavaFX to manage the lifecycle of IT assets. This tool streamlines tracking from package intake to deployment, featuring integrated ZPL label printing for efficient workflows.
 
----
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Java](https://img.shields.io/badge/Java-21-blue)](https://www.oracle.com/java/)
+[![JavaFX](https://img.shields.io/badge/JavaFX-21-orange)](https://openjfx.io/)
 
-## 🌟 Key Features
+## Overview
 
-This application is designed to centralize and simplify the tasks of an IT depot or refurbishment center.
+Designed for IT depots and refurbishment centers, this application centralizes asset management with a user-friendly interface and robust functionality.
 
-*   **📊 Real-Time Dashboard:** Get an at-a-glance overview of key performance indicators, including weekly intake volumes, inventory status breakdowns, and progress toward processing goals.
-*   **📦 Package Intake & Management:** A streamlined process for receiving packages, capturing sender information with an automatic ZIP code lookup, and preventing duplicate entries by checking for existing tracking numbers.
-*   **💻 Device Status Tracking:** The core of the application. A powerful, searchable, and filterable view of every asset in the inventory. Track devices through various statuses (WIP, Processed, Flagged, etc.) and view the complete history of any individual asset.
-*   **🖨️ Integrated ZPL Label Printing:** A dedicated module for all on-demand label printing needs, built to work with Zebra (ZPL) printers. It includes:
-    *   **Core Workflow Tools:** Grouped sections for high-volume tasks like Bulk Deploy (SKU + Serial), printing multiple SKU or serial labels, and bulk image labels.
-    *   **Utility Printing:** On-demand tools for printing single asset tags or generic barcodes.
-    *   **Database Integration:** SKU fields feature an autocomplete search, pulling data directly from the inventory to reduce errors and speed up data entry.
-*   **⚙️ SKU Management:** A simple interface to add, edit, and remove SKUs from the database, ensuring all product information is up-to-date.
-*   **⬆️ Data Import/Export:**
-    *   Import flagged device lists directly from Excel (`.xlsx`) files.
-    *   Export comprehensive inventory and package reports to CSV.
+### Key Features
 
----
+- **Real-Time Dashboard**: Monitor key metrics like weekly intake, inventory status, and processing goals at a glance.
+- **Package Intake**: Streamlined package receiving with automatic ZIP code lookup and duplicate tracking prevention.
+- **Device Status Tracking**: Searchable, filterable asset view with status tracking (e.g., WIP, Processed, Flagged) and full history.
+- **ZPL Label Printing**:
+    - **Core Tools**: Supports bulk tasks like SKU + Serial label printing and bulk image labels.
+    - **Utility Printing**: On-demand single asset tags or generic barcodes.
+    - **Database Integration**: Autocomplete SKU fields to minimize errors.
+- **SKU Management**: Easily add, edit, or remove SKUs to keep product data current.
+- **Data Import/Export**:
+    - Import flagged device lists from Excel (.xlsx).
+    - Export inventory and package reports to CSV.
 
-## 🛠️ Tech Stack
+## Tech Stack
 
-*   **Language:** Java 21
-*   **Framework:** JavaFX 21
-*   **UI Theme:** AtlantaFX (Dracula theme)
-*   **Database:** SQLite
-*   **Build Tool:** Apache Maven
-*   **Labeling:** ZPL (Zebra Programming Language)
-*   **File I/O:** Apache POI for Excel file reading
-*   **JSON Parsing:** Jackson for handling label design templates
+- **Language**: Java 21
+- **Framework**: JavaFX 21
+- **UI Theme**: AtlantaFX (Dracula theme)
+- **Database**: SQLite
+- **Build Tool**: Apache Maven
+- **Labeling**: ZPL (Zebra Programming Language)
+- **File I/O**: Apache POI for Excel processing
+- **JSON Parsing**: Jackson for label design templates
 
----
+## Getting Started
 
-## 🚀 Getting Started
-
-Follow these steps to get the application running on your local machine.
+Set up and run the application locally with these steps.
 
 ### Prerequisites
 
-*   **Java JDK 21** or higher.
-*   **Apache Maven** installed and configured on your PATH.
-*   Access to the network location where the SQLite database is stored.
+- Java JDK 21 or higher
+- Apache Maven installed and configured in your PATH
+- Access to the network location hosting the SQLite database
 
 ### Configuration
 
-The database connection path is hardcoded. Before running, you may need to update the UNC path in the following file:
+Update the hardcoded database connection path:
 
-*   **File:** `src/main/java/assettracking/db/DatabaseConnection.java`
-*   **Variable:** `DATABASE_PATHS_OR_UNCS`
+- **File**: `src/main/java/assettracking/db/DatabaseConnection.java`
+- **Variable**: `DATABASE_PATHS_OR_UNCS`
+- Set to your `inventorybackup.db` file location.
 
-Update the path to point to your `inventorybackup.db` file.
+### Installation
 
-### Running the Application
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/adtsecurity501/JavaFX-Inventory-App.git
+   cd JavaFX-Inventory-App
+   ```
 
-1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/adtsecurity501/JavaFX-Inventory-App.git
-    cd JavaFX-Inventory-App
-    ```
-
-2.  **Run with Maven:**
-    The project includes the JavaFX Maven plugin, which makes it easy to run from the command line.
-
-    ```bash
-    mvn javafx:run
-    ```
+2. Run the application:
+   ```bash
+   mvn javafx:run
+   ```
 
 ### Building the Executable JAR
 
-You can build a single, executable JAR file (an "uber JAR") that contains all dependencies.
+Create a standalone JAR with all dependencies:
 
-1.  **Run the Maven package command:**
-    ```bash
-    mvn clean package
-    ```
+1. Run the package command:
+   ```bash
+   mvn clean package
+   ```
 
-2.  The executable JAR will be located in the `target/` directory (e.g., `ATLegMav-1.0-SNAPSHOT.jar`). You can run this file on any machine with Java 21 installed.
+2. Locate the JAR (e.g., `ATLegMav-1.0-SNAPSHOT.jar`) in the `target/` directory. Run it on any machine with Java 21.
+
+## Core Workflows
+
+### Processing a New Device
+
+1. **Package Intake**: In the "Package Intake" tab, scan the tracking number, complete details, and click "Start Package Intake."
+2. **Add Assets**: In the "Package Details" window, select "Receive Asset(s)," enter serial number and details, then save.
+3. **Update Status**: In the "Device Status Tracking" tab, locate the device and update its status (e.g., WIP to Processed).
+4. **Print Labels**:
+    - **During Update**: Set status to "Ready for Deployment" to prompt SKU and Serial label printing.
+    - **On-Demand**: Use the "Label Printing" tab, select "Bulk Deploy," enter SKU, scan serial, and print.
+
+## Contributing
+
+We welcome contributions to enhance this internal tool. To contribute:
+
+1. Fork the repository.
+2. Create a feature branch: `git checkout -b feature/your-feature`
+3. Commit changes: `git commit -m 'Add your feature'`
+4. Push to the branch: `git push origin feature/your-feature`
+5. Open a pull request.
+
+Ensure code adheres to project standards and includes tests.
+
+## License
+
+Licensed under the [MIT License](LICENSE). See the `LICENSE` file for details.
+
+## Contact
+
+For questions or feedback, open an [issue](https://github.com/adtsecurity501/JavaFX-Inventory-App/issues) on this repository.
 
 ---
 
-## 📋 Core Workflows
-
-A quick overview of how to use the application for a standard task.
-
-#### Receiving and Processing a New Device
-
-1.  **Package Intake:** Go to the "Package Intake" tab and scan the package's tracking number. The system will look up return label information. Fill in any remaining details and click "Start Package Intake."
-2.  **Add Assets:** In the "Package Details" window that appears, click "Receive Asset(s)." Enter the serial number and other device details. The system will automatically create receipt events and link them to the package.
-3.  **Update Status:** Go to the "Device Status Tracking" tab. Find the device you just added. You can now update its status as it moves through the refurbishment process (e.g., from "WIP" to "Processed").
-4.  **Print Labels:**
-    *   **During Status Update:** When you set a device's status to "Ready for Deployment" in the "Scan Update" window, the application will automatically prompt you to print the required SKU and Serial labels.
-    *   **On-Demand:** Go to the "Label Printing" tab. Select the "Bulk Deploy" tool, enter the SKU, and scan the serial number to print the same labels.
-
----
-
-## 🤝 Contributing
-
-This is an internal tool, but suggestions and improvements are always welcome. Feel free to fork the repository, make your changes, and submit a pull request.
-
-## 📄 License
-
-This project is licensed under the MIT License - see the `LICENSE` file for details.
+*Built with 💡 for efficient IT asset management.*

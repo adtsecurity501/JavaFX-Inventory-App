@@ -1,5 +1,6 @@
 package assettracking;
 
+import assettracking.db.DatabaseConnection; // This import is no longer strictly needed but is fine to keep.
 import atlantafx.base.theme.Dracula;
 import assettracking.controller.DashboardController;
 import javafx.application.Application;
@@ -8,16 +9,21 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
-import javafx.stage.StageStyle; // Import StageStyle
+import javafx.stage.StageStyle;
 
 import java.io.IOException;
 import java.util.Map;
 
 public class MainApp extends Application {
 
+    // <<< FIX: The 'seedData' variable is no longer used and has been removed.
+
     @Override
     public void start(Stage primaryStage) throws IOException {
-        // FIX: Remove the default OS window decorations
+
+        // <<< FIX: The calls to initializeDatabaseIfNecessary() and insertSeedData() have been removed.
+        // The DatabaseConnection class now handles this automatically.
+
         primaryStage.initStyle(StageStyle.UNDECORATED);
 
         Application.setUserAgentStylesheet(new Dracula().getUserAgentStylesheet());

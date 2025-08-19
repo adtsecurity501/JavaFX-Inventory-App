@@ -3,7 +3,6 @@ package assettracking.controller;
 import assettracking.db.DatabaseConnection;
 import assettracking.data.DeviceStatusView;
 import assettracking.data.Package;
-import assettracking.data.PeripheralView;
 import javafx.application.Application;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;

@@ -88,22 +88,20 @@ public class DeviceStatusActions {
 
     public void exportToCSV() {
         FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Save Comprehensive CSV Report");
+        fileChooser.setTitle("Save Asset Report");
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV Files", "*.csv"));
         File file = fileChooser.showSaveDialog(getOwnerWindow());
 
         if (file != null) {
-            String header = "Tracking Number,First Name,Last Name,City,State,Zip,Receive Date,Category,Condition,Quantity,Description,IMEI,Serial Number,Status Change Date,Status,Sub Status";
+            // --- CORRECTED HEADER: Removed peripheral-specific columns ---
+            String header = "Tracking Number,First Name,Last Name,City,State,Zip,Receive Date,Category,Description,IMEI,Serial Number,Status Change Date,Status,Sub Status";
+
+            // --- CORRECTED QUERY: Removed the UNION ALL and the Peripherals section ---
             String query = "SELECT p.tracking_number, p.first_name, p.last_name, p.city, p.state, p.zip_code, p.receive_date, " +
-                    "re.category, NULL AS condition, NULL AS quantity, re.description, re.imei, re.serial_number, ds.last_update AS status_change_date, " +
+                    "re.category, re.description, re.imei, re.serial_number, ds.last_update AS status_change_date, " +
                     "ds.status, ds.sub_status " +
                     "FROM Packages p JOIN Receipt_Events re ON p.package_id = re.package_id LEFT JOIN Device_Status ds ON re.receipt_id = ds.receipt_id " +
-                    "UNION ALL " +
-                    "SELECT p.tracking_number, p.first_name, p.last_name, p.city, p.state, p.zip_code, p.receive_date, " +
-                    "pe.category, pe.condition, pe.quantity, pe.description, NULL AS imei, NULL AS serial_number, NULL AS status_change_date, " +
-                    "NULL AS status, NULL AS sub_status " +
-                    "FROM Packages p JOIN Peripherals pe ON p.package_id = pe.package_id " +
-                    "ORDER BY tracking_number, category";
+                    "ORDER BY p.tracking_number, re.category";
 
             try (Connection conn = DatabaseConnection.getInventoryConnection();
                  PreparedStatement stmt = conn.prepareStatement(query);
@@ -121,8 +119,6 @@ public class DeviceStatusActions {
                     row.add(escapeCSV(rs.getString("zip_code")));
                     row.add(escapeCSV(rs.getString("receive_date")));
                     row.add(escapeCSV(rs.getString("category")));
-                    row.add(escapeCSV(rs.getString("condition")));
-                    row.add(escapeCSV(rs.getString("quantity")));
                     row.add(escapeCSV(rs.getString("description")));
                     row.add(escapeCSV(rs.getString("imei")));
                     row.add(escapeCSV(rs.getString("serial_number")));

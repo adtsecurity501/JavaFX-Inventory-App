@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+    <Product Id="*" Name="Asset Tracking App" Language="1033" Version="1.0.0.0" Manufacturer="Your Company Name" UpgradeCode="PUT-A-NEW-GUID-HERE">
+        <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" />
+
+        <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+        <MediaTemplate EmbedCab="yes" />
+
+        <Feature Id="ProductFeature" Title="AssetTracking" Level="1">
+            <ComponentGroupRef Id="ProductComponents" />
+            <ComponentRef Id="ApplicationShortcut" />
+        </Feature>
+    </Product>
+
+    <Fragment>
+        <Directory Id="TARGETDIR" Name="SourceDir">
+            <Directory Id="ProgramFilesFolder">
+                <Directory Id="INSTALLFOLDER" Name="Asset Tracking App" />
+            </Directory>
+            <Directory Id="ProgramMenuFolder">
+                <Directory Id="ApplicationProgramsFolder" Name="Asset Tracking App"/>
+            </Directory>
+        </Directory>
+    </Fragment>
+
+    <Fragment>
+        <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+            <Component Id="ProductComponent">
+                <!-- This points to the JAR file. Assumes the JAR is in the same folder as this WXS file. -->
+                <File Source="target/ATLegMav-1.0-SNAPSHOT.jar" KeyPath="yes"/>
+            </Component>
+        </ComponentGroup>
+        <DirectoryRef Id="ApplicationProgramsFolder">
+            <Component Id="ApplicationShortcut" Guid="*">
+                <Shortcut Id="ApplicationStartMenuShortcut"
+                          Name="Asset Tracking App"
+                          Description="Asset Tracking & Inventory Management"
+                          Target="[#ProductComponent]"
+                          WorkingDirectory="INSTALLFOLDER"/>
+                <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
+                <RegistryValue Root="HKCU" Key="Software\YourCompany\AssetTrackingApp" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
+            </Component>
+        </DirectoryRef>
+    </Fragment>
+</Wix>
