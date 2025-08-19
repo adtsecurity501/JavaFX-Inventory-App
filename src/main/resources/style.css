@@ -1,0 +1,153 @@
+/*
+ * AtlantaFX Theme Colors (Hardcoded for Stability)
+ * This prevents a ClassCastException during rapid TableView updates.
+ */
+
+/* Flagged & WIP Row (Warning/Attention) - uses a dark orange/brown */
+.flagged-row .table-cell,
+.wip-row .table-cell {
+    -fx-background-color: #665133;
+    -fx-text-fill: #f8f8f2; /* Default foreground for readability */
+}
+
+/* Disposal/EOL Row (Danger) - uses a dark red */
+.disposal-row .table-cell {
+    -fx-background-color: #663c33;
+    -fx-text-fill: #f8f8f2;
+}
+
+/* Processed Row (Accent) - uses a dark purple */
+.processed-row .table-cell {
+    -fx-background-color: #3c3366;
+    -fx-text-fill: #f8f8f2;
+}
+
+/* Shipped Row (Success) - uses a dark green */
+.shipped-row .table-cell {
+    -fx-background-color: #376633;
+    -fx-text-fill: #f8f8f2;
+}
+
+/* ========================================================================== */
+/* TABLEVIEW ROW STYLING ---                                        */
+/* ========================================================================== */
+
+/* Enforce a fixed, consistent height for all table rows */
+.table-row-cell,
+.fixed-row-size .table-row-cell { /* FIX: Added new class for package management table */
+    -fx-cell-size: 35px; /* Adjust this value for desired row height */
+}
+
+/*
+ * The AtlantaFX theme uses a subtle background for odd rows.
+ * We need to ensure our custom-colored rows override this for BOTH even and odd rows.
+ */
+.flagged-row:odd .table-cell,
+.wip-row:odd .table-cell {
+    -fx-background-color: #665133;
+}
+
+.disposal-row:odd .table-cell {
+    -fx-background-color: #663c33;
+}
+
+.processed-row:odd .table-cell {
+    -fx-background-color: #3c3366;
+}
+
+.shipped-row:odd .table-cell {
+    -fx-background-color: #376633;
+}
+
+/* ========================================================================== */
+/* WIDER SCROLLBARS FOR BETTER USABILITY ---                  */
+/* ========================================================================== */
+
+/* Increase the width of the scrollbar's background track */
+.scroll-bar:vertical > .track-background {
+    -fx-pref-width: 16; /* Comfortable track width */
+}
+
+/* Increase the size of the scrollbar thumb for vertical scrollbars */
+.scroll-bar:vertical > .thumb {
+    -fx-pref-width: 12; /* Thumb width, slightly less than track for balance */
+}
+
+/* ========================================================================== */
+/* TYPOGRAPHY AND UI STYLES ---                                     */
+/* ========================================================================== */
+
+.main-header {
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -color-fg-default;
+}
+
+.kpi-title {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -color-fg-muted;
+}
+
+.kpi-metric {
+    -fx-font-size: 36px;
+    -fx-font-weight: bold;
+}
+
+/* ========================================================================== */
+/* RADIO BUTTON STYLING ---                                          */
+/* ========================================================================== */
+
+/* Remove the strange background that appears in some containers */
+.radio-button {
+    -fx-background-color: transparent;
+}
+
+/* Standardize the size of the radio button's circle */
+.radio-button .radio {
+    -fx-padding: 4px; /* Adjust this to control the size of the circle */
+}
+
+/* Standardize the size of the dot inside the circle */
+.radio-button .dot {
+    -fx-padding: 5px; /* Adjust this to make the dot larger or smaller */
+}
+
+/* ========================================================================== */
+/* CUSTOM TITLE BAR STYLES ---                                      */
+/* ========================================================================== */
+
+.title-bar {
+    -fx-background-color: #282a36; /* Dark background to match the theme */
+    -fx-pref-height: 30px;
+    -fx-alignment: center-left;
+}
+
+.title-bar-text {
+    -fx-font-size: 14px;
+    -fx-text-fill: -color-fg-default;
+    -fx-font-weight: bold;
+}
+
+.window-button {
+    -fx-background-color: transparent;
+    -fx-background-radius: 0;
+    -fx-padding: 8 15;
+}
+
+.window-button:hover {
+    -fx-background-color: -color-bg-subtle;
+}
+
+.window-close-button:hover {
+    -fx-background-color: -color-danger-emphasis;
+}
+
+.window-icon {
+    -fx-stroke: -color-fg-default;
+    -fx-stroke-width: 1.5;
+}
+
+.window-close-button:hover .window-icon {
+    -fx-stroke: white;
+}

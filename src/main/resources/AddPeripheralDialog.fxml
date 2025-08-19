@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="assettracking.controller.AddPeripheralDialogController" prefWidth="800.0" prefHeight="700.0">
+    <padding>
+        <Insets top="10" right="10" bottom="10" left="10"/>
+    </padding>
+    <center>
+        <ScrollPane fitToWidth="true">
+            <VBox spacing="15">
+                <padding>
+                    <Insets top="10" right="10" bottom="10" left="10"/>
+                </padding>
+                <TitledPane text="Common Items Checklist" collapsible="false">
+                    <GridPane fx:id="checklistGrid" hgap="10" vgap="8">
+                        <columnConstraints>
+                            <ColumnConstraints hgrow="NEVER" minWidth="200.0"/>
+                            <ColumnConstraints hgrow="NEVER"/>
+                            <ColumnConstraints hgrow="NEVER"/>
+                            <ColumnConstraints hgrow="NEVER"/>
+                            <ColumnConstraints hgrow="NEVER"/>
+                            <ColumnConstraints hgrow="ALWAYS"/>
+                        </columnConstraints>
+                    </GridPane>
+                </TitledPane>
+
+                <TitledPane text="Other / Custom Items" collapsible="false">
+                    <BorderPane>
+                        <center>
+                            <TableView fx:id="customTable" editable="true">
+                                <columns>
+                                    <TableColumn fx:id="customCategoryCol" prefWidth="250.0" text="Category/Description"/>
+                                    <TableColumn fx:id="customQtyCol" prefWidth="70.0" text="Qty"/>
+                                    <TableColumn fx:id="customConditionCol" prefWidth="120.0" text="Condition"/>
+                                </columns>
+                            </TableView>
+                        </center>
+                        <bottom>
+                            <HBox alignment="CENTER_RIGHT" spacing="10" BorderPane.alignment="CENTER">
+                                <padding><Insets top="10"/></padding>
+                                <Button onAction="#handleAddRow" text="Add Row"/>
+                                <Button onAction="#handleRemoveRow" text="Remove Selected Row"/>
+                            </HBox>
+                        </bottom>
+                    </BorderPane>
+                </TitledPane>
+            </VBox>
+        </ScrollPane>
+    </center>
+    <bottom>
+        <VBox spacing="10" alignment="CENTER">
+            <padding><Insets top="10"/></padding>
+            <Label fx:id="feedbackLabel" style="-fx-font-weight: bold;"/>
+            <HBox alignment="CENTER_RIGHT" spacing="10">
+                <Button fx:id="saveButton" onAction="#handleSave" text="Save All Peripherals" styleClass="success"/>
+                <Button fx:id="closeButton" onAction="#handleClose" text="Close"/>
+            </HBox>
+        </VBox>
+    </bottom>
+</BorderPane>

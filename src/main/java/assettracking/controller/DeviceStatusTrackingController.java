@@ -1,0 +1,291 @@
+package assettracking.controller;
+
+import assettracking.data.DeviceStatusView;
+import assettracking.db.DatabaseConnection;
+import assettracking.manager.DeviceStatusManager;
+import assettracking.ui.DeviceStatusActions;
+import javafx.beans.binding.Bindings;
+import javafx.collections.ObservableList;
+import javafx.fxml.FXML;
+import javafx.scene.control.*;
+import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.layout.GridPane;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+public class DeviceStatusTrackingController {
+
+    // --- FXML Fields ---
+    @FXML public Pagination pagination;
+    @FXML public TextField serialSearchField;
+    @FXML public TableView<DeviceStatusView> statusTable;
+    @FXML public TableColumn<DeviceStatusView, String> serialNumberCol;
+    @FXML public TableColumn<DeviceStatusView, String> categoryCol;
+    @FXML public TableColumn<DeviceStatusView, String> makeCol;
+    @FXML public TableColumn<DeviceStatusView, String> descriptionCol;
+    @FXML public TableColumn<DeviceStatusView, String> statusCol;
+    @FXML public TableColumn<DeviceStatusView, String> subStatusCol;
+    @FXML public TableColumn<DeviceStatusView, String> lastUpdateCol;
+    @FXML public TableColumn<DeviceStatusView, String> notesCol;
+    @FXML public GridPane updateDetailsPanel;
+    @FXML public TextField serialDisplayField;
+    @FXML public ComboBox<String> statusUpdateCombo;
+    @FXML public ComboBox<String> subStatusUpdateCombo;
+    @FXML public ComboBox<String> statusFilterCombo;
+    @FXML public ComboBox<String> categoryFilterCombo;
+    @FXML public ComboBox<String> groupByCombo;
+    @FXML public DatePicker fromDateFilter;
+    @FXML public DatePicker toDateFilter;
+    @FXML public ComboBox<Integer> rowsPerPageCombo;
+    @FXML public Label flagReasonLabel;
+
+    private DeviceStatusManager deviceStatusManager;
+    private DeviceStatusActions deviceStatusActions;
+    private Map<String, String[]> subStatusOptionsMap;
+
+    @FXML
+    public void initialize() {
+        this.deviceStatusManager = new DeviceStatusManager(this);
+        this.deviceStatusActions = new DeviceStatusActions(this);
+
+        // All UI setup logic is now safely contained within the controller's initialize method.
+        configureAllUI();
+
+        deviceStatusManager.resetPagination();
+    }
+
+    private void configureAllUI() {
+        setupTableColumns();
+        setupStatusMappings();
+        setupTableSelectionListener();
+        configureTableRowFactory();
+        setupFilters();
+    }
+
+    // --- All UI Setup Logic Now Lives Here ---
+
+    private void setupTableColumns() {
+        serialNumberCol.setCellValueFactory(new PropertyValueFactory<>("serialNumber"));
+        categoryCol.setCellValueFactory(new PropertyValueFactory<>("category"));
+        makeCol.setCellValueFactory(new PropertyValueFactory<>("make"));
+        descriptionCol.setCellValueFactory(new PropertyValueFactory<>("description"));
+        statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
+        subStatusCol.setCellValueFactory(new PropertyValueFactory<>("subStatus"));
+        lastUpdateCol.setCellValueFactory(new PropertyValueFactory<>("lastUpdate"));
+        notesCol.setCellValueFactory(new PropertyValueFactory<>("changeNote"));
+
+        statusTable.setItems(deviceStatusManager.getDeviceStatusList());
+        statusTable.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+        statusTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
+        statusTable.setPlaceholder(new Label("No devices found matching the current filters."));
+    }
+
+    private void setupFilters() {
+        statusFilterCombo.getItems().add("All Statuses");
+        statusFilterCombo.getItems().addAll("Disposal/EOL", "Everon", "Phone", "WIP", "Processed", "Flag!");
+        statusFilterCombo.getSelectionModel().selectFirst();
+
+        categoryFilterCombo.getItems().add("All Categories");
+        loadFilterCategories();
+        categoryFilterCombo.getSelectionModel().selectFirst();
+
+        groupByCombo.getItems().addAll("None", "Status", "Category");
+        groupByCombo.getSelectionModel().selectFirst();
+
+        rowsPerPageCombo.getItems().addAll(50, 100, 200, 500);
+        rowsPerPageCombo.setValue(deviceStatusManager.getRowsPerPage());
+        rowsPerPageCombo.valueProperty().addListener((obs, old, val) -> {
+            if (val != null) {
+                deviceStatusManager.setRowsPerPage(val);
+                deviceStatusManager.resetPagination();
+            }
+        });
+
+        statusFilterCombo.valueProperty().addListener((obs, old, val) -> deviceStatusManager.resetPagination());
+        categoryFilterCombo.valueProperty().addListener((obs, old, val) -> deviceStatusManager.resetPagination());
+        groupByCombo.valueProperty().addListener((obs, old, val) -> deviceStatusManager.resetPagination());
+        fromDateFilter.valueProperty().addListener((obs, old, val) -> deviceStatusManager.resetPagination());
+        toDateFilter.valueProperty().addListener((obs, old, val) -> deviceStatusManager.resetPagination());
+    }
+
+    private void loadFilterCategories() {
+        String sql = "SELECT DISTINCT category FROM Receipt_Events WHERE category IS NOT NULL AND category != '' ORDER BY category";
+        try (Connection conn = DatabaseConnection.getInventoryConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+            while (rs.next()) {
+                categoryFilterCombo.getItems().add(rs.getString("category"));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            DeviceStatusActions.showAlert(Alert.AlertType.ERROR, "Database Error", "Failed to load categories for filtering.");
+        }
+    }
+
+    private void setupStatusMappings() {
+        subStatusOptionsMap = Stream.of(new Object[][]{
+                {"Disposal/EOL", new String[]{"Can-Am, Pending Pickup", "Ingram, Pending Pickup", "Can-Am, Picked Up", "Ingram, Pick Up"}},
+                {"Everon", new String[]{"Pending Shipment", "Shipped"}},
+                {"Phone", new String[]{"Pending Shipment", "Shipped"}},
+                {"WIP", new String[]{"In Evaluation", "Troubleshooting", "Awaiting Parts", "Awaiting Dell Tech", "Shipped to Dell", "Refurbishment", "Send to Inventory"}},
+                {"Processed", new String[]{"Kept in Depot(Parts)", "Kept in Depot(Functioning)", "Ready for Deployment"}}
+        }).collect(Collectors.toMap(data -> (String) data[0], data -> (String[]) data[1]));
+
+        statusUpdateCombo.getItems().addAll("Disposal/EOL", "Everon", "Phone", "WIP", "Processed");
+        statusUpdateCombo.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+            subStatusUpdateCombo.getItems().clear();
+            if (newVal != null && subStatusOptionsMap.containsKey(newVal)) {
+                subStatusUpdateCombo.getItems().addAll(subStatusOptionsMap.get(newVal));
+                if (!subStatusUpdateCombo.getItems().isEmpty()) {
+                    subStatusUpdateCombo.getSelectionModel().selectFirst();
+                }
+            }
+        });
+    }
+
+    private void setupTableSelectionListener() {
+        statusTable.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
+            boolean isItemSelected = newSelection != null;
+            updateDetailsPanel.setVisible(isItemSelected);
+            updateDetailsPanel.setManaged(isItemSelected);
+
+            if (isItemSelected) {
+                serialDisplayField.setText(newSelection.getSerialNumber());
+                statusUpdateCombo.setValue(newSelection.getStatus());
+                subStatusUpdateCombo.setValue(newSelection.getSubStatus());
+
+                if (newSelection.isIsFlagged()) {
+                    String reason = findFlagReason(newSelection.getSerialNumber());
+                    flagReasonLabel.setText("Flag Reason: " + reason);
+                    flagReasonLabel.setVisible(true);
+                    flagReasonLabel.setManaged(true);
+                } else {
+                    flagReasonLabel.setVisible(false);
+                    flagReasonLabel.setManaged(false);
+                }
+            } else {
+                flagReasonLabel.setVisible(false);
+                flagReasonLabel.setManaged(false);
+            }
+        });
+    }
+
+    private String findFlagReason(String serialNumber) {
+        String sql = "SELECT flag_reason FROM Flag_Devices WHERE serial_number = ?";
+        try (Connection conn = DatabaseConnection.getInventoryConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, serialNumber);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("flag_reason");
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return "Reason not found.";
+    }
+
+    private void configureTableRowFactory() {
+        ContextMenu contextMenu = new ContextMenu();
+        MenuItem historyMenuItem = new MenuItem("View Full History");
+        historyMenuItem.setOnAction(event -> {
+            DeviceStatusView selectedDevice = statusTable.getSelectionModel().getSelectedItem();
+            if (selectedDevice != null) {
+                deviceStatusActions.openDeviceHistoryWindow(selectedDevice.getSerialNumber());
+            }
+        });
+        contextMenu.getItems().add(historyMenuItem);
+
+        statusTable.setRowFactory(tv -> {
+            TableRow<DeviceStatusView> row = new TableRow<>();
+            row.contextMenuProperty().bind(
+                    Bindings.when(row.emptyProperty().not())
+                            .then(contextMenu)
+                            .otherwise((ContextMenu) null)
+            );
+            row.itemProperty().addListener((obs, previousItem, currentItem) -> {
+                row.getStyleClass().removeAll("flagged-row", "wip-row", "disposal-row", "processed-row", "shipped-row");
+                if (currentItem != null) {
+                    if (currentItem.isIsFlagged()) {
+                        row.getStyleClass().add("flagged-row");
+                    } else {
+                        String status = currentItem.getStatus() != null ? currentItem.getStatus() : "";
+                        switch (status) {
+                            case "WIP": row.getStyleClass().add("wip-row"); break;
+                            case "Disposal/EOL": row.getStyleClass().add("disposal-row"); break;
+                            case "Processed": row.getStyleClass().add("processed-row"); break;
+                            case "Everon": case "Phone": row.getStyleClass().add("shipped-row"); break;
+                        }
+                    }
+                }
+            });
+            return row;
+        });
+    }
+
+    private void clearFilterInputs() {
+        serialSearchField.clear();
+        statusFilterCombo.getSelectionModel().selectFirst();
+        categoryFilterCombo.getSelectionModel().selectFirst();
+        groupByCombo.getSelectionModel().selectFirst();
+        fromDateFilter.setValue(null);
+        toDateFilter.setValue(null);
+    }
+
+    // --- Action Handlers ---
+
+    @FXML
+    private void onRefreshAction() {
+        refreshData();
+    }
+
+    @FXML
+    private void onClearFiltersAction() {
+        clearFilterInputs();
+        deviceStatusManager.resetPagination();
+    }
+
+    @FXML
+    private void onViewHistoryAction() {
+        deviceStatusActions.openDeviceHistoryWindow();
+    }
+
+    @FXML
+    private void onSearchAction() {
+        deviceStatusManager.resetPagination();
+    }
+
+    @FXML
+    private void handleImportFlags() {
+        deviceStatusActions.importFlags();
+    }
+
+    @FXML
+    private void handleExportToCSV() {
+        deviceStatusActions.exportToCSV();
+    }
+
+    @FXML
+    private void onUpdateDeviceAction() {
+        ObservableList<DeviceStatusView> selectedDevices = statusTable.getSelectionModel().getSelectedItems();
+        String newStatus = statusUpdateCombo.getValue();
+        String newSubStatus = subStatusUpdateCombo.getValue();
+        deviceStatusManager.updateDeviceStatus(selectedDevices, newStatus, newSubStatus);
+    }
+
+    @FXML
+    private void onScanUpdateAction() {
+        deviceStatusActions.openScanUpdateWindow();
+    }
+
+    public void refreshData() {
+        deviceStatusManager.resetPagination();
+    }
+}

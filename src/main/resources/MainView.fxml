@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Tab?>
+<?import javafx.scene.control.TabPane?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.shape.SVGPath?>
+
+<BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="assettracking.controller.MainViewController">
+    <top>
+        <HBox fx:id="titleBar" alignment="CENTER_LEFT" styleClass="title-bar" spacing="10">
+            <padding>
+                <Insets left="10"/>
+            </padding>
+            <Label text="Asset Tracking &amp; Inventory Management" styleClass="title-bar-text"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <HBox alignment="CENTER_RIGHT">
+                <!-- FIX: Replaced text with SVG graphics for uniform icons -->
+                <Button fx:id="minimizeButton" onAction="#handleMinimize" styleClass="window-button">
+                    <graphic>
+                        <SVGPath content="M 0 5 H 10" styleClass="window-icon"/>
+                    </graphic>
+                </Button>
+                <Button fx:id="maximizeButton" onAction="#handleMaximize" styleClass="window-button">
+                    <graphic>
+                        <SVGPath content="M 0 1 H 9 V 10 H 0 Z" styleClass="window-icon"/>
+                    </graphic>
+                </Button>
+                <Button fx:id="closeButton" onAction="#handleClose" styleClass="window-button, window-close-button">
+                    <graphic>
+                        <SVGPath content="M 0 0 L 10 10 M 10 0 L 0 10" styleClass="window-icon"/>
+                    </graphic>
+                </Button>
+            </HBox>
+        </HBox>
+    </top>
+    <center>
+        <VBox spacing="10">
+            <padding>
+                <Insets top="10" right="10" bottom="10" left="10"/>
+            </padding>
+            <children>
+                <TabPane tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS">
+                    <tabs>
+                        <Tab text="Dashboard">
+                            <fx:include fx:id="dashboard" source="Dashboard.fxml"/>
+                        </Tab>
+                        <Tab text="Package Intake">
+                            <fx:include source="PackageIntake.fxml"/>
+                        </Tab>
+                        <Tab text="Package Management">
+                            <fx:include source="PackageManagement.fxml"/>
+                        </Tab>
+                        <Tab text="Device Status Tracking">
+                            <fx:include source="DeviceStatusTracking.fxml"/>
+                        </Tab>
+                    </tabs>
+                </TabPane>
+            </children>
+        </VBox>
+    </center>
+</BorderPane>

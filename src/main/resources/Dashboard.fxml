@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.chart.BarChart?>
+<?import javafx.scene.chart.CategoryAxis?>
+<?import javafx.scene.chart.NumberAxis?>
+<?import javafx.scene.chart.PieChart?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="assettracking.controller.DashboardController" spacing="15" style="-fx-padding: 15;">
+
+    <!-- Filter and Settings Bar -->
+    <HBox alignment="CENTER_LEFT" spacing="15" style="-fx-padding: 10; -fx-background-color: -color-bg-subtle; -fx-background-radius: 4;">
+        <Label text="Time Range:"/>
+        <RadioButton fx:id="todayRadio" text="Today">
+            <toggleGroup><ToggleGroup fx:id="dateRangeToggleGroup"/></toggleGroup>
+        </RadioButton>
+        <RadioButton fx:id="days7Radio" text="Last 7 Days" selected="true" toggleGroup="$dateRangeToggleGroup"/>
+        <RadioButton fx:id="days30Radio" text="Last 30 Days" toggleGroup="$dateRangeToggleGroup"/>
+        <Region HBox.hgrow="ALWAYS" />
+        <Button text="Refresh" onAction="#refreshAllCharts" styleClass="success"/>
+        <Button fx:id="importFlagsButton" text="Import Flags..." onAction="#handleImportFlags"/>
+    </HBox>
+
+    <GridPane fx:id="mainGridPane" hgap="20" vgap="20" VBox.vgrow="ALWAYS">
+        <columnConstraints>
+            <ColumnConstraints fx:id="leftColumn" percentWidth="60"/>
+            <ColumnConstraints fx:id="rightColumn" percentWidth="40"/>
+        </columnConstraints>
+
+        <!-- Left Side: Dynamic Metrics -->
+        <ScrollPane fitToWidth="true" GridPane.columnIndex="0" VBox.vgrow="ALWAYS" style="-fx-background-color: transparent;">
+            <VBox spacing="15">
+                <VBox spacing="5" style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 4;">
+                    <Label fx:id="timeRangeTitleLabel" styleClass="h4"/>
+                    <Separator/>
+                    <GridPane hgap="15" vgap="10">
+                        <columnConstraints>
+                            <ColumnConstraints hgrow="ALWAYS"/>
+                            <ColumnConstraints hgrow="NEVER" minWidth="80"/>
+                            <ColumnConstraints hgrow="NEVER" minWidth="80"/>
+                        </columnConstraints>
+                        <Label text="Device Type" styleClass="kpi-title" GridPane.columnIndex="0"/>
+                        <Label text="Intaken" styleClass="kpi-title" GridPane.columnIndex="1"/>
+                        <Label text="Processed" styleClass="kpi-title" GridPane.columnIndex="2"/>
+                        <Label text="Dell Laptops" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+                        <Label fx:id="dellLaptopsIntakenLabel" styleClass="kpi-metric, text-accent" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+                        <Label fx:id="dellLaptopsProcessedLabel" styleClass="kpi-metric, text-success" GridPane.rowIndex="1" GridPane.columnIndex="2"/>
+                        <Label text="Getac Laptops" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+                        <Label fx:id="getacLaptopsIntakenLabel" styleClass="kpi-metric, text-accent" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+                        <Label fx:id="getacLaptopsProcessedLabel" styleClass="kpi-metric, text-success" GridPane.rowIndex="2" GridPane.columnIndex="2"/>
+                        <Label text="Tablets" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
+                        <Label fx:id="tabletsIntakenLabel" styleClass="kpi-metric, text-accent" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
+                        <Label fx:id="tabletsProcessedLabel" styleClass="kpi-metric, text-success" GridPane.rowIndex="3" GridPane.columnIndex="2"/>
+                        <Label text="Desktops" GridPane.rowIndex="4" GridPane.columnIndex="0"/>
+                        <Label fx:id="desktopsIntakenLabel" styleClass="kpi-metric, text-accent" GridPane.rowIndex="4" GridPane.columnIndex="1"/>
+                        <Label fx:id="desktopsProcessedLabel" styleClass="kpi-metric, text-success" GridPane.rowIndex="4" GridPane.columnIndex="2"/>
+                        <Label text="Monitors" GridPane.rowIndex="5" GridPane.columnIndex="0"/>
+                        <Label fx:id="monitorsIntakenLabel" styleClass="kpi-metric, text-accent" GridPane.rowIndex="5" GridPane.columnIndex="1"/>
+                        <Label fx:id="monitorsProcessedLabel" styleClass="kpi-metric, text-success" GridPane.rowIndex="5" GridPane.columnIndex="2"/>
+                        <Separator GridPane.rowIndex="6" GridPane.columnSpan="3"/>
+                        <Label text="Total Processed:" styleClass="kpi-title" GridPane.rowIndex="7" GridPane.columnIndex="1"/>
+                        <Label fx:id="totalProcessedLabel" styleClass="kpi-metric, text-success" GridPane.rowIndex="7" GridPane.columnIndex="2"/>
+                    </GridPane>
+                </VBox>
+                <VBox spacing="5" VBox.vgrow="ALWAYS" style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 4;">
+                    <Label fx:id="breakdownTitleLabel" styleClass="h4"/>
+                    <PieChart fx:id="deploymentBreakdownChart" animated="true" VBox.vgrow="ALWAYS"/>
+                </VBox>
+                <VBox spacing="5" VBox.vgrow="ALWAYS" style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 4;">
+                    <Label text="Intake Volume by Day" styleClass="h4"/>
+                    <BarChart fx:id="weeklyIntakeChart" animated="true" VBox.vgrow="ALWAYS">
+                        <xAxis><CategoryAxis label="Date"/></xAxis>
+                        <yAxis><NumberAxis side="LEFT" label="Count"/></yAxis>
+                    </BarChart>
+                </VBox>
+            </VBox>
+        </ScrollPane>
+
+        <!-- Right Side: Overall Health -->
+        <ScrollPane fx:id="rightScrollPane" fitToWidth="true" GridPane.columnIndex="1" VBox.vgrow="ALWAYS" style="-fx-background-color: transparent;">
+            <VBox spacing="15">
+                <VBox spacing="5" style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 4;">
+                    <Label text="Overall Health" styleClass="h4"/>
+                    <Separator/>
+                    <GridPane hgap="15" vgap="15">
+                        <columnConstraints>
+                            <ColumnConstraints percentWidth="50"/><ColumnConstraints percentWidth="50"/>
+                        </columnConstraints>
+                        <VBox alignment="CENTER" spacing="5" GridPane.columnIndex="0">
+                            <Label text="WIP Backlog" styleClass="kpi-title"/>
+                            <Label fx:id="wipBacklogLabel" styleClass="kpi-metric, text-warning"/>
+                        </VBox>
+                        <VBox alignment="CENTER" spacing="5" GridPane.columnIndex="1">
+                            <Label text="Avg. Turnaround (30d)" styleClass="kpi-title"/>
+                            <Label fx:id="avgTurnaroundLabel" styleClass="kpi-metric, text-info" />
+                        </VBox>
+                    </GridPane>
+                </VBox>
+                <VBox spacing="5" style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 4;">
+                    <Label text="Daily Pacing (Refurbished Only)" styleClass="h4"/>
+                    <Separator/>
+                    <GridPane hgap="15" vgap="15">
+                        <columnConstraints>
+                            <ColumnConstraints percentWidth="50"/>
+                            <ColumnConstraints percentWidth="50"/>
+                        </columnConstraints>
+                        <VBox alignment="CENTER" spacing="5" GridPane.columnIndex="0">
+                            <Label text="Boxes Assembled Today" styleClass="kpi-title"/>
+                            <Label fx:id="boxesAssembledLabel" styleClass="kpi-metric, text-info"/>
+                        </VBox>
+                        <VBox alignment="CENTER" spacing="5" GridPane.columnIndex="1">
+                            <Label text="Labels Created Today" styleClass="kpi-title"/>
+                            <Label fx:id="labelsCreatedLabel" styleClass="kpi-metric, text-info"/>
+                        </VBox>
+                        <VBox alignment="CENTER" spacing="5" GridPane.columnIndex="0" GridPane.rowIndex="1">
+                            <Label text="Device Goal Pacing" styleClass="kpi-title"/>
+                            <Label fx:id="deviceGoalPacingLabel" styleClass="kpi-metric, text-success"/>
+                        </VBox>
+                        <VBox alignment="CENTER" spacing="5" GridPane.columnIndex="1" GridPane.rowIndex="1">
+                            <Label text="Monitor Goal Pacing" styleClass="kpi-title"/>
+                            <Label fx:id="monitorGoalPacingLabel" styleClass="kpi-metric, text-success"/>
+                        </VBox>
+                    </GridPane>
+                </VBox>
+                <VBox spacing="5" style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 4;">
+                    <Label text="Set Weekly Goals" styleClass="h4"/>
+                    <Separator/>
+                    <!-- FIX: Removed the progress bars and their labels from this section -->
+                    <GridPane hgap="10" vgap="5" alignment="CENTER_LEFT">
+                        <columnConstraints>
+                            <ColumnConstraints hgrow="NEVER" minWidth="80"/>
+                            <ColumnConstraints hgrow="ALWAYS"/>
+                        </columnConstraints>
+                        <Label text="Device Goal:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+                        <TextField fx:id="deviceGoalField" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+                        <Label text="Monitor Goal:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+                        <TextField fx:id="monitorGoalField" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+                        <Button text="Apply Goals" onAction="#handleApplyGoals" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+                    </GridPane>
+                </VBox>
+                <VBox spacing="5" VBox.vgrow="ALWAYS" style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 4;">
+                    <Label text="Current Inventory Overview" styleClass="h4"/>
+                    <PieChart fx:id="inventoryPieChart" animated="true" VBox.vgrow="ALWAYS"/>
+                </VBox>
+            </VBox>
+        </ScrollPane>
+    </GridPane>
+</VBox>

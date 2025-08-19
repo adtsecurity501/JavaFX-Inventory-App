@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.text.Font?>
+
+<BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="assettracking.controller.DeviceHistoryController" prefHeight="400.0" prefWidth="800.0">
+    <top>
+        <Label fx:id="headerLabel" style="-fx-font-weight: bold; -fx-font-size: 16px;" BorderPane.alignment="CENTER">
+            <font>
+                <Font name="System Bold" size="16.0" />
+            </font>
+            <padding>
+                <Insets bottom="10" left="10" right="10" top="10" />
+            </padding>
+        </Label>
+    </top>
+    <center>
+        <TableView fx:id="historyTable" BorderPane.alignment="CENTER">
+            <columns>
+                <TableColumn fx:id="receiptIdCol" prefWidth="75.0" text="Receipt ID" />
+                <TableColumn fx:id="statusCol" prefWidth="125.0" text="Status" />
+                <TableColumn fx:id="subStatusCol" prefWidth="175.0" text="Sub Status" />
+                <TableColumn fx:id="lastUpdateCol" prefWidth="175.0" text="Date of Event" />
+                <TableColumn fx:id="notesCol" prefWidth="225.0" text="Notes" />
+            </columns>
+        </TableView>
+    </center>
+</BorderPane>
