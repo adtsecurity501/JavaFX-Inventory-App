@@ -45,24 +45,21 @@
                         <Label text="Device Type" styleClass="kpi-title" GridPane.columnIndex="0"/>
                         <Label text="Intaken" styleClass="kpi-title" GridPane.columnIndex="1"/>
                         <Label text="Processed" styleClass="kpi-title" GridPane.columnIndex="2"/>
-                        <Label text="Dell Laptops" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
-                        <Label fx:id="dellLaptopsIntakenLabel" styleClass="kpi-metric, text-accent" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
-                        <Label fx:id="dellLaptopsProcessedLabel" styleClass="kpi-metric, text-success" GridPane.rowIndex="1" GridPane.columnIndex="2"/>
-                        <Label text="Getac Laptops" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
-                        <Label fx:id="getacLaptopsIntakenLabel" styleClass="kpi-metric, text-accent" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
-                        <Label fx:id="getacLaptopsProcessedLabel" styleClass="kpi-metric, text-success" GridPane.rowIndex="2" GridPane.columnIndex="2"/>
-                        <Label text="Tablets" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
-                        <Label fx:id="tabletsIntakenLabel" styleClass="kpi-metric, text-accent" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
-                        <Label fx:id="tabletsProcessedLabel" styleClass="kpi-metric, text-success" GridPane.rowIndex="3" GridPane.columnIndex="2"/>
-                        <Label text="Desktops" GridPane.rowIndex="4" GridPane.columnIndex="0"/>
-                        <Label fx:id="desktopsIntakenLabel" styleClass="kpi-metric, text-accent" GridPane.rowIndex="4" GridPane.columnIndex="1"/>
-                        <Label fx:id="desktopsProcessedLabel" styleClass="kpi-metric, text-success" GridPane.rowIndex="4" GridPane.columnIndex="2"/>
-                        <Label text="Monitors" GridPane.rowIndex="5" GridPane.columnIndex="0"/>
-                        <Label fx:id="monitorsIntakenLabel" styleClass="kpi-metric, text-accent" GridPane.rowIndex="5" GridPane.columnIndex="1"/>
-                        <Label fx:id="monitorsProcessedLabel" styleClass="kpi-metric, text-success" GridPane.rowIndex="5" GridPane.columnIndex="2"/>
-                        <Separator GridPane.rowIndex="6" GridPane.columnSpan="3"/>
-                        <Label text="Total Processed:" styleClass="kpi-title" GridPane.rowIndex="7" GridPane.columnIndex="1"/>
-                        <Label fx:id="totalProcessedLabel" styleClass="kpi-metric, text-success" GridPane.rowIndex="7" GridPane.columnIndex="2"/>
+                        <Label text="Laptops" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+                        <Label fx:id="laptopsIntakenLabel" styleClass="kpi-metric, text-accent" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+                        <Label fx:id="laptopsProcessedLabel" styleClass="kpi-metric, text-success" GridPane.rowIndex="1" GridPane.columnIndex="2"/>
+                        <Label text="Tablets" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+                        <Label fx:id="tabletsIntakenLabel" styleClass="kpi-metric, text-accent" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+                        <Label fx:id="tabletsProcessedLabel" styleClass="kpi-metric, text-success" GridPane.rowIndex="2" GridPane.columnIndex="2"/>
+                        <Label text="Desktops" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
+                        <Label fx:id="desktopsIntakenLabel" styleClass="kpi-metric, text-accent" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
+                        <Label fx:id="desktopsProcessedLabel" styleClass="kpi-metric, text-success" GridPane.rowIndex="3" GridPane.columnIndex="2"/>
+                        <Label text="Monitors" GridPane.rowIndex="4" GridPane.columnIndex="0"/>
+                        <Label fx:id="monitorsIntakenLabel" styleClass="kpi-metric, text-accent" GridPane.rowIndex="4" GridPane.columnIndex="1"/>
+                        <Label fx:id="monitorsProcessedLabel" styleClass="kpi-metric, text-success" GridPane.rowIndex="4" GridPane.columnIndex="2"/>
+                        <Separator GridPane.rowIndex="5" GridPane.columnSpan="3"/>
+                        <Label text="Total Processed:" styleClass="kpi-title" GridPane.rowIndex="6" GridPane.columnIndex="1"/>
+                        <Label fx:id="totalProcessedLabel" styleClass="kpi-metric, text-success" GridPane.rowIndex="6" GridPane.columnIndex="2"/>
                     </GridPane>
                 </VBox>
                 <VBox spacing="5" VBox.vgrow="ALWAYS" style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 4;">

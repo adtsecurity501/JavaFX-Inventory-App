@@ -10,6 +10,7 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.VBox;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -33,7 +34,7 @@ public class DeviceStatusTrackingController {
     @FXML public TableColumn<DeviceStatusView, String> subStatusCol;
     @FXML public TableColumn<DeviceStatusView, String> lastUpdateCol;
     @FXML public TableColumn<DeviceStatusView, String> notesCol;
-    @FXML public GridPane updateDetailsPanel;
+    @FXML public VBox updateDetailsPanel;
     @FXML public TextField serialDisplayField;
     @FXML public ComboBox<String> statusUpdateCombo;
     @FXML public ComboBox<String> subStatusUpdateCombo;

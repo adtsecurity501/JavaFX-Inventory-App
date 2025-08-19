@@ -139,7 +139,7 @@
                 </configuration>
             </plugin>
 
-            <!-- CORRECTED: Single JavaFX Maven Plugin Declaration -->
+            <!-- JavaFX Maven Plugin -->
             <plugin>
                 <groupId>org.openjfx</groupId>
                 <artifactId>javafx-maven-plugin</artifactId>

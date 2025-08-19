@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.Text?>
+
+<BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="assettracking.controller.LabelPrintingController">
+    <top>
+        <VBox>
+            <HBox alignment="CENTER_LEFT" spacing="10.0" style="-fx-padding: 10;">
+                <Label text="SKU/Item Printer:" />
+                <ComboBox fx:id="printerNameField" prefWidth="250.0" promptText="Select a printer..." />
+                <Label text="Asset Tag Printer:" />
+                <ComboBox fx:id="assetPrinterNameField" prefWidth="250.0" promptText="Select a printer..." />
+            </HBox>
+            <HBox alignment="CENTER" styleClass="tool-bar">
+                <VBox.margin><Insets left="10" right="10" /></VBox.margin>
+                <TilePane hgap="5" vgap="5" alignment="CENTER" prefColumns="7">
+                    <ToggleButton fx:id="menuDeployDevice" styleClass="tool-selector-button" text="Bulk Deploy"><toggleGroup><ToggleGroup fx:id="menuGroup" /></toggleGroup></ToggleButton>
+                    <ToggleButton fx:id="menuPrintSingle" styleClass="tool-selector-button" text="Single SKU" toggleGroup="$menuGroup"/>
+                    <ToggleButton fx:id="menuPrintMultiple" styleClass="tool-selector-button" text="Multi-SKU" toggleGroup="$menuGroup"/>
+                    <ToggleButton fx:id="menuPrintSerial" styleClass="tool-selector-button" text="Serial Label" toggleGroup="$menuGroup"/>
+                    <ToggleButton fx:id="menuPrintAssetTag" styleClass="tool-selector-button" text="Asset Tag" toggleGroup="$menuGroup"/>
+                    <ToggleButton fx:id="menuPrintBarcode" styleClass="tool-selector-button" text="Generic Barcode" toggleGroup="$menuGroup"/>
+                    <ToggleButton fx:id="menuImageLabels" styleClass="tool-selector-button" text="Image Labels" toggleGroup="$menuGroup"/>
+                </TilePane>
+            </HBox>
+        </VBox>
+    </top>
+    <center>
+        <StackPane fx:id="mainStackPane">
+            <padding><Insets top="10.0" right="10.0" bottom="10.0" left="10.0" /></padding>
+            <Pane fx:id="welcomePane" />
+
+            <!-- 1. Bulk Deploy Pane (with Search) -->
+            <ScrollPane fx:id="deployDevicePane" fitToWidth="true" styleClass="content-pane" visible="false">
+                <VBox spacing="15.0" style="-fx-padding: 20;">
+                    <Label styleClass="h4" text="Bulk Deploy (SKU + Serial)" />
+                    <Separator/>
+                    <Label text="Step 1: Find and Select SKU" />
+                    <TextField fx:id="deploySkuSearchField" promptText="Search for SKU or Description..." />
+                    <ListView fx:id="deploySkuListView" prefHeight="120.0" />
+                    <TextField fx:id="deploySkuField" editable="false" promptText="Selected SKU will appear here" />
+                    <TextField fx:id="deployDescriptionField" editable="false" promptText="Selected Description will appear here" />
+                    <Label text="Step 2: Scan Serial Numbers" />
+                    <TextField fx:id="deploySerialField" onAction="#handleDeploySerialScan" promptText="Scan serial number here..." />
+                </VBox>
+            </ScrollPane>
+
+            <!-- 2. Print Single SKU Pane (with Search) -->
+            <ScrollPane fx:id="printSinglePane" fitToWidth="true" styleClass="content-pane" visible="false">
+                <VBox spacing="15.0" style="-fx-padding: 20;">
+                    <Label styleClass="h4" text="Print Single SKU Label" />
+                    <Separator/>
+                    <Label text="Step 1: Find and Select SKU" />
+                    <TextField fx:id="singleSkuSearchField" promptText="Search for SKU or Description..." />
+                    <ListView fx:id="singleSkuListView" prefHeight="120.0" />
+                    <Label text="Step 2: Print" />
+                    <Button onAction="#handlePrintSingle" styleClass="accent" text="Print 1 Label for Selected SKU" >
+                        <graphic><TextField fx:id="singleSkuField" visible="false" managed="false"/></graphic>
+                    </Button>
+                </VBox>
+            </ScrollPane>
+
+            <!-- 3. Print Multiple SKU Pane (with Search) -->
+            <ScrollPane fx:id="printMultiplePane" fitToWidth="true" styleClass="content-pane" visible="false">
+                <VBox spacing="15.0" style="-fx-padding: 20;">
+                    <Label styleClass="h4" text="Print Multiple SKU Labels" />
+                    <Separator/>
+                    <Label text="Step 1: Find and Select SKU" />
+                    <TextField fx:id="multiSkuSearchField" promptText="Search for SKU or Description..." />
+                    <ListView fx:id="multiSkuListView" prefHeight="120.0" />
+                    <TextField fx:id="multiSkuField" editable="false" promptText="Selected SKU will appear here" />
+                    <Label text="Step 2: Enter Copies and Print" />
+                    <TextField fx:id="multiCopiesField" text="1" maxWidth="100"/>
+                    <Button onAction="#handlePrintMultiple" styleClass="accent" text="Print Labels" />
+                </VBox>
+            </ScrollPane>
+
+            <!-- 4. Print Serial Labels Pane (with Search) -->
+            <ScrollPane fx:id="printSerialPane" fitToWidth="true" styleClass="content-pane" visible="false">
+                <VBox spacing="15.0" style="-fx-padding: 20;">
+                    <Label styleClass="h4" text="Print Serial Labels" />
+                    <Separator/>
+                    <Label text="Step 1: Find and Select SKU" />
+                    <TextField fx:id="serialSkuSearchField" promptText="Search for SKU or Description..." />
+                    <ListView fx:id="serialSkuListView" prefHeight="120.0" />
+                    <TextField fx:id="serialSkuField" editable="false" promptText="Selected SKU will appear here" />
+                    <Label text="Step 2: Scan Serial Number" />
+                    <TextField fx:id="serialSerialField" onAction="#handlePrintSerial" promptText="Scan serial and press Enter to print..." />
+                </VBox>
+            </ScrollPane>
+
+            <!-- Other panes remain unchanged -->
+            <ScrollPane fx:id="printAssetTagPane" fitToWidth="true" styleClass="content-pane" visible="false">
+                <VBox spacing="15.0" style="-fx-padding: 20;"><Label styleClass="h4" text="Print Asset Tag" /><Separator/><HBox spacing="20.0"><RadioButton fx:id="assetTagStandardRadio" selected="true" text="Standard"><toggleGroup><ToggleGroup fx:id="assetTagTypeGroup" /></toggleGroup></RadioButton></HBox><VBox fx:id="assetStandardPane" spacing="10.0"><TextField fx:id="assetSerialField" promptText="Serial Number"/><CheckBox fx:id="assetImeiCheckbox" text="Include IMEI" /><TextField fx:id="assetImeiField" disable="true" promptText="IMEI (Optional)"/></VBox><Button onAction="#handlePrintAssetTag" styleClass="accent" text="Print Asset Tag" /></VBox>
+            </ScrollPane>
+            <ScrollPane fx:id="printBarcodePane" fitToWidth="true" styleClass="content-pane" visible="false">
+                <VBox spacing="15.0" style="-fx-padding: 20;"><Label styleClass="h4" text="Print Generic Barcode" /><Separator/><TextField fx:id="genericBarcodeField" onAction="#handlePrintGenericBarcode" promptText="Scan barcode and press Enter" /><Button onAction="#handlePrintGenericBarcode" styleClass="accent" text="Print Barcode" /></VBox>
+            </ScrollPane>
+            <ScrollPane fx:id="imageLabelsPane" fitToWidth="true" styleClass="content-pane" visible="false">
+                <VBox spacing="15.0" style="-fx-padding: 20;"><Label styleClass="h4" text="Bulk Image Labels" /><Separator/><TextField fx:id="imageSkuField" promptText="Image SKU"/><TextField fx:id="imageDeviceSkuField" promptText="Device SKU"/><TextField fx:id="imagePrefixField" promptText="Custom Prefix (Optional)"/><TextField fx:id="imageCopiesField" text="1" maxWidth="100"/><Button onAction="#handlePrintImageLabels" styleClass="accent" text="Print Image Labels" /></VBox>
+            </ScrollPane>
+
+        </StackPane>
+    </center>
+    <bottom>
+        <HBox alignment="CENTER_LEFT" styleClass="status-bar">
+            <padding><Insets top="5.0" right="10.0" bottom="5.0" left="10.0" /></padding>
+            <Label fx:id="statusLabel" text="Status: Ready" />
+        </HBox>
+    </bottom>
+</BorderPane>

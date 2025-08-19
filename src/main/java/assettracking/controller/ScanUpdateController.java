@@ -1,6 +1,10 @@
 package assettracking.controller;
 
+import assettracking.dao.AssetDAO;
+import assettracking.dao.SkuDAO;
+import assettracking.data.AssetInfo;
 import assettracking.db.DatabaseConnection;
+import assettracking.label.service.ZplPrinterService;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -10,12 +14,17 @@ import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.paint.Color;
 
+import javax.print.PrintService;
+import javax.print.PrintServiceLookup;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -36,10 +45,17 @@ public class ScanUpdateController {
     @FXML private TableColumn<ScanResult, String> failedReasonCol;
     @FXML private TableColumn<ScanResult, String> failedTimestampCol;
 
+    // --- Services and State ---
     private DeviceStatusTrackingController parentController;
-    private ObservableList<ScanResult> successList = FXCollections.observableArrayList();
-    private ObservableList<ScanResult> failedList = FXCollections.observableArrayList();
+    private final ObservableList<ScanResult> successList = FXCollections.observableArrayList();
+    private final ObservableList<ScanResult> failedList = FXCollections.observableArrayList();
     private Map<String, String[]> subStatusOptionsMap;
+
+    // --- DAO and Services for Integrated Printing ---
+    private final SkuDAO skuDAO = new SkuDAO();
+    private final AssetDAO assetDAO = new AssetDAO();
+    private final ZplPrinterService printerService = new ZplPrinterService();
+
 
     public void setParentController(DeviceStatusTrackingController parentController) {
         this.parentController = parentController;
@@ -123,6 +139,16 @@ public class ScanUpdateController {
                 feedbackLabel.setTextFill(Color.GREEN);
                 successList.add(0, new ScanResult(serial, newStatus + " / " + newSubStatus, timestamp));
                 if (parentController != null) parentController.refreshData();
+
+                // --- MODIFIED WORKFLOW INTEGRATION ---
+                if ("Processed".equals(newStatus) && "Ready for Deployment".equals(newSubStatus)) {
+                    Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION, "Device is Ready for Deployment. Print SKU and Serial labels?", ButtonType.YES, ButtonType.NO);
+                    confirmation.showAndWait().ifPresent(response -> {
+                        if (response == ButtonType.YES) {
+                            printDeploymentLabels(serial);
+                        }
+                    });
+                }
             } else {
                 feedbackLabel.setText("✖ " + result);
                 feedbackLabel.setTextFill(Color.RED);
@@ -146,8 +172,57 @@ public class ScanUpdateController {
         new Thread(updateTask).start();
     }
 
+    private void printDeploymentLabels(String serialNumber) {
+        String sku = assetDAO.findAssetBySerialNumber(serialNumber)
+                .map(AssetInfo::getModelNumber) // Assuming model_number is your SKU
+                .orElse(null);
+
+        if (sku == null) {
+            showAlert("Data Not Found", "Could not find an associated SKU for serial: " + serialNumber);
+            return;
+        }
+
+        String description = skuDAO.findSkuByNumber(sku)
+                .map(s -> s.getDescription())
+                .orElse("Description not found");
+
+        String adtZpl = ZplPrinterService.getAdtLabelZpl(sku, description);
+        String serialZpl = ZplPrinterService.getSerialLabelZpl(sku, serialNumber);
+
+        // Intelligently find the SKU/label printer (e.g., a Zebra GX series)
+        Optional<String> printerName = findPrinter("GX");
+        if (printerName.isEmpty()) {
+            showAlert("Printer Not Found", "Could not find a default SKU printer (containing 'GX'). Please configure printers.");
+            return;
+        }
+
+        boolean s1 = printerService.sendZplToPrinter(printerName.get(), adtZpl);
+        boolean s2 = printerService.sendZplToPrinter(printerName.get(), serialZpl);
+
+        if (s1 && s2) {
+            feedbackLabel.setText("✔ Deployment labels for " + serialNumber + " sent to " + printerName.get());
+        } else {
+            feedbackLabel.setText("✖ Failed to print one or both labels for " + serialNumber + ".");
+        }
+    }
+
+    private Optional<String> findPrinter(String nameHint) {
+        return Arrays.stream(PrintServiceLookup.lookupPrintServices(null, null))
+                .map(PrintService::getName)
+                .filter(name -> name.toLowerCase().contains(nameHint.toLowerCase()))
+                .findFirst();
+    }
+
+    private void showAlert(String title, String content) {
+        Alert alert = new Alert(Alert.AlertType.WARNING);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(content);
+        alert.showAndWait();
+    }
+
     private void setupStatusMappings() {
-        // Duplicated from main controller, could be moved to a shared utility class
+        // This could be moved to a shared utility class in the future
         subStatusOptionsMap = Stream.of(new Object[][]{
                 {"Disposal/EOL", new String[]{"Can-Am, Pending Pickup", "Ingram, Pending Pickup", "Can-Am, Picked Up", "Ingram, Pick Up"}},
                 {"Everon", new String[]{"Pending Shipment", "Shipped"}},

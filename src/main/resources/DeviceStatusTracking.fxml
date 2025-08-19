@@ -14,7 +14,10 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.layout.FlowPane?>
+<?import javafx.scene.layout.Region?>
 
+
+<?import javafx.scene.layout.RowConstraints?>
 <VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="assettracking.controller.DeviceStatusTrackingController"
       spacing="10" fillWidth="true">
@@ -52,25 +55,31 @@
             <Button onAction="#onViewHistoryAction" text="View History" />
             <Button onAction="#handleExportToCSV" text="Export to CSV..." />
         </HBox>
-
-        <!-- Update Details Panel... -->
-        <GridPane fx:id="updateDetailsPanel" hgap="10" vgap="8" style="-fx-padding: 10; -fx-background-color: -color-bg-subtle; -fx-background-radius: 4;" managed="false" visible="false">
-            <columnConstraints>
-                <ColumnConstraints hgrow="NEVER"/>
-                <ColumnConstraints hgrow="ALWAYS"/>
-                <ColumnConstraints hgrow="NEVER"/>
-                <ColumnConstraints hgrow="ALWAYS"/>
-                <ColumnConstraints hgrow="NEVER"/>
-            </columnConstraints>
-            <Label text="Selected Serial:" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
-            <TextField fx:id="serialDisplayField" editable="false" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
-            <Label text="New Status:" GridPane.columnIndex="2" GridPane.rowIndex="0"/>
-            <ComboBox fx:id="statusUpdateCombo" prefWidth="200.0" GridPane.columnIndex="3" GridPane.rowIndex="0"/>
-            <Label text="New Sub-Status:" GridPane.columnIndex="2" GridPane.rowIndex="1"/>
-            <ComboBox fx:id="subStatusUpdateCombo" prefWidth="200.0" GridPane.columnIndex="3" GridPane.rowIndex="1"/>
-            <Button onAction="#onUpdateDeviceAction" text="Update Selected" styleClass="success" GridPane.columnIndex="4" GridPane.rowIndex="0" GridPane.rowSpan="2"/>
-            <Label fx:id="flagReasonLabel" styleClass="error-label" wrapText="true" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
-        </GridPane>
+    </VBox>
+    <!-- DEFINITIVE FIX: Using the correct, explicit syntax for a static constant -->
+    <VBox fx:id="updateDetailsPanel" spacing="8" style="-fx-padding: 10; -fx-background-color: -color-bg-subtle; -fx-background-radius: 4;" managed="false" visible="false">
+        <minHeight>
+            <Region fx:constant="USE_PREF_SIZE" />
+        </minHeight>
+        <children>
+            <GridPane hgap="10" vgap="8">
+                <columnConstraints>
+                    <ColumnConstraints hgrow="NEVER"/>
+                    <ColumnConstraints hgrow="ALWAYS"/>
+                    <ColumnConstraints hgrow="NEVER"/>
+                    <ColumnConstraints hgrow="ALWAYS"/>
+                    <ColumnConstraints hgrow="NEVER"/>
+                </columnConstraints>
+                <Label text="Selected Serial:" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                <TextField fx:id="serialDisplayField" editable="false" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                <Label text="New Status:" GridPane.columnIndex="2" GridPane.rowIndex="0"/>
+                <ComboBox fx:id="statusUpdateCombo" prefWidth="200.0" GridPane.columnIndex="3" GridPane.rowIndex="0"/>
+                <Label text="New Sub-Status:" GridPane.columnIndex="2" GridPane.rowIndex="1"/>
+                <ComboBox fx:id="subStatusUpdateCombo" prefWidth="200.0" GridPane.columnIndex="3" GridPane.rowIndex="1"/>
+                <Button onAction="#onUpdateDeviceAction" text="Update Selected" styleClass="success" GridPane.columnIndex="4" GridPane.rowIndex="0" GridPane.rowSpan="2"/>
+            </GridPane>
+            <Label fx:id="flagReasonLabel" styleClass="error-label" wrapText="true" maxWidth="Infinity"/>
+        </children>
     </VBox>
 
     <TableView fx:id="statusTable" VBox.vgrow="ALWAYS" minHeight="100.0">

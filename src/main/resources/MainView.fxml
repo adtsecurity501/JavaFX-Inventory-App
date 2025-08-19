@@ -60,6 +60,13 @@
                         <Tab text="Device Status Tracking">
                             <fx:include source="DeviceStatusTracking.fxml"/>
                         </Tab>
+                        <!-- MODIFIED: Changed from template editor to the new 7-function menu -->
+                        <Tab text="Label Printing">
+                            <fx:include source="LabelPrinting.fxml"/>
+                        </Tab>
+                        <Tab text="SKU Management">
+                            <fx:include source="SkuManagement.fxml"/>
+                        </Tab>
                     </tabs>
                 </TabPane>
             </children>

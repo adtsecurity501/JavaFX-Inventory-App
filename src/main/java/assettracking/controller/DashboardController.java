@@ -34,8 +34,8 @@ public class DashboardController {
     @FXML private PieChart deploymentBreakdownChart;
 
     // --- FXML KPI Stat Components (Granular) ---
-    @FXML private Label dellLaptopsIntakenLabel, getacLaptopsIntakenLabel, tabletsIntakenLabel, desktopsIntakenLabel, monitorsIntakenLabel;
-    @FXML private Label dellLaptopsProcessedLabel, getacLaptopsProcessedLabel, tabletsProcessedLabel, desktopsProcessedLabel, monitorsProcessedLabel;
+    @FXML private Label laptopsIntakenLabel, laptopsProcessedLabel, tabletsIntakenLabel, desktopsIntakenLabel, monitorsIntakenLabel;
+    @FXML private Label tabletsProcessedLabel, desktopsProcessedLabel, monitorsProcessedLabel;
     @FXML private Label totalProcessedLabel;
     @FXML private Label disposedLabel;
     @FXML private Label wipBacklogLabel;
@@ -168,24 +168,21 @@ public class DashboardController {
 
         try (Connection conn = DatabaseConnection.getInventoryConnection()) {
             animateLabelUpdate(monitorsIntakenLabel, String.valueOf(getCount(conn, intakeBaseSql, "re.category LIKE '%Monitor%'")));
-            animateLabelUpdate(dellLaptopsIntakenLabel, String.valueOf(getCount(conn, intakeBaseSql, "re.category LIKE '%Laptop%' AND re.make LIKE '%Dell%'")));
-            animateLabelUpdate(getacLaptopsIntakenLabel, String.valueOf(getCount(conn, intakeBaseSql, "re.category LIKE '%Laptop%' AND re.make LIKE '%Getac%'")));
+            animateLabelUpdate(laptopsIntakenLabel, String.valueOf(getCount(conn, intakeBaseSql, "re.category LIKE '%Laptop%'")));
             animateLabelUpdate(tabletsIntakenLabel, String.valueOf(getCount(conn, intakeBaseSql, "re.category LIKE '%Tablet%'")));
             animateLabelUpdate(desktopsIntakenLabel, String.valueOf(getCount(conn, intakeBaseSql, "re.category LIKE '%Desktop%'")));
 
             int monitorsProcessed = getCount(conn, processedBaseSql, "re.category LIKE '%Monitor%'");
-            int dellLaptopsProcessed = getCount(conn, processedBaseSql, "re.category LIKE '%Laptop%' AND re.make LIKE '%Dell%'");
-            int getacLaptopsProcessed = getCount(conn, processedBaseSql, "re.category LIKE '%Laptop%' AND re.make LIKE '%Getac%'");
+            int laptopsProcessed = getCount(conn, processedBaseSql, "re.category LIKE '%Laptop%'");
             int tabletsProcessed = getCount(conn, processedBaseSql, "re.category LIKE '%Tablet%'");
             int desktopsProcessed = getCount(conn, processedBaseSql, "re.category LIKE '%Desktop%'");
 
             animateLabelUpdate(monitorsProcessedLabel, String.valueOf(monitorsProcessed));
-            animateLabelUpdate(dellLaptopsProcessedLabel, String.valueOf(dellLaptopsProcessed));
-            animateLabelUpdate(getacLaptopsProcessedLabel, String.valueOf(getacLaptopsProcessed));
+            animateLabelUpdate(laptopsProcessedLabel, String.valueOf(laptopsProcessed));
             animateLabelUpdate(tabletsProcessedLabel, String.valueOf(tabletsProcessed));
             animateLabelUpdate(desktopsProcessedLabel, String.valueOf(desktopsProcessed));
 
-            int totalDevicesProcessed = dellLaptopsProcessed + getacLaptopsProcessed + tabletsProcessed + desktopsProcessed;
+            int totalDevicesProcessed = laptopsProcessed + tabletsProcessed + desktopsProcessed;
             animateLabelUpdate(totalProcessedLabel, String.valueOf(totalDevicesProcessed + monitorsProcessed));
 
             if (days7Radio.isSelected()) {
@@ -199,7 +196,6 @@ public class DashboardController {
             e.printStackTrace();
         }
     }
-
 
     private void loadDailyAndPacingMetrics() {
         String dailySql = "SELECT COUNT(DISTINCT re.serial_number) as count " +
@@ -224,7 +220,7 @@ public class DashboardController {
         }
 
         if (weeklyDeviceGoal > 0) {
-            int totalDeviceIntake = Integer.parseInt(dellLaptopsIntakenLabel.getText()) + Integer.parseInt(getacLaptopsIntakenLabel.getText()) + Integer.parseInt(tabletsIntakenLabel.getText()) + Integer.parseInt(desktopsIntakenLabel.getText());
+            int totalDeviceIntake = Integer.parseInt(laptopsIntakenLabel.getText()) + Integer.parseInt(tabletsIntakenLabel.getText()) + Integer.parseInt(desktopsIntakenLabel.getText());
             double devicePacing = (totalDeviceIntake / weeklyDeviceGoal) * 100;
             animateLabelUpdate(deviceGoalPacingLabel, String.format("%.1f%%", devicePacing));
         } else {
@@ -239,7 +235,6 @@ public class DashboardController {
             monitorGoalPacingLabel.setText("N/A");
         }
     }
-
     private void loadStaticKpis() {
         String wipSql = "SELECT COUNT(*) as count " +
                 "FROM Device_Status ds " +

@@ -151,3 +151,40 @@
 .window-close-button:hover .window-icon {
     -fx-stroke: white;
 }
+
+
+/* ========================================================================== */
+/* TOOL SELECTOR BAR STYLES (REWRITTEN FOR ROUNDED BUTTON LOOK)             */
+/* ========================================================================== */
+
+/* The dark background bar that contains the tool buttons */
+.tool-bar {
+    -fx-background-color: -color-bg-subtle;
+    -fx-padding: 5px;
+    -fx-background-radius: 6;
+}
+
+/* Base style for each tool button (unselected state) */
+.tool-selector-button {
+    -fx-background-color: -color-bg-default; /* Default button color */
+    -fx-border-color: -color-border-default;
+    -fx-font-size: 14px;
+    -fx-pref-height: 40px;
+    -fx-text-fill: -color-fg-default;
+    -fx-background-radius: 4; /* Rounded corners */
+    -fx-cursor: hand;
+}
+
+/* Hover effect for unselected buttons */
+.tool-selector-button:hover {
+    -fx-background-color: -color-bg-muted;
+    -fx-border-color: -color-accent-emphasis;
+}
+
+/* Style for the currently ACTIVE/SELECTED tool button */
+.tool-selector-button:selected {
+    -fx-background-color: -color-accent-emphasis;
+    -fx-text-fill: -color-accent-fg-on-emphasis;
+    -fx-border-color: -color-accent-emphasis;
+    -fx-font-weight: bold;
+}
