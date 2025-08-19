@@ -55,3 +55,7 @@ build/
 hs_err_pid*
 replay_pid*
 !/.idea/
+!/installer.wixobj
+!/AssetTrackingInstaller.wixpdb
+!/AssetTrackingInstaller.msi
+!/jre_components.wixobj
