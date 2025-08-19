@@ -59,3 +59,4 @@ replay_pid*
 !/AssetTrackingInstaller.wixpdb
 !/AssetTrackingInstaller.msi
 !/jre_components.wixobj
+!/all_code.txt
