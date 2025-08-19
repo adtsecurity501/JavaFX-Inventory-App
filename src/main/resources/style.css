@@ -152,39 +152,40 @@
     -fx-stroke: white;
 }
 
-
 /* ========================================================================== */
-/* TOOL SELECTOR BAR STYLES (REWRITTEN FOR ROUNDED BUTTON LOOK)             */
+/* TOOL SELECTOR BAR STYLES (REWRITTEN FOR ROBUSTNESS & STYLE)              */
 /* ========================================================================== */
 
-/* The dark background bar that contains the tool buttons */
+/* The dark, rounded background bar that contains the tool buttons */
 .tool-bar {
     -fx-background-color: -color-bg-subtle;
     -fx-padding: 5px;
-    -fx-background-radius: 6;
+    -fx-background-radius: 6; /* Rounded corners for the container */
 }
 
-/* Base style for each tool button (unselected state) */
+/* Base style for each tool button. We let the theme handle most of it. */
 .tool-selector-button {
-    -fx-background-color: -color-bg-default; /* Default button color */
-    -fx-border-color: -color-border-default;
+    /* Let the button inherit the default rounded corners and styles from the theme */
     -fx-font-size: 14px;
     -fx-pref-height: 40px;
-    -fx-text-fill: -color-fg-default;
-    -fx-background-radius: 4; /* Rounded corners */
     -fx-cursor: hand;
 }
 
-/* Hover effect for unselected buttons */
-.tool-selector-button:hover {
-    -fx-background-color: -color-bg-muted;
-    -fx-border-color: -color-accent-emphasis;
-}
+/*
+ * FIX: The :hover state is now handled automatically by the AtlantaFX theme.
+ * We don't need to specify it, ensuring a consistent look and feel with other buttons.
+ */
 
-/* Style for the currently ACTIVE/SELECTED tool button */
+/*
+ * Style for the currently ACTIVE/SELECTED tool button.
+ * FIX: Using a hardcoded color 'white' instead of the unresolved theme variable
+ * for the text fill to prevent the ClassCastException.
+ */
 .tool-selector-button:selected {
     -fx-background-color: -color-accent-emphasis;
-    -fx-text-fill: -color-accent-fg-on-emphasis;
-    -fx-border-color: -color-accent-emphasis;
+    -fx-text-fill: white;
+    /* FIX: Set border to transparent. This prevents a new, square border
+       from being drawn on top of the rounded background. */
+    -fx-border-color: transparent;
     -fx-font-weight: bold;
 }
