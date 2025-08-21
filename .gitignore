@@ -387,3 +387,4 @@ replay_pid*
 /jre/legal/java.xml/xerces.md
 /jre/bin/zip.dll
 /jre/legal/java.base/zlib.md
+!/all_code.txt
