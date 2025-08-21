@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="assettracking.controller.iPadProvisioningController">
+    <top>
+        <HBox alignment="CENTER_LEFT" spacing="15" style="-fx-padding: 10; -fx-background-color: -color-bg-subtle; -fx-background-radius: 4;">
+            <Button fx:id="importDeviceListButton" onAction="#handleImportDeviceList" text="Import/Update Device List..."/>
+            <Label fx:id="deviceListStatusLabel" text="Device List: Not yet imported."/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Button fx:id="importRosterButton" onAction="#handleImportRoster" text="Load Roster File..."/>
+        </HBox>
+    </top>
+    <center>
+        <SplitPane dividerPositions="0.35" style="-fx-padding: 10 0 0 0;">
+            <!-- LEFT PANE: Input and Lookup -->
+            <VBox spacing="10" minWidth="350.0">
+                <padding><Insets right="10"/></padding>
+
+                <Label styleClass="h4" text="Step 1: Scan Device"/>
+                <TextField fx:id="serialScanField" promptText="Scan Serial Number here and press Enter"/>
+                <Separator/>
+
+                <Label styleClass="h4" text="Step 2: Assign Employee"/>
+                <TextField fx:id="snRefFilterField" promptText="Type last 4 of SN Ref # to filter"/>
+                <TableView fx:id="rosterTable" prefHeight="200.0">
+                    <columns>
+                        <TableColumn fx:id="rosterNameCol" prefWidth="150.0" text="Employee Name"/>
+                        <TableColumn fx:id="rosterSnRefCol" prefWidth="150.0" text="SN Reference #"/>
+                    </columns>
+                </TableView>
+
+                <Button onAction="#handleAddDeviceToStaging" text="Add to Staging" maxWidth="Infinity" styleClass="accent"/>
+            </VBox>
+
+            <!-- RIGHT PANE: Staging Area -->
+            <!-- MODIFIED: Wrapped the VBox in a ScrollPane -->
+            <ScrollPane fitToWidth="true" fitToHeight="true">
+                <VBox spacing="10">
+                    <Label styleClass="h4" text="Staged Devices for Export"/>
+                    <TableView fx:id="stagingTable" editable="true" VBox.vgrow="ALWAYS">
+                        <columns>
+                            <TableColumn fx:id="stageFirstNameCol" prefWidth="100" text="First Name"/>
+                            <TableColumn fx:id="stageLastNameCol" prefWidth="100" text="Last Name"/>
+                            <!-- NEW: Added Email Column -->
+                            <TableColumn fx:id="stageEmailCol" prefWidth="180" text="Email"/>
+                            <TableColumn fx:id="stageSerialCol" prefWidth="150" text="Serial Number"/>
+                            <TableColumn fx:id="stageImeiCol" prefWidth="150" text="IMEI"/>
+                            <TableColumn fx:id="stageSimCol" prefWidth="180" text="SIM (ICCID)"/>
+                            <TableColumn fx:id="stageSnRefCol" prefWidth="150" text="SN Ref #"/>
+                        </columns>
+                    </TableView>
+                </VBox>
+            </ScrollPane>
+        </SplitPane>
+    </center>
+    <bottom>
+        <HBox alignment="CENTER_RIGHT" spacing="10" style="-fx-padding: 10;">
+            <Label fx:id="statusLabel" HBox.hgrow="ALWAYS" maxWidth="Infinity"/>
+            <Button onAction="#handleRemoveSelected" text="Remove Selected from Stage"/>
+            <Button fx:id="exportButton" onAction="#handleExport" text="Export to Template..." styleClass="success"/>
+        </HBox>
+    </bottom>
+</BorderPane>

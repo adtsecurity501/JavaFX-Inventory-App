@@ -67,6 +67,9 @@
                         <Tab text="SKU Management">
                             <fx:include source="SkuManagement.fxml"/>
                         </Tab>
+                        <Tab text="iPad Provisioning">
+                            <fx:include source="iPadProvisioning.fxml"/>
+                        </Tab>
                     </tabs>
                 </TabPane>
             </children>

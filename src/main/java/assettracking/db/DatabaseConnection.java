@@ -131,6 +131,28 @@ public class DatabaseConnection {
     private static void createTables(Statement stmt) throws SQLException {
         // This is the full, correct schema for creating a new database from scratch.
         stmt.execute("PRAGMA foreign_keys = OFF;");
+        stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS Bulk_Devices (
+                    SerialNumber TEXT PRIMARY KEY NOT NULL,
+                    IMEI TEXT UNIQUE,
+                    ICCID TEXT, -- This is your SIM card number
+                    Capacity TEXT,
+                    DeviceName TEXT, -- e.g., "iPad"
+                    LastImportDate TEXT NOT NULL
+                );""");
+        stmt.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS Device_Assignments (
+                    AssignmentID INTEGER PRIMARY KEY AUTOINCREMENT,
+                    SerialNumber TEXT NOT NULL,
+                    EmployeeEmail TEXT,
+                    EmployeeFirstName TEXT,
+                    EmployeeLastName TEXT,
+                    SNReferenceNumber TEXT,
+                    AssignmentDate TEXT NOT NULL,
+                    DepotOrderNumber TEXT,
+                    Exported BOOLEAN NOT NULL DEFAULT 0,
+                    FOREIGN KEY (SerialNumber) REFERENCES Bulk_Devices (SerialNumber)
+                );""");
         stmt.executeUpdate("CREATE TABLE IF NOT EXISTS Device_Status (status_id INTEGER PRIMARY KEY, receipt_id INTEGER NOT NULL REFERENCES Receipt_Events (receipt_id), sheet_id INTEGER REFERENCES Sheets, status TEXT, sub_status TEXT, receive_date DATE, last_update DATETIME, change_log TEXT);");
         stmt.executeUpdate("CREATE TABLE IF NOT EXISTS Disposition_Info (disposition_id INTEGER PRIMARY KEY, receipt_id INTEGER NOT NULL REFERENCES Receipt_Events (receipt_id), is_everon BOOLEAN DEFAULT (0), is_end_of_life BOOLEAN DEFAULT (0), is_under_capacity BOOLEAN DEFAULT (0), is_phone BOOLEAN DEFAULT (0), other_disqualification TEXT DEFAULT NULL, final_auto_disp TEXT);");
         stmt.executeUpdate("CREATE TABLE IF NOT EXISTS EOLDevice (model_name TEXT, part_numbers TEXT);");
