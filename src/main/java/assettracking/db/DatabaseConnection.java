@@ -10,21 +10,46 @@ import java.util.List;
 
 public class DatabaseConnection {
 
-    // --- PREFERRED DATABASES (The ones the app should try to connect to first) ---
     private static final String CORRECT_DB_FILE_NAME = "inventorybackup.db";
-    private static final String APP_DIR_PATH = System.getProperty("user.home") + File.separator + ".AssetTracking";
+    private static final String APP_DIR_PATH = getAppDataDirectory();
+
+    private static String getNetworkDbPath() {
+        String os = System.getProperty("os.name").toLowerCase();
+        if (os.contains("win")) {
+            // Windows UNC Path
+            return "\\\\UTSPRJ2C2333\\Server\\" + CORRECT_DB_FILE_NAME;
+        } else {
+            // macOS/Linux Mount Path
+            return "/Volumes/Server/" + CORRECT_DB_FILE_NAME;
+        }
+    }
+
+    private static String getAppDataDirectory() {
+        String appName = "AssetTracking";
+        String os = System.getProperty("os.name").toLowerCase();
+        if (os.contains("mac")) {
+            return System.getProperty("user.home") + "/Library/Application Support/" + appName;
+        } else if (os.contains("win")) {
+            return System.getenv("APPDATA") + File.separator + appName;
+        } else {
+            return System.getProperty("user.home") + File.separator + "." + appName;
+        }
+    }
+
+    // --- PREFERRED DATABASES ---
     private static final String CORRECT_LOCAL_DB_URL = "jdbc:sqlite:" + APP_DIR_PATH + File.separator + CORRECT_DB_FILE_NAME;
-    private static final String NETWORK_DB_URL = "jdbc:sqlite:////utsprj2c2333/Server/inventorybackup.db";
+    private static final String NETWORK_DB_URL = "jdbc:sqlite:" + getNetworkDbPath();
 
     // --- FALLBACK DATABASE (Only used if the preferred databases cannot be reached) ---
     private static final String FALLBACK_DB_FILE_NAME = "inventory.db";
     private static final String FALLBACK_LOCAL_DB_PATH = APP_DIR_PATH + File.separator + FALLBACK_DB_FILE_NAME;
     private static final String FALLBACK_LOCAL_DB_URL = "jdbc:sqlite:" + FALLBACK_LOCAL_DB_PATH;
 
+
     // List of databases to try connecting to, in order of priority.
     private static final List<String> DATABASE_URLS_TO_TRY = Arrays.asList(
-            CORRECT_LOCAL_DB_URL,
-            NETWORK_DB_URL
+            NETWORK_DB_URL, // Attempt network first
+            CORRECT_LOCAL_DB_URL
     );
 
     private static volatile boolean driverLoaded = false;
@@ -38,7 +63,6 @@ public class DatabaseConnection {
         }
     }
 
-    // --- MODIFIED LOGIC ---
     public static Connection getInventoryConnection() throws SQLException {
         loadDriver(); // Ensure driver is loaded
 

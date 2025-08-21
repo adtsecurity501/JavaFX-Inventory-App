@@ -252,6 +252,7 @@ public class DashboardController {
         } else {
             monitorGoalPacingLabel.setText("N/A");
         }
+    }
 
     private void loadStaticKpis() {
         String wipSql = "SELECT COUNT(*) as count " +
