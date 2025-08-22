@@ -21,7 +21,7 @@
     <center>
         <TableView fx:id="historyTable" BorderPane.alignment="CENTER">
             <columns>
-                <TableColumn fx:id="receiptIdCol" prefWidth="75.0" text="Receipt ID" />
+                <TableColumn fx:id="receiveDateCol" prefWidth="125.0" text="Receive Date" />
                 <TableColumn fx:id="statusCol" prefWidth="125.0" text="Status" />
                 <TableColumn fx:id="subStatusCol" prefWidth="175.0" text="Sub Status" />
                 <TableColumn fx:id="lastUpdateCol" prefWidth="175.0" text="Date of Event" />

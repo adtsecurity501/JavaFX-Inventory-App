@@ -4,7 +4,6 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<!-- FIX: Reorganized with VBox and TitledPanes for better clarity and UX -->
 <VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="assettracking.controller.ScanUpdateController"
       spacing="15" prefWidth="800.0" prefHeight="700.0">
@@ -13,12 +12,20 @@
     </padding>
 
     <GridPane hgap="10" vgap="8">
+        <columnConstraints>
+            <ColumnConstraints hgrow="NEVER" minWidth="150.0"/>
+            <ColumnConstraints hgrow="ALWAYS"/>
+        </columnConstraints>
         <Label text="Set Status:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
-        <ComboBox fx:id="statusCombo" prefWidth="200.0" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+        <ComboBox fx:id="statusCombo" prefWidth="300.0" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
         <Label text="Set Sub-Status:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
-        <ComboBox fx:id="subStatusCombo" prefWidth="200.0" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
-        <Label text="Change Note (Optional):" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
-        <TextField fx:id="changeLogField" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+        <ComboBox fx:id="subStatusCombo" prefWidth="300.0" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+
+        <Label fx:id="disposalLocationLabel" text="Disposal Location:" visible="false" managed="false" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+        <TextField fx:id="disposalLocationField" promptText="Scan location barcode..." visible="false" managed="false" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+
+        <Label text="Change Note (Optional):" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
+        <TextField fx:id="changeLogField" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
     </GridPane>
 
     <Separator/>
@@ -26,6 +33,8 @@
     <HBox alignment="CENTER_LEFT" spacing="10">
         <Label text="Scan Serial Number:"/>
         <TextField fx:id="scanSerialField" onAction="#onSerialScanned" HBox.hgrow="ALWAYS"/>
+        <!-- NEW CHECKBOX -->
+        <CheckBox fx:id="autoPrintCheckBox" text="Auto-print labels when deploying"/>
     </HBox>
     <Label fx:id="feedbackLabel" alignment="CENTER" maxWidth="Infinity" styleClass="h2"/>
 
@@ -36,6 +45,7 @@
                 <TableColumn fx:id="successStatusCol" prefWidth="250.0" text="New Status"/>
                 <TableColumn fx:id="successTimestampCol" prefWidth="180.0" text="Timestamp"/>
             </columns>
+            <columnResizePolicy><TableView fx:constant="CONSTRAINED_RESIZE_POLICY" /></columnResizePolicy>
         </TableView>
     </TitledPane>
 
@@ -46,6 +56,7 @@
                 <TableColumn fx:id="failedReasonCol" prefWidth="250.0" text="Reason"/>
                 <TableColumn fx:id="failedTimestampCol" prefWidth="180.0" text="Timestamp"/>
             </columns>
+            <columnResizePolicy><TableView fx:constant="CONSTRAINED_RESIZE_POLICY" /></columnResizePolicy>
         </TableView>
     </TitledPane>
 </VBox>

@@ -33,9 +33,12 @@ public class ScanUpdateController {
     // --- FXML Injected Fields ---
     @FXML private ComboBox<String> statusCombo;
     @FXML private ComboBox<String> subStatusCombo;
+    @FXML private CheckBox autoPrintCheckBox; // NEW: Checkbox for auto-printing
     @FXML private TextField changeLogField;
     @FXML private TextField scanSerialField;
     @FXML private Label feedbackLabel;
+    @FXML private Label disposalLocationLabel;
+    @FXML private TextField disposalLocationField;
     @FXML private TableView<ScanResult> successTable;
     @FXML private TableColumn<ScanResult, String> successSerialCol;
     @FXML private TableColumn<ScanResult, String> successStatusCol;
@@ -73,6 +76,11 @@ public class ScanUpdateController {
                 subStatusCombo.getItems().addAll(subStatusOptionsMap.get(newVal));
                 subStatusCombo.getSelectionModel().selectFirst();
             }
+            boolean isDisposal = "Disposal/EOL".equals(newVal);
+            disposalLocationLabel.setVisible(isDisposal);
+            disposalLocationLabel.setManaged(isDisposal);
+            disposalLocationField.setVisible(isDisposal);
+            disposalLocationField.setManaged(isDisposal);
         });
         statusCombo.getSelectionModel().selectFirst();
     }
@@ -96,7 +104,18 @@ public class ScanUpdateController {
 
         String newStatus = statusCombo.getValue();
         String newSubStatus = subStatusCombo.getValue();
-        String changeNote = changeLogField.getText().trim();
+
+        String location = disposalLocationField.getText().trim();
+        if ("Disposal/EOL".equals(newStatus) && location.isEmpty()) {
+            showAlert(Alert.AlertType.WARNING, "Location Required", "A disposal location must be entered when setting status to Disposal/EOL.");
+            disposalLocationField.requestFocus();
+            return;
+        }
+
+        String baseNote = changeLogField.getText().trim();
+        String finalNote = "Disposal/EOL".equals(newStatus)
+                ? ("Location: " + location + ". " + baseNote).trim()
+                : baseNote;
 
         feedbackLabel.setText("Processing " + serial + "...");
         feedbackLabel.setTextFill(Color.BLUE);
@@ -118,7 +137,7 @@ public class ScanUpdateController {
                         try (PreparedStatement stmt = conn.prepareStatement(updateQuery)) {
                             stmt.setString(1, newStatus);
                             stmt.setString(2, newSubStatus);
-                            stmt.setString(3, changeNote.isEmpty() ? null : changeNote);
+                            stmt.setString(3, finalNote.isEmpty() ? null : finalNote);
                             stmt.setInt(4, receiptId);
                             int rows = stmt.executeUpdate();
                             return rows > 0 ? "Success: " + serial : "Warning: " + serial + " found but not updated.";
@@ -140,14 +159,9 @@ public class ScanUpdateController {
                 successList.add(0, new ScanResult(serial, newStatus + " / " + newSubStatus, timestamp));
                 if (parentController != null) parentController.refreshData();
 
-                // --- MODIFIED WORKFLOW INTEGRATION ---
-                if ("Processed".equals(newStatus) && "Ready for Deployment".equals(newSubStatus)) {
-                    Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION, "Device is Ready for Deployment. Print SKU and Serial labels?", ButtonType.YES, ButtonType.NO);
-                    confirmation.showAndWait().ifPresent(response -> {
-                        if (response == ButtonType.YES) {
-                            printDeploymentLabels(serial);
-                        }
-                    });
+                // --- UPDATED WORKFLOW: Check the box instead of showing a dialog ---
+                if ("Processed".equals(newStatus) && "Ready for Deployment".equals(newSubStatus) && autoPrintCheckBox.isSelected()) {
+                    printDeploymentLabels(serial);
                 }
             } else {
                 feedbackLabel.setText("✖ " + result);
@@ -156,6 +170,7 @@ public class ScanUpdateController {
             }
             scanSerialField.clear();
             scanSerialField.requestFocus();
+            disposalLocationField.clear();
         });
 
         updateTask.setOnFailed(event -> {
@@ -174,11 +189,11 @@ public class ScanUpdateController {
 
     private void printDeploymentLabels(String serialNumber) {
         String sku = assetDAO.findAssetBySerialNumber(serialNumber)
-                .map(AssetInfo::getModelNumber) // Assuming model_number is your SKU
+                .map(AssetInfo::getModelNumber)
                 .orElse(null);
 
         if (sku == null) {
-            showAlert("Data Not Found", "Could not find an associated SKU for serial: " + serialNumber);
+            showAlert(Alert.AlertType.WARNING, "Data Not Found", "Could not find an associated SKU for serial: " + serialNumber);
             return;
         }
 
@@ -189,10 +204,9 @@ public class ScanUpdateController {
         String adtZpl = ZplPrinterService.getAdtLabelZpl(sku, description);
         String serialZpl = ZplPrinterService.getSerialLabelZpl(sku, serialNumber);
 
-        // Intelligently find the SKU/label printer (e.g., a Zebra GX series)
         Optional<String> printerName = findPrinter("GX");
         if (printerName.isEmpty()) {
-            showAlert("Printer Not Found", "Could not find a default SKU printer (containing 'GX'). Please configure printers.");
+            showAlert(Alert.AlertType.WARNING, "Printer Not Found", "Could not find a default SKU printer (containing 'GX'). Please configure printers.");
             return;
         }
 
@@ -200,7 +214,7 @@ public class ScanUpdateController {
         boolean s2 = printerService.sendZplToPrinter(printerName.get(), serialZpl);
 
         if (s1 && s2) {
-            feedbackLabel.setText("✔ Deployment labels for " + serialNumber + " sent to " + printerName.get());
+            feedbackLabel.setText("✔ Labels for " + serialNumber + " sent to " + printerName.get());
         } else {
             feedbackLabel.setText("✖ Failed to print one or both labels for " + serialNumber + ".");
         }
@@ -213,8 +227,8 @@ public class ScanUpdateController {
                 .findFirst();
     }
 
-    private void showAlert(String title, String content) {
-        Alert alert = new Alert(Alert.AlertType.WARNING);
+    private void showAlert(Alert.AlertType type, String title, String content) {
+        Alert alert = new Alert(type);
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(content);
@@ -222,12 +236,11 @@ public class ScanUpdateController {
     }
 
     private void setupStatusMappings() {
-        // This could be moved to a shared utility class in the future
         subStatusOptionsMap = Stream.of(new Object[][]{
-                {"Disposal/EOL", new String[]{"Can-Am, Pending Pickup", "Ingram, Pending Pickup", "Can-Am, Picked Up", "Ingram, Pick Up"}},
+                {"Disposal/EOL", new String[]{"Damaged, Pending Decision", "For Parts Harvesting", "Beyond Economic Repair (BER)", "Can-Am, Pending Pickup", "Ingram, Pending Pickup", "Can-Am, Picked Up", "Ingram, Pick Up"}},
                 {"Everon", new String[]{"Pending Shipment", "Shipped"}},
                 {"Phone", new String[]{"Pending Shipment", "Shipped"}},
-                {"WIP", new String[]{"In Evaluation", "Troubleshooting", "Awaiting Parts", "Awaiting Dell Tech", "Shipped to Dell", "Refurbishment", "Send to Inventory"}},
+                {"WIP", new String[]{"Repair Backlog", "In Evaluation", "Troubleshooting", "Awaiting Parts", "Awaiting Dell Tech", "Shipped to Dell", "Refurbishment", "Send to Inventory"}},
                 {"Processed", new String[]{"Kept in Depot(Parts)", "Kept in Depot(Functioning)", "Ready for Deployment"}}
         }).collect(Collectors.toMap(data -> (String) data[0], data -> (String[]) data[1]));
     }

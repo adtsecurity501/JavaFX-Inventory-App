@@ -6,8 +6,10 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+
 public class iPadProvisioningDAO {
     public void upsertBulkDevices(List<BulkDevice> devices) throws SQLException {
         String upsertSql = "INSERT INTO Bulk_Devices (SerialNumber, IMEI, ICCID, Capacity, DeviceName, LastImportDate) " +
@@ -66,6 +68,36 @@ public class iPadProvisioningDAO {
             }
         }
         return Optional.empty();
+    }
+
+    public List<BulkDevice> searchDevices(String query) throws SQLException {
+        List<BulkDevice> results = new ArrayList<>();
+        String sql = "SELECT * FROM Bulk_Devices WHERE " +
+                "SerialNumber LIKE ? OR " +
+                "IMEI LIKE ? OR " +
+                "ICCID LIKE ? " +
+                "LIMIT 100";
+        String queryParam = "%" + query + "%";
+
+        try (Connection conn = DatabaseConnection.getInventoryConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, queryParam);
+            stmt.setString(2, queryParam);
+            stmt.setString(3, queryParam);
+
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                results.add(new BulkDevice(
+                        rs.getString("SerialNumber"),
+                        rs.getString("IMEI"),
+                        rs.getString("ICCID"),
+                        rs.getString("Capacity"),
+                        rs.getString("DeviceName"),
+                        rs.getString("LastImportDate")
+                ));
+            }
+        }
+        return results;
     }
 
     public void updateSimCard(String serialNumber, String newIccid) throws SQLException {

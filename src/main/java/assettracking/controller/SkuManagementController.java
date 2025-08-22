@@ -4,6 +4,8 @@ import assettracking.data.Sku;
 import assettracking.dao.SkuDAO;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
+import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
@@ -17,6 +19,7 @@ public class SkuManagementController {
     @FXML private TableColumn<Sku, String> categoryCol;
     @FXML private TableColumn<Sku, String> manufacturerCol;
     @FXML private TableColumn<Sku, String> descriptionCol;
+    @FXML private TextField searchField;
     @FXML private TextField skuNumberField;
     @FXML private TextField modelNumberField;
     @FXML private TextField categoryField;
@@ -30,7 +33,32 @@ public class SkuManagementController {
     @FXML
     public void initialize() {
         setupTableColumns();
-        skuTable.setItems(skuList);
+
+        FilteredList<Sku> filteredData = new FilteredList<>(skuList, p -> true);
+
+        searchField.textProperty().addListener((observable, oldValue, newValue) -> {
+            filteredData.setPredicate(sku -> {
+                if (newValue == null || newValue.isEmpty()) {
+                    return true;
+                }
+                String lowerCaseFilter = newValue.toLowerCase();
+
+                // FIX: Added null-safety checks to prevent NullPointerException on empty DB fields
+                if (sku.getSkuNumber() != null && sku.getSkuNumber().toLowerCase().contains(lowerCaseFilter)) return true;
+                if (sku.getModelNumber() != null && sku.getModelNumber().toLowerCase().contains(lowerCaseFilter)) return true;
+                if (sku.getCategory() != null && sku.getCategory().toLowerCase().contains(lowerCaseFilter)) return true;
+                if (sku.getManufacturer() != null && sku.getManufacturer().toLowerCase().contains(lowerCaseFilter)) return true;
+                if (sku.getDescription() != null && sku.getDescription().toLowerCase().contains(lowerCaseFilter)) return true;
+
+                return false; // Does not match
+            });
+        });
+
+        SortedList<Sku> sortedData = new SortedList<>(filteredData);
+        sortedData.comparatorProperty().bind(skuTable.comparatorProperty());
+
+        skuTable.setItems(sortedData);
+
         skuTable.getSelectionModel().selectedItemProperty().addListener(
                 (obs, oldSelection, newSelection) -> populateForm(newSelection)
         );
@@ -47,8 +75,7 @@ public class SkuManagementController {
 
     private void refreshTable() {
         skuList.setAll(skuDAO.getAllSkus());
-        skuTable.sort();
-        handleNew(); // Clear form after refresh
+        handleNew();
     }
 
     private void populateForm(Sku sku) {
@@ -60,7 +87,7 @@ public class SkuManagementController {
             categoryField.setText(sku.getCategory());
             manufacturerField.setText(sku.getManufacturer());
             descriptionField.setText(sku.getDescription());
-            skuNumberField.setEditable(false); // SKU number is primary key, should not be edited
+            skuNumberField.setEditable(false);
         }
     }
 
@@ -114,10 +141,9 @@ public class SkuManagementController {
         sku.setDescription(descriptionField.getText());
 
         boolean success;
-        // If the SKU field is not editable, it means we are updating an existing record.
         if (!skuNumberField.isEditable()) {
             success = skuDAO.updateSku(sku);
-        } else { // Otherwise, we are adding a new one.
+        } else {
             success = skuDAO.addSku(sku);
         }
 

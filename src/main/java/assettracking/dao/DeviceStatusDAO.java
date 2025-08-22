@@ -62,6 +62,7 @@ public class DeviceStatusDAO {
                         rs.getInt("receipt_id"), rs.getString("serial_number"), rs.getString("category"),
                         rs.getString("make"), rs.getString("description"), rs.getString("status"),
                         rs.getString("sub_status"), rs.getTimestamp("last_update") != null ? rs.getTimestamp("last_update").toString().substring(0, 19) : "",
+                        rs.getString("receive_date"),
                         rs.getString("change_log"), rs.getBoolean("is_flagged")
                 ));
             }
@@ -118,10 +119,11 @@ public class DeviceStatusDAO {
     private DeviceStatusActions.QueryAndParams buildFilteredQuery(boolean forCount) {
         DeviceStatusTrackingController controller = manager.getController(); // Get controller reference from manager
         String subQuery =
-                "SELECT re.receipt_id, re.serial_number, re.category, re.make, re.description, " +
+                "SELECT p.receive_date, re.receipt_id, re.serial_number, re.category, re.make, re.description, " +
                         "ds.status, ds.sub_status, ds.last_update, ds.change_log, " +
                         "EXISTS(SELECT 1 FROM Flag_Devices fd WHERE fd.serial_number = re.serial_number) AS is_flagged " +
                         "FROM Receipt_Events re " +
+                        "JOIN Packages p ON re.package_id = p.package_id " +
                         "LEFT JOIN Device_Status ds ON re.receipt_id = ds.receipt_id " +
                         "WHERE re.receipt_id IN (SELECT receipt_id FROM (SELECT receipt_id, ROW_NUMBER() OVER(PARTITION BY serial_number ORDER BY receipt_id DESC) as rn FROM Receipt_Events) WHERE rn = 1)";
 

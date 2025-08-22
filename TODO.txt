@@ -1,29 +1,43 @@
 Priority 1:
 - Auto dispose EOL on intake
-- Bulk update status option
-- Add receive date to view history and remove receipt ID column from the Devcice history window.
-- Integrate the label printing code
-	-checkbox print toggle on scan update so I dont have to have user interaction
-	-add autocomplete (done)
-	-move bulk section together maybe rething the layout and grouping
-- Add search and filters to sku management
-- Devices that are broken need to be in another category not WIP.
+- update the scan update logic for disposal, if we want to dispose of something you have to have serial and also location 	which we can scan in off a barcode
+- clean the monitor data, look for long dell serials that are incorrect. 
+- update python script to accomodate for new tables bulk_devices and device_assignments
 
 Priority 2:
 - How to be more granular on dashboard.
 - Dig into WIP backlog, what is that?
--
+- Bulk update status option
+- fix visual bug on label printing tab, when you click generic barcode the whole row increases in size
+- test printing labels from scan update
 
 At End:
 -dropdown for themes
+- import skus again just in case 
 -clean up code and extra files
 -create executable for program 
--fix window title bar to look the same on all windows with the icons
+-fix window title bar to look the same on all windows with the icons including error windows
 
 DONE:
 - Same row height for all in the package management tab
 - double check view for same serial multiple times
 - double check that the import flags doens't afecct the dispostion of devices that are actually good to go.
-- Logic for If flag date is from before, and we then process and intake a device, then set the status 
-	to ready for deployment.
+- Logic for If flag date is from before, and we then process and intake a device, then set the status to ready for deployment.
 - Clean up all Categorys
+- Update serial intake to ignore SERIAL NUMBER	IMEI/MEID	ICCID	Capacity	Name rows
+- Change the flow of UI for ipad bulk
+- Add receive date to view history and remove receipt ID column from the Devcice history window.
+- add a way to search throught the ipads in the db in the ipad provisioning, maybe some filters?
+- add button to update the serial for selected row of ipad on staged devices for export
+- Add search and filters to sku management
+- integrate items.xlsx into the sku table
+- add flow to accomodate for monitor intake
+	-what I do is first input/Scan serial
+	-then I add description of what it is using autofill hopefully if it's there, if not I manually add info
+	- I then test the monitor to see if it's functinoing and not broken, then I want to have option for ready to 		deploy so that it sets the correcct status and print the labels for it using the sku table and 		description I put in.
+	- if not functinoing then dispositoin option as disposal canam
+- update SKU_table_import script so that it properly attaches sku to description based on options
+- Integrate the label printing code
+	-checkbox print toggle on scan update so I dont have to have user interaction
+	-add autocomplete
+	-move bulk section together maybe rething the layout and grouping

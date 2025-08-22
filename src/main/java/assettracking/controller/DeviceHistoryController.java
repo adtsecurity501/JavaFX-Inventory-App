@@ -19,7 +19,7 @@ public class DeviceHistoryController {
 
     @FXML private Label headerLabel;
     @FXML private TableView<DeviceStatusView> historyTable;
-    @FXML private TableColumn<DeviceStatusView, Integer> receiptIdCol;
+    @FXML private TableColumn<DeviceStatusView, String> receiveDateCol;
     @FXML private TableColumn<DeviceStatusView, String> statusCol;
     @FXML private TableColumn<DeviceStatusView, String> subStatusCol;
     @FXML private TableColumn<DeviceStatusView, String> lastUpdateCol;
@@ -29,27 +29,23 @@ public class DeviceHistoryController {
 
     @FXML
     public void initialize() {
-        receiptIdCol.setCellValueFactory(new PropertyValueFactory<>("receiptId"));
+        receiveDateCol.setCellValueFactory(new PropertyValueFactory<>("receiveDate"));
         statusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
         subStatusCol.setCellValueFactory(new PropertyValueFactory<>("subStatus"));
         lastUpdateCol.setCellValueFactory(new PropertyValueFactory<>("lastUpdate"));
         notesCol.setCellValueFactory(new PropertyValueFactory<>("changeNote"));
 
         historyTable.setItems(historyList);
-        // FIX: Replace the deprecated constant
         historyTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
         historyTable.setPlaceholder(new Label("No historical events found for this device."));
     }
 
-    /**
-     * Initializes the controller with the serial number to look up.
-     * This method queries the database for all events related to the serial and populates the table.
-     */
     public void initData(String serialNumber) {
         headerLabel.setText("History for Serial Number: " + serialNumber);
 
-        String sql = "SELECT re.receipt_id, ds.status, ds.sub_status, ds.last_update, ds.change_log " +
+        String sql = "SELECT p.receive_date, ds.status, ds.sub_status, ds.last_update, ds.change_log " +
                 "FROM Receipt_Events re " +
+                "JOIN Packages p ON re.package_id = p.package_id " +
                 "LEFT JOIN Device_Status ds ON re.receipt_id = ds.receipt_id " +
                 "WHERE re.serial_number = ? " +
                 "ORDER BY re.receipt_id DESC";
@@ -60,21 +56,22 @@ public class DeviceHistoryController {
             stmt.setString(1, serialNumber);
             ResultSet rs = stmt.executeQuery();
 
+            historyList.clear();
             while (rs.next()) {
                 historyList.add(new DeviceStatusView(
-                        rs.getInt("receipt_id"),
-                        serialNumber, // Not displayed, but needed for constructor
-                        null, null, null, // Not displayed
+                        0,
+                        serialNumber,
+                        null, null, null,
                         rs.getString("status"),
                         rs.getString("sub_status"),
                         rs.getTimestamp("last_update") != null ? rs.getTimestamp("last_update").toString().substring(0, 19) : "",
+                        rs.getString("receive_date"),
                         rs.getString("change_log"),
-                        false // Not displayed
+                        false
                 ));
             }
         } catch (SQLException e) {
             e.printStackTrace();
-            // Optionally show an alert here
         }
     }
 }

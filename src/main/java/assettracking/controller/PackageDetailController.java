@@ -36,13 +36,11 @@ public class PackageDetailController {
 
     @FXML
     public void initialize() {
-        // Setup Asset Table Columns
         assetSerialCol.setCellValueFactory(new PropertyValueFactory<>("serialNumber"));
         assetCategoryCol.setCellValueFactory(new PropertyValueFactory<>("category"));
         assetStatusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
         assetSubStatusCol.setCellValueFactory(new PropertyValueFactory<>("subStatus"));
         assetsTable.setItems(assetsList);
-        // FIX: Add resize policy for intelligent sizing
         assetsTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
     }
 
@@ -60,8 +58,9 @@ public class PackageDetailController {
         assetsList.clear();
         if (currentPackage == null) return;
 
-        String assetsSQL = "SELECT re.serial_number, re.category, re.make, re.description, ds.status, ds.sub_status, ds.change_log " +
+        String assetsSQL = "SELECT p.receive_date, re.serial_number, re.category, re.make, re.description, ds.status, ds.sub_status, ds.change_log " +
                 "FROM Receipt_Events re " +
+                "JOIN Packages p ON re.package_id = p.package_id " +
                 "LEFT JOIN Device_Status ds ON re.receipt_id = ds.receipt_id " +
                 "WHERE re.package_id = ?";
 
@@ -73,11 +72,11 @@ public class PackageDetailController {
                     assetsList.add(new DeviceStatusView(
                             0, rs.getString("serial_number"), rs.getString("category"),
                             rs.getString("make"), rs.getString("description"), rs.getString("status"),
-                            rs.getString("sub_status"), null, rs.getString("change_log"), false
+                            rs.getString("sub_status"), null, rs.getString("receive_date"),
+                            rs.getString("change_log"), false
                     ));
                 }
             }
-            // --- REMOVED: Peripherals SQL query ---
         } catch (SQLException e) {
             e.printStackTrace();
             showAlert(Alert.AlertType.ERROR, "Database Error", "Failed to load package details.");
