@@ -10,6 +10,7 @@
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.shape.SVGPath?>
+<?import javafx.scene.control.ComboBox?>
 
 <BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="assettracking.controller.MainViewController">
@@ -20,8 +21,13 @@
             </padding>
             <Label text="Asset Tracking &amp; Inventory Management" styleClass="title-bar-text"/>
             <Region HBox.hgrow="ALWAYS"/>
+
+            <!-- NEW THEME SWITCHER -->
+            <Label text="Theme:" styleClass="title-bar-text" />
+            <ComboBox fx:id="themeComboBox" prefWidth="150" />
+            <!-- END NEW -->
+
             <HBox alignment="CENTER_RIGHT">
-                <!-- FIX: Replaced text with SVG graphics for uniform icons -->
                 <Button fx:id="minimizeButton" onAction="#handleMinimize" styleClass="window-button">
                     <graphic>
                         <SVGPath content="M 0 5 H 10" styleClass="window-icon"/>
@@ -60,7 +66,6 @@
                         <Tab text="Device Status Tracking">
                             <fx:include source="DeviceStatusTracking.fxml"/>
                         </Tab>
-                        <!-- MODIFIED: Changed from template editor to the new 7-function menu -->
                         <Tab text="Label Printing">
                             <fx:include source="LabelPrinting.fxml"/>
                         </Tab>

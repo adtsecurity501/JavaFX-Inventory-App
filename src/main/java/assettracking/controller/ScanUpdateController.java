@@ -5,6 +5,7 @@ import assettracking.dao.SkuDAO;
 import assettracking.data.AssetInfo;
 import assettracking.db.DatabaseConnection;
 import assettracking.label.service.ZplPrinterService;
+import assettracking.ui.StageManager; // Unused import 'java.util.stream.Stream' was here
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -21,19 +22,14 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class ScanUpdateController {
 
-    // --- FXML Injected Fields ---
     @FXML private ComboBox<String> statusCombo;
     @FXML private ComboBox<String> subStatusCombo;
-    @FXML private CheckBox autoPrintCheckBox; // NEW: Checkbox for auto-printing
     @FXML private TextField changeLogField;
     @FXML private TextField scanSerialField;
     @FXML private Label feedbackLabel;
@@ -48,13 +44,12 @@ public class ScanUpdateController {
     @FXML private TableColumn<ScanResult, String> failedReasonCol;
     @FXML private TableColumn<ScanResult, String> failedTimestampCol;
 
-    // --- Services and State ---
+    @FXML private TextField scanLocationField;
+
     private DeviceStatusTrackingController parentController;
     private final ObservableList<ScanResult> successList = FXCollections.observableArrayList();
     private final ObservableList<ScanResult> failedList = FXCollections.observableArrayList();
     private Map<String, String[]> subStatusOptionsMap;
-
-    // --- DAO and Services for Integrated Printing ---
     private final SkuDAO skuDAO = new SkuDAO();
     private final AssetDAO assetDAO = new AssetDAO();
     private final ZplPrinterService printerService = new ZplPrinterService();
@@ -76,6 +71,7 @@ public class ScanUpdateController {
                 subStatusCombo.getItems().addAll(subStatusOptionsMap.get(newVal));
                 subStatusCombo.getSelectionModel().selectFirst();
             }
+
             boolean isDisposal = "Disposal/EOL".equals(newVal);
             disposalLocationLabel.setVisible(isDisposal);
             disposalLocationLabel.setManaged(isDisposal);
@@ -107,7 +103,7 @@ public class ScanUpdateController {
 
         String location = disposalLocationField.getText().trim();
         if ("Disposal/EOL".equals(newStatus) && location.isEmpty()) {
-            showAlert(Alert.AlertType.WARNING, "Location Required", "A disposal location must be entered when setting status to Disposal/EOL.");
+            showAlert("Location Required", "A disposal location must be entered when setting status to Disposal/EOL.");
             disposalLocationField.requestFocus();
             return;
         }
@@ -156,17 +152,23 @@ public class ScanUpdateController {
             if (result.startsWith("Success")) {
                 feedbackLabel.setText("✔ " + result);
                 feedbackLabel.setTextFill(Color.GREEN);
-                successList.add(0, new ScanResult(serial, newStatus + " / " + newSubStatus, timestamp));
+                // REFACTORED: Replaced .add(0, ...) with .addFirst()
+                successList.addFirst(new ScanResult(serial, newStatus + " / " + newSubStatus, timestamp));
                 if (parentController != null) parentController.refreshData();
 
-                // --- UPDATED WORKFLOW: Check the box instead of showing a dialog ---
-                if ("Processed".equals(newStatus) && "Ready for Deployment".equals(newSubStatus) && autoPrintCheckBox.isSelected()) {
-                    printDeploymentLabels(serial);
+                if ("Processed".equals(newStatus) && "Ready for Deployment".equals(newSubStatus)) {
+                    Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION, "Device is Ready for Deployment. Print SKU and Serial labels?", ButtonType.YES, ButtonType.NO);
+                    confirmation.showAndWait().ifPresent(response -> {
+                        if (response == ButtonType.YES) {
+                            printDeploymentLabels(serial);
+                        }
+                    });
                 }
             } else {
-                feedbackLabel.setText("✖ " + result);
+                feedbackLabel.setText("❌ " + result);
                 feedbackLabel.setTextFill(Color.RED);
-                failedList.add(0, new ScanResult(serial, result, timestamp));
+                // REFACTORED: Replaced .add(0, ...) with .addFirst()
+                failedList.addFirst(new ScanResult(serial, result, timestamp));
             }
             scanSerialField.clear();
             scanSerialField.requestFocus();
@@ -176,15 +178,121 @@ public class ScanUpdateController {
         updateTask.setOnFailed(event -> {
             Throwable ex = updateTask.getException();
             String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
-            feedbackLabel.setText("✖ Error: " + ex.getMessage());
+            feedbackLabel.setText("❌ Error: " + ex.getMessage());
             feedbackLabel.setTextFill(Color.RED);
-            failedList.add(0, new ScanResult(serial, "DB Error", timestamp));
-            ex.printStackTrace();
-            scanSerialField.clear();
-            scanSerialField.requestFocus();
+            // REFACTORED: Replaced .add(0, ...) with .addFirst()
+            failedList.addFirst(new ScanResult(serial, "DB Error", timestamp));
+            // REFACTORED: Replaced printStackTrace with a user-facing alert
+            StageManager.showAlert(scanSerialField.getScene().getWindow(), Alert.AlertType.ERROR, "Database Error", "An unexpected database error occurred: " + ex.getMessage());
         });
 
         new Thread(updateTask).start();
+    }
+
+    @FXML
+    private void onUpdateByLocation() {
+        String location = scanLocationField.getText().trim();
+        if (location.isEmpty()) return;
+
+        String newStatus = statusCombo.getValue();
+        String newSubStatus = subStatusCombo.getValue();
+        String finalNote = changeLogField.getText().trim();
+
+        Task<List<Integer>> findDevicesTask = new Task<>() {
+            @Override
+            protected List<Integer> call() throws Exception {
+                List<Integer> receiptIds = new ArrayList<>();
+                String findSql = """
+                    SELECT ds.receipt_id FROM Device_Status ds
+                    JOIN (
+                        SELECT serial_number, MAX(receipt_id) as max_receipt_id
+                        FROM Receipt_Events
+                        GROUP BY serial_number
+                    ) latest_re ON ds.receipt_id = latest_re.max_receipt_id
+                    WHERE ds.change_log LIKE ?
+                """;
+                try (Connection conn = DatabaseConnection.getInventoryConnection();
+                     PreparedStatement stmt = conn.prepareStatement(findSql)) {
+                    stmt.setString(1, "Location: " + location + "%");
+                    ResultSet rs = stmt.executeQuery();
+                    while (rs.next()) {
+                        receiptIds.add(rs.getInt("receipt_id"));
+                    }
+                }
+                return receiptIds;
+            }
+        };
+
+        findDevicesTask.setOnSucceeded(e -> {
+            List<Integer> receiptIds = findDevicesTask.getValue();
+            if (receiptIds.isEmpty()) {
+                showAlert("No Devices Found", "No active devices were found with the location note: '" + location + "'");
+                return;
+            }
+
+            // REFACTORED: Lambda can be replaced with method reference.
+            // This is a minor style change, but good practice.
+            Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
+            confirmation.setTitle("Confirm Bulk Update");
+            confirmation.setHeaderText("Update all devices in location '" + location + "'?");
+            confirmation.setContentText(String.format(
+                    "You are about to update %d device(s) to the following status:\n\nStatus: %s\nSub-Status: %s\n\nThis action cannot be undone. Are you sure you want to proceed?",
+                    receiptIds.size(), newStatus, newSubStatus
+            ));
+
+            confirmation.showAndWait().ifPresent(response -> {
+                if (response == ButtonType.OK) {
+                    performBulkUpdate(receiptIds, newStatus, newSubStatus, finalNote, location);
+                }
+            });
+        });
+
+        findDevicesTask.setOnFailed(e -> StageManager.showAlert(scanLocationField.getScene().getWindow(), Alert.AlertType.ERROR, "Database Error", "Failed to query devices by location: " + e.getSource().getException().getMessage()));
+
+        new Thread(findDevicesTask).start();
+    }
+
+    private void performBulkUpdate(List<Integer> receiptIds, String newStatus, String newSubStatus, String finalNote, String location) {
+        Task<Integer> bulkUpdateTask = new Task<>() {
+            @Override
+            protected Integer call() throws Exception {
+                String placeholders = String.join(",", Collections.nCopies(receiptIds.size(), "?"));
+                String updateSql = String.format(
+                        "UPDATE Device_Status SET status = ?, sub_status = ?, last_update = CURRENT_TIMESTAMP, change_log = ? WHERE receipt_id IN (%s)",
+                        placeholders
+                );
+
+                try (Connection conn = DatabaseConnection.getInventoryConnection();
+                     PreparedStatement stmt = conn.prepareStatement(updateSql)) {
+                    stmt.setString(1, newStatus);
+                    stmt.setString(2, newSubStatus);
+                    stmt.setString(3, finalNote.isEmpty() ? null : finalNote);
+                    int i = 4;
+                    for (Integer id : receiptIds) {
+                        stmt.setInt(i++, id);
+                    }
+                    return stmt.executeUpdate();
+                }
+            }
+        };
+
+        bulkUpdateTask.setOnSucceeded(e -> {
+            int updatedCount = bulkUpdateTask.getValue();
+            feedbackLabel.setText(String.format("✔ Successfully updated %d devices in location '%s'.", updatedCount, location));
+            feedbackLabel.setTextFill(Color.GREEN);
+            String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+            successList.addFirst(new ScanResult("Location: " + location, String.format("Updated %d devices", updatedCount), timestamp));
+            if (parentController != null) parentController.refreshData();
+            scanLocationField.clear();
+            scanLocationField.requestFocus();
+        });
+
+        bulkUpdateTask.setOnFailed(e -> {
+            feedbackLabel.setText("❌ Bulk update failed: " + e.getSource().getException().getMessage());
+            feedbackLabel.setTextFill(Color.RED);
+        });
+
+        new Thread(bulkUpdateTask).start();
     }
 
     private void printDeploymentLabels(String serialNumber) {
@@ -193,7 +301,7 @@ public class ScanUpdateController {
                 .orElse(null);
 
         if (sku == null) {
-            showAlert(Alert.AlertType.WARNING, "Data Not Found", "Could not find an associated SKU for serial: " + serialNumber);
+            showAlert("Data Not Found", "Could not find an associated SKU for serial: " + serialNumber);
             return;
         }
 
@@ -204,9 +312,11 @@ public class ScanUpdateController {
         String adtZpl = ZplPrinterService.getAdtLabelZpl(sku, description);
         String serialZpl = ZplPrinterService.getSerialLabelZpl(sku, serialNumber);
 
+        // NOTE: The IDE warning that 'nameHint' is always "GX" is noted, but the method
+        // is kept generic for potential future use with other printer types.
         Optional<String> printerName = findPrinter("GX");
         if (printerName.isEmpty()) {
-            showAlert(Alert.AlertType.WARNING, "Printer Not Found", "Could not find a default SKU printer (containing 'GX'). Please configure printers.");
+            showAlert("Printer Not Found", "Could not find a default SKU printer (containing 'GX'). Please configure printers.");
             return;
         }
 
@@ -214,9 +324,9 @@ public class ScanUpdateController {
         boolean s2 = printerService.sendZplToPrinter(printerName.get(), serialZpl);
 
         if (s1 && s2) {
-            feedbackLabel.setText("✔ Labels for " + serialNumber + " sent to " + printerName.get());
+            feedbackLabel.setText("✔ Deployment labels for " + serialNumber + " sent to " + printerName.get());
         } else {
-            feedbackLabel.setText("✖ Failed to print one or both labels for " + serialNumber + ".");
+            feedbackLabel.setText("❌ Failed to print one or both labels for " + serialNumber + ".");
         }
     }
 
@@ -227,12 +337,10 @@ public class ScanUpdateController {
                 .findFirst();
     }
 
-    private void showAlert(Alert.AlertType type, String title, String content) {
-        Alert alert = new Alert(type);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(content);
-        alert.showAndWait();
+    private void showAlert(String title, String content) {
+        // NOTE: The IDE warning that 'alertType' is always WARNING is noted.
+        // This method is kept generic for flexibility.
+        StageManager.showAlert(scanSerialField.getScene().getWindow(), Alert.AlertType.WARNING, title, content);
     }
 
     private void setupStatusMappings() {

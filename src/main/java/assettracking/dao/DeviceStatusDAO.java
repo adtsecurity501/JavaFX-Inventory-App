@@ -5,6 +5,7 @@ import assettracking.data.DeviceStatusView;
 import assettracking.db.DatabaseConnection;
 import assettracking.manager.DeviceStatusManager;
 import assettracking.ui.DeviceStatusActions;
+import assettracking.ui.StageManager;
 import javafx.collections.ObservableList;
 import javafx.scene.control.Alert;
 
@@ -38,8 +39,8 @@ public class DeviceStatusDAO {
                 return rs.getInt(1);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
-            DeviceStatusActions.showAlert(Alert.AlertType.ERROR, "Database Error", "Failed to count records for pagination.");
+            // REFACTORED: Replaced printStackTrace with a user-facing alert
+            StageManager.showAlert(null, Alert.AlertType.ERROR, "Database Error", "Failed to count records for pagination: " + e.getMessage());
         }
         return 0;
     }
@@ -67,14 +68,15 @@ public class DeviceStatusDAO {
                 ));
             }
         } catch (SQLException e) {
-            e.printStackTrace();
-            DeviceStatusActions.showAlert(Alert.AlertType.ERROR, "Database Error", "Failed to load page data.");
+            // REFACTORED: Replaced printStackTrace with a user-facing alert
+            StageManager.showAlert(null, Alert.AlertType.ERROR, "Database Error", "Failed to load page data: " + e.getMessage());
         }
     }
 
     public void updateDeviceStatus(ObservableList<DeviceStatusView> selectedDevices, String newStatus, String newSubStatus) {
         if (selectedDevices == null || selectedDevices.isEmpty()) {
-            DeviceStatusActions.showAlert(Alert.AlertType.WARNING, "No Selection", "Please select one or more devices to update.");
+            // Note: The controller should handle this, but the check is kept for safety.
+            StageManager.showAlert(null, Alert.AlertType.WARNING, "No Selection", "Please select one or more devices to update.");
             return;
         }
 
@@ -104,20 +106,24 @@ public class DeviceStatusDAO {
             }
             conn.commit();
         } catch (SQLException e) {
-            e.printStackTrace();
+            // REFACTORED: Replaced printStackTrace with a user-facing alert
+            StageManager.showAlert(null, Alert.AlertType.ERROR, "Update Failed", "Failed to update device statuses in the database: " + e.getMessage());
             if (conn != null) {
-                try { conn.rollback(); } catch (SQLException ex) { ex.printStackTrace(); }
+                try { conn.rollback(); } catch (SQLException ex) {
+                    StageManager.showAlert(null, Alert.AlertType.ERROR, "Rollback Failed", "Failed to rollback database changes: " + ex.getMessage());
+                }
             }
-            DeviceStatusActions.showAlert(Alert.AlertType.ERROR, "Update Failed", "Failed to update device statuses in the database.");
         } finally {
             if (conn != null) {
-                try { conn.setAutoCommit(true); conn.close(); } catch (SQLException e) { e.printStackTrace(); }
+                try { conn.setAutoCommit(true); conn.close(); } catch (SQLException e) {
+                    StageManager.showAlert(null, Alert.AlertType.ERROR, "Connection Error", "Failed to close database connection: " + e.getMessage());
+                }
             }
         }
     }
 
     private DeviceStatusActions.QueryAndParams buildFilteredQuery(boolean forCount) {
-        DeviceStatusTrackingController controller = manager.getController(); // Get controller reference from manager
+        DeviceStatusTrackingController controller = manager.getController();
         String subQuery =
                 "SELECT p.receive_date, re.receipt_id, re.serial_number, re.category, re.make, re.description, " +
                         "ds.status, ds.sub_status, ds.last_update, ds.change_log, " +
@@ -157,10 +163,11 @@ public class DeviceStatusDAO {
         }
 
         String fullQuery;
+        // REFACTORED: Replaced .length() > 0 with !isEmpty() and removed redundant .toString()
         if (forCount) {
-            fullQuery = "SELECT COUNT(*) FROM (" + subQuery + ")" + (whereClause.length() > 0 ? " WHERE " + whereClause.toString().substring(5) : "");
+            fullQuery = "SELECT COUNT(*) FROM (" + subQuery + ")" + (!whereClause.isEmpty() ? " WHERE " + whereClause.substring(5) : "");
         } else {
-            fullQuery = "SELECT * FROM (" + subQuery + ")" + (whereClause.length() > 0 ? " WHERE " + whereClause.toString().substring(5) : "");
+            fullQuery = "SELECT * FROM (" + subQuery + ")" + (!whereClause.isEmpty() ? " WHERE " + whereClause.substring(5) : "");
             String groupBy = controller.groupByCombo.getValue();
             if ("Status".equals(groupBy)) {
                 fullQuery += " ORDER BY status, last_update DESC";

@@ -2,6 +2,7 @@ package assettracking.controller;
 
 import assettracking.data.Sku;
 import assettracking.dao.SkuDAO;
+import assettracking.ui.StageManager;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
@@ -36,29 +37,26 @@ public class SkuManagementController {
 
         FilteredList<Sku> filteredData = new FilteredList<>(skuList, p -> true);
 
-        searchField.textProperty().addListener((observable, oldValue, newValue) -> {
-            filteredData.setPredicate(sku -> {
-                if (newValue == null || newValue.isEmpty()) {
-                    return true;
-                }
-                String lowerCaseFilter = newValue.toLowerCase();
+        searchField.textProperty().addListener((observable, oldValue, newValue) -> filteredData.setPredicate(sku -> {
+            if (newValue == null || newValue.isEmpty()) {
+                return true;
+            }
+            String lowerCaseFilter = newValue.toLowerCase();
 
-                // FIX: Added null-safety checks to prevent NullPointerException on empty DB fields
-                if (sku.getSkuNumber() != null && sku.getSkuNumber().toLowerCase().contains(lowerCaseFilter)) return true;
-                if (sku.getModelNumber() != null && sku.getModelNumber().toLowerCase().contains(lowerCaseFilter)) return true;
-                if (sku.getCategory() != null && sku.getCategory().toLowerCase().contains(lowerCaseFilter)) return true;
-                if (sku.getManufacturer() != null && sku.getManufacturer().toLowerCase().contains(lowerCaseFilter)) return true;
-                if (sku.getDescription() != null && sku.getDescription().toLowerCase().contains(lowerCaseFilter)) return true;
-
-                return false; // Does not match
-            });
-        });
+            if (sku.getSkuNumber() != null && sku.getSkuNumber().toLowerCase().contains(lowerCaseFilter)) return true;
+            if (sku.getModelNumber() != null && sku.getModelNumber().toLowerCase().contains(lowerCaseFilter)) return true;
+            if (sku.getCategory() != null && sku.getCategory().toLowerCase().contains(lowerCaseFilter)) return true;
+            if (sku.getManufacturer() != null && sku.getManufacturer().toLowerCase().contains(lowerCaseFilter)) return true;
+            return sku.getDescription() != null && sku.getDescription().toLowerCase().contains(lowerCaseFilter);
+        }));
 
         SortedList<Sku> sortedData = new SortedList<>(filteredData);
         sortedData.comparatorProperty().bind(skuTable.comparatorProperty());
 
         skuTable.setItems(sortedData);
 
+        // --- MODIFIED ---
+        // Reverted from the incorrect method reference back to the working lambda expression.
         skuTable.getSelectionModel().selectedItemProperty().addListener(
                 (obs, oldSelection, newSelection) -> populateForm(newSelection)
         );
@@ -108,7 +106,7 @@ public class SkuManagementController {
     private void handleDelete() {
         Sku selectedSku = skuTable.getSelectionModel().getSelectedItem();
         if (selectedSku == null) {
-            showAlert("No Selection", "Please select an SKU from the table to delete.");
+            StageManager.showAlert(skuTable.getScene().getWindow(), Alert.AlertType.WARNING, "No Selection", "Please select an SKU from the table to delete.");
             return;
         }
 
@@ -129,7 +127,7 @@ public class SkuManagementController {
     private void handleSave() {
         String skuNumber = skuNumberField.getText();
         if (skuNumber == null || skuNumber.trim().isEmpty()) {
-            showAlert("Input Error", "SKU Number cannot be empty.");
+            StageManager.showAlert(skuTable.getScene().getWindow(), Alert.AlertType.WARNING, "Input Error", "SKU Number cannot be empty.");
             return;
         }
 
@@ -153,13 +151,5 @@ public class SkuManagementController {
         } else {
             statusLabel.setText("Error: Could not save SKU. It may already exist.");
         }
-    }
-
-    private void showAlert(String title, String content) {
-        Alert alert = new Alert(Alert.AlertType.WARNING);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(content);
-        alert.showAndWait();
     }
 }

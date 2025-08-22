@@ -3,6 +3,7 @@ package assettracking.controller;
 import assettracking.db.DatabaseConnection;
 import assettracking.data.DeviceStatusView;
 import assettracking.data.Package;
+import assettracking.ui.StageManager;
 import javafx.application.Application;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -12,10 +13,11 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
-import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.stage.Window;
 
 import java.io.IOException;
+import java.net.URL;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -29,7 +31,6 @@ public class PackageDetailController {
     @FXML private TableColumn<DeviceStatusView, String> assetCategoryCol;
     @FXML private TableColumn<DeviceStatusView, String> assetStatusCol;
     @FXML private TableColumn<DeviceStatusView, String> assetSubStatusCol;
-
 
     private Package currentPackage;
     private final ObservableList<DeviceStatusView> assetsList = FXCollections.observableArrayList();
@@ -78,8 +79,8 @@ public class PackageDetailController {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
-            showAlert(Alert.AlertType.ERROR, "Database Error", "Failed to load package details.");
+            // REFACTORED: Replaced printStackTrace with a call to our new showAlert method
+            StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Database Error", "Failed to load package details.");
         }
     }
 
@@ -92,18 +93,13 @@ public class PackageDetailController {
             AddAssetDialogController controller = loader.getController();
             controller.initData(this.currentPackage, this);
 
-            Stage stage = new Stage();
-            stage.setTitle("Receive Asset(s) for Package " + currentPackage.getTrackingNumber());
-            Scene scene = new Scene(root);
-            scene.getStylesheets().addAll(Application.getUserAgentStylesheet(), getClass().getResource("/style.css").toExternalForm());
-            stage.setScene(scene);
-            stage.initModality(Modality.WINDOW_MODAL);
-            stage.initOwner(headerLabel.getScene().getWindow());
+            // REFACTORED: Using StageManager to create the window
+            Stage stage = StageManager.createCustomStage(getOwnerWindow(), "Receive Asset(s) for Package " + currentPackage.getTrackingNumber(), root);
             stage.showAndWait();
 
         } catch (IOException e) {
-            e.printStackTrace();
-            showAlert(Alert.AlertType.ERROR, "Error", "Could not open the 'Add Asset' window.");
+            // REFACTORED: Replaced printStackTrace and local showAlert with StageManager
+            StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Error", "Could not open the 'Add Asset' window.");
         }
     }
 
@@ -113,11 +109,9 @@ public class PackageDetailController {
         stage.close();
     }
 
-    private void showAlert(Alert.AlertType alertType, String title, String content) {
-        Alert alert = new Alert(alertType);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(content);
-        alert.showAndWait();
+    // REFACTORED: Removed local showAlert method in favor of StageManager.
+
+    private Window getOwnerWindow() {
+        return headerLabel.getScene().getWindow();
     }
 }

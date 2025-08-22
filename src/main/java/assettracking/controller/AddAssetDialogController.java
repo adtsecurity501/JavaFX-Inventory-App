@@ -9,6 +9,7 @@ import assettracking.data.ReceiptEvent;
 import assettracking.db.DatabaseConnection;
 import assettracking.label.service.ZplPrinterService;
 import assettracking.ui.AutoCompletePopup;
+import assettracking.ui.StageManager;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -29,25 +30,24 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class AddAssetDialogController {
 
-    // --- FXML Fields for Intake Mode Switching ---
+    // FXML Fields for Intake Mode Switching
     @FXML private RadioButton standardIntakeRadio;
     @FXML private RadioButton monitorIntakeRadio;
     @FXML private ToggleGroup intakeModeToggleGroup;
     @FXML private VBox standardModePane;
     @FXML private VBox monitorModePane;
 
-    // --- FXML Fields for Monitor Intake ---
+    // FXML Fields for Monitor Intake
     @FXML private ComboBox<String> monitorPrinterCombo;
     @FXML private TextField monitorSerialField;
     @FXML private TextField monitorModelField;
     @FXML private TextField monitorDescriptionField;
     @FXML private Label monitorFeedbackLabel;
 
-    // --- FXML Fields for Standard Intake ---
+    // FXML Fields for Standard Intake
     @FXML private CheckBox bulkAddCheckBox;
     @FXML private BorderPane textModePane;
     @FXML private BorderPane tableModePane;
@@ -59,6 +59,7 @@ public class AddAssetDialogController {
     @FXML private TextField modelField;
     @FXML private TextField descriptionField;
     @FXML private TextField imeiField;
+    // Note: lookupButton is used by the FXML onAction event, so the warning is safe to ignore.
     @FXML private Button lookupButton;
     @FXML private Label probableCauseLabel;
     @FXML private Label melActionLabel;
@@ -80,6 +81,7 @@ public class AddAssetDialogController {
     @FXML private Label feedbackLabel;
     @FXML private Button saveButton;
     @FXML private Button closeButton;
+    // Note: conditionToggleGroup is used by FXML to group RadioButtons, so the warning is safe to ignore.
     @FXML private ToggleGroup conditionToggleGroup;
     @FXML private RadioButton refurbRadioButton;
     @FXML private RadioButton newRadioButton;
@@ -123,7 +125,7 @@ public class AddAssetDialogController {
     }
 
     private void setupStatusMappings() {
-        subStatusOptionsMap = Stream.of(new Object[][]{
+        subStatusOptionsMap = Arrays.stream(new Object[][]{
                 {"Disposal/EOL", new String[]{"Damaged, Pending Decision", "For Parts Harvesting", "Beyond Economic Repair (BER)", "Can-Am, Pending Pickup", "Ingram, Pending Pickup", "Can-Am, Picked Up", "Ingram, Pick Up"}},
                 {"Everon", new String[]{"Pending Shipment", "Shipped"}},
                 {"Phone", new String[]{"Pending Shipment", "Shipped"}},
@@ -136,12 +138,10 @@ public class AddAssetDialogController {
     private void setupMonitorIntake() {
         new AutoCompletePopup(monitorDescriptionField, () -> assetDAO.findDescriptionsLike(monitorDescriptionField.getText()))
                 .setOnSuggestionSelected(selectedValue ->
-                        assetDAO.findSkuDetails(selectedValue, "description").ifPresent(sku -> {
-                            Platform.runLater(() -> {
-                                monitorDescriptionField.setText(sku.getDescription());
-                                monitorModelField.setText(sku.getModelNumber());
-                            });
-                        })
+                        assetDAO.findSkuDetails(selectedValue, "description").ifPresent(sku -> Platform.runLater(() -> {
+                            monitorDescriptionField.setText(sku.getDescription());
+                            monitorModelField.setText(sku.getModelNumber());
+                        }))
                 );
 
         List<String> printerNames = Arrays.stream(PrintServiceLookup.lookupPrintServices(null, null))
@@ -261,9 +261,8 @@ public class AddAssetDialogController {
                 );
 
         new AutoCompletePopup(modelField, () -> assetDAO.findModelNumbersLike(modelField.getText()))
-                .setOnSuggestionSelected(selectedValue ->
-                        assetDAO.findSkuDetails(selectedValue, "model_number").ifPresent(this::populateFieldsFromSku)
-                );
+                // REFACTORED: Lambda converted to method reference
+                .setOnSuggestionSelected(selectedValue -> assetDAO.findSkuDetails(selectedValue, "model_number").ifPresent(this::populateFieldsFromSku));
     }
 
     private void populateFieldsFromSku(AssetInfo sku) {
@@ -360,8 +359,10 @@ public class AddAssetDialogController {
 
         saveTask.setOnFailed(event -> {
             Throwable ex = saveTask.getException();
-            feedbackLabel.setText("Critical Error: " + (ex.getCause() != null ? ex.getCause().getMessage() : ex.getMessage()));
-            ex.printStackTrace();
+            String errorMessage = "Critical Error: " + (ex.getCause() != null ? ex.getCause().getMessage() : ex.getMessage());
+            feedbackLabel.setText(errorMessage);
+            // REFACTORED: Replaced printStackTrace with a user-facing alert
+            StageManager.showAlert(saveButton.getScene().getWindow(), Alert.AlertType.ERROR, "Save Failed", errorMessage);
             saveButton.setDisable(false);
             closeButton.setDisable(false);
         });
@@ -431,7 +432,8 @@ public class AddAssetDialogController {
                 }
             }
 
-            if (errors.length() > 0) {
+            // REFACTORED: Replaced .length() > 0 with !isEmpty()
+            if (!errors.isEmpty()) {
                 conn.rollback();
                 return "Errors occurred:\n" + errors;
             } else {
@@ -479,7 +481,8 @@ public class AddAssetDialogController {
                 }
             }
 
-            if (errors.length() > 0) {
+            // REFACTORED: Replaced .length() > 0 with !isEmpty()
+            if (!errors.isEmpty()) {
                 conn.rollback();
                 return "Errors occurred:\n" + errors;
             } else {
@@ -508,7 +511,7 @@ public class AddAssetDialogController {
             finalSubStatus = "In Evaluation";
         }
 
-        if (recordExists(conn, "Device_Status", "receipt_id", receiptId)) {
+        if (recordExistsByReceiptId(conn, "Device_Status", receiptId)) {
             String statusQuery = "UPDATE Device_Status SET status = ?, sub_status = ?, last_update = CURRENT_TIMESTAMP WHERE receipt_id = ?";
             try (PreparedStatement stmt = conn.prepareStatement(statusQuery)) {
                 stmt.setString(1, finalStatus);
@@ -526,7 +529,7 @@ public class AddAssetDialogController {
             }
         }
 
-        if (recordExists(conn, "Disposition_Info", "receipt_id", receiptId)) {
+        if (recordExistsByReceiptId(conn, "Disposition_Info", receiptId)) {
             String dispositionQuery = "UPDATE Disposition_Info SET other_disqualification = ? WHERE receipt_id = ?";
             try (PreparedStatement stmt = conn.prepareStatement(dispositionQuery)) {
                 stmt.setString(1, isScrap ? scrapReason : null);
@@ -543,8 +546,9 @@ public class AddAssetDialogController {
         }
     }
 
-    private boolean recordExists(Connection conn, String tableName, String idColumnName, int id) throws SQLException {
-        String sql = "SELECT 1 FROM " + tableName + " WHERE " + idColumnName + " = ?";
+    // REFACTORED: Made method more specific to its use case, removing the redundant parameter.
+    private boolean recordExistsByReceiptId(Connection conn, String tableName, int id) throws SQLException {
+        String sql = "SELECT 1 FROM " + tableName + " WHERE receipt_id = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, id);
             try (ResultSet rs = stmt.executeQuery()) {

@@ -1,6 +1,5 @@
 package assettracking;
 
-import assettracking.db.DatabaseConnection; // This import is no longer strictly needed but is fine to keep.
 import atlantafx.base.theme.Dracula;
 import assettracking.controller.DashboardController;
 import javafx.application.Application;
@@ -16,16 +15,11 @@ import java.util.Map;
 
 public class MainApp extends Application {
 
-    // <<< FIX: The 'seedData' variable is no longer used and has been removed.
-
     @Override
     public void start(Stage primaryStage) throws IOException {
-
-        // <<< FIX: The calls to initializeDatabaseIfNecessary() and insertSeedData() have been removed.
-        // The DatabaseConnection class now handles this automatically.
-
         primaryStage.initStyle(StageStyle.UNDECORATED);
 
+        // Set the initial theme for the entire application. This is the correct way.
         Application.setUserAgentStylesheet(new Dracula().getUserAgentStylesheet());
 
         FXMLLoader mainLoader = new FXMLLoader(getClass().getResource("/MainView.fxml"));
@@ -41,7 +35,12 @@ public class MainApp extends Application {
         }
 
         Scene scene = new Scene(rootPane, 1600, 900);
-        scene.getStylesheets().add(new Dracula().getUserAgentStylesheet());
+
+        // --- MODIFIED ---
+        // The following conflicting line has been REMOVED:
+        // scene.getStylesheets().add(new Dracula().getUserAgentStylesheet());
+
+        // Your custom styles in style.css will still apply correctly over any theme.
         scene.getStylesheets().add(getClass().getResource("/style.css").toExternalForm());
 
         primaryStage.setTitle("Inventory and Package Management System");

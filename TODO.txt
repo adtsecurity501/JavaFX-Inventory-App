@@ -1,22 +1,25 @@
 Priority 1:
 - Auto dispose EOL on intake
-- update the scan update logic for disposal, if we want to dispose of something you have to have serial and also location 	which we can scan in off a barcode
+	- upadate the mel ruls using the excel
+	- add template information and error checking for document format
 - clean the monitor data, look for long dell serials that are incorrect. 
-- update python script to accomodate for new tables bulk_devices and device_assignments
+- Bulk update status option, way to drag and select (or shift+click) to select multiple product in the device status 	window and then a way to bulk update to another status.
+-on scan update location disapperas when you scan one, i dont want it to dissaper because sometimes I may scan multiplle 		things back to back
 
 Priority 2:
 - How to be more granular on dashboard.
 - Dig into WIP backlog, what is that?
-- Bulk update status option
 - fix visual bug on label printing tab, when you click generic barcode the whole row increases in size
-- test printing labels from scan update
+- fix visual bug on device status tracking, per page: and the drop down are on seperate lines
+- test printing labels from scan update.
+- Test all features extensively
+
 
 At End:
--dropdown for themes
 - import skus again just in case 
--clean up code and extra files
--create executable for program 
--fix window title bar to look the same on all windows with the icons including error windows
+- clean up code and extra files
+- create executable for program 
+
 
 DONE:
 - Same row height for all in the package management tab
@@ -41,3 +44,7 @@ DONE:
 	-checkbox print toggle on scan update so I dont have to have user interaction
 	-add autocomplete
 	-move bulk section together maybe rething the layout and grouping
+- update the scan update logic for disposal, if we want to dispose of something you have to have serial and also location 	which we can scan in off a barcode
+- update the scsan update to allow for updating all the serials within a location instead of just a device one by one, if 	I have a bunch of devices in a location then I can update all at once when I scan the location barcode.
+- dropdown for themes
+- the row colors for device status tracking should be dynamic with theme as well, they should switch with the theme.

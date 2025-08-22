@@ -4,12 +4,12 @@ import assettracking.data.DeviceStatusView;
 import assettracking.db.DatabaseConnection;
 import assettracking.manager.DeviceStatusManager;
 import assettracking.ui.DeviceStatusActions;
+import assettracking.ui.StageManager; // Import the StageManager
 import javafx.beans.binding.Bindings;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
-import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 
 import java.sql.Connection;
@@ -55,7 +55,6 @@ public class DeviceStatusTrackingController {
         this.deviceStatusManager = new DeviceStatusManager(this);
         this.deviceStatusActions = new DeviceStatusActions(this);
 
-        // All UI setup logic is now safely contained within the controller's initialize method.
         configureAllUI();
 
         deviceStatusManager.resetPagination();
@@ -68,8 +67,6 @@ public class DeviceStatusTrackingController {
         configureTableRowFactory();
         setupFilters();
     }
-
-    // --- All UI Setup Logic Now Lives Here ---
 
     private void setupTableColumns() {
         serialNumberCol.setCellValueFactory(new PropertyValueFactory<>("serialNumber"));
@@ -124,8 +121,9 @@ public class DeviceStatusTrackingController {
                 categoryFilterCombo.getItems().add(rs.getString("category"));
             }
         } catch (SQLException e) {
-            e.printStackTrace();
-            DeviceStatusActions.showAlert(Alert.AlertType.ERROR, "Database Error", "Failed to load categories for filtering.");
+            // --- MODIFIED ---
+            // Replaced the incorrect call with the correct one to StageManager
+            StageManager.showAlert(statusTable.getScene().getWindow(), Alert.AlertType.ERROR, "Database Error", "Failed to load categories for filtering.");
         }
     }
 
@@ -239,8 +237,6 @@ public class DeviceStatusTrackingController {
         fromDateFilter.setValue(null);
         toDateFilter.setValue(null);
     }
-
-    // --- Action Handlers ---
 
     @FXML
     private void onRefreshAction() {

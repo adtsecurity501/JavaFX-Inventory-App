@@ -3,14 +3,12 @@ package assettracking.ui;
 import assettracking.controller.DeviceHistoryController;
 import assettracking.controller.DeviceStatusTrackingController;
 import assettracking.controller.ScanUpdateController;
-import assettracking.data.DeviceStatusView; // Corrected import
+import assettracking.data.DeviceStatusView;
 import assettracking.db.DatabaseConnection;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
-import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.stage.FileChooser;
-import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 
@@ -28,64 +26,74 @@ public class DeviceStatusActions {
 
     private final DeviceStatusTrackingController controller;
 
+    // This record is used by the DAO but defined here for historical reasons.
     public record QueryAndParams(String sql, List<Object> params) {}
 
     public DeviceStatusActions(DeviceStatusTrackingController controller) {
         this.controller = controller;
     }
 
+    /**
+     * Opens the history window for the currently selected device in the table.
+     * Shows a custom alert if no device is selected.
+     */
     public void openDeviceHistoryWindow() {
         DeviceStatusView selectedDevice = controller.statusTable.getSelectionModel().getSelectedItem();
         if (selectedDevice != null) {
             openDeviceHistoryWindow(selectedDevice.getSerialNumber());
         } else {
-            showAlert(Alert.AlertType.WARNING, "No Selection", "Please select a device to view its history.");
+            StageManager.showAlert(getOwnerWindow(), Alert.AlertType.WARNING, "No Selection", "Please select a device to view its history.");
         }
     }
 
+    /**
+     * Creates and displays a custom window showing the historical events for a given serial number.
+     * @param serialNumber The serial number to look up.
+     */
     public void openDeviceHistoryWindow(String serialNumber) {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/DeviceHistory.fxml"));
             Parent root = loader.load();
             DeviceHistoryController historyController = loader.getController();
             historyController.initData(serialNumber);
-            Stage stage = new Stage();
-            stage.setTitle("Device History for " + serialNumber);
-            stage.initModality(Modality.WINDOW_MODAL);
-            stage.initOwner(getOwnerWindow());
-            Scene scene = new Scene(root);
-            scene.getStylesheets().add(getClass().getResource("/style.css").toExternalForm());
-            stage.setScene(scene);
+
+            Stage stage = StageManager.createCustomStage(getOwnerWindow(), "Device History for " + serialNumber, root);
             stage.showAndWait();
         } catch (IOException e) {
             e.printStackTrace();
-            showAlert(Alert.AlertType.ERROR, "Error", "Could not open the device history window.");
+            StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Error", "Could not open the device history window.");
         }
     }
 
+    /**
+     * Creates and displays the custom window for scan-based status updates.
+     */
     public void openScanUpdateWindow() {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/ScanUpdate.fxml"));
             Parent root = loader.load();
             ScanUpdateController scanController = loader.getController();
             scanController.setParentController(controller);
-            Stage stage = new Stage();
-            stage.setTitle("Scan-Based Status Update");
-            stage.initModality(Modality.APPLICATION_MODAL);
-            stage.initOwner(getOwnerWindow());
-            stage.setScene(new Scene(root));
+
+            Stage stage = StageManager.createCustomStage(getOwnerWindow(), "Scan-Based Status Update", root);
             stage.showAndWait();
         } catch (IOException e) {
             e.printStackTrace();
-            showAlert(Alert.AlertType.ERROR, "Error", "Could not open the Scan Update window.");
+            StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Error", "Could not open the Scan Update window.");
         }
     }
 
+    /**
+     * Initiates the file import process for flagged devices.
+     */
     public void importFlags() {
         FlaggedDeviceImporter importer = new FlaggedDeviceImporter();
         importer.importFromFile((Stage) getOwnerWindow(), controller::refreshData);
     }
 
+    /**
+     * Exports the current device inventory to a CSV file.
+     */
     public void exportToCSV() {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Save Asset Report");
@@ -93,10 +101,7 @@ public class DeviceStatusActions {
         File file = fileChooser.showSaveDialog(getOwnerWindow());
 
         if (file != null) {
-            // --- CORRECTED HEADER: Removed peripheral-specific columns ---
             String header = "Tracking Number,First Name,Last Name,City,State,Zip,Receive Date,Category,Description,IMEI,Serial Number,Status Change Date,Status,Sub Status";
-
-            // --- CORRECTED QUERY: Removed the UNION ALL and the Peripherals section ---
             String query = "SELECT p.tracking_number, p.first_name, p.last_name, p.city, p.state, p.zip_code, p.receive_date, " +
                     "re.category, re.description, re.imei, re.serial_number, ds.last_update AS status_change_date, " +
                     "ds.status, ds.sub_status " +
@@ -127,17 +132,20 @@ public class DeviceStatusActions {
                     row.add(escapeCSV(rs.getString("sub_status")));
                     writer.println(String.join(",", row));
                 }
-                showAlert(Alert.AlertType.INFORMATION, "Success", "Export successful: " + file.getAbsolutePath());
+                StageManager.showAlert(getOwnerWindow(), Alert.AlertType.INFORMATION, "Success", "Export successful: " + file.getAbsolutePath());
             } catch (SQLException e) {
                 e.printStackTrace();
-                showAlert(Alert.AlertType.ERROR, "Database Error", "Failed to query data for export: " + e.getMessage());
+                StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Database Error", "Failed to query data for export: " + e.getMessage());
             } catch (IOException e) {
                 e.printStackTrace();
-                showAlert(Alert.AlertType.ERROR, "Export Error", "Failed to write to file: " + e.getMessage());
+                StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Export Error", "Failed to write to file: " + e.getMessage());
             }
         }
     }
 
+    /**
+     * Helper method to escape characters in a string for CSV format.
+     */
     private String escapeCSV(String value) {
         if (value == null) return "";
         if (value.contains(",") || value.contains("\"") || value.contains("\n")) {
@@ -146,14 +154,9 @@ public class DeviceStatusActions {
         return value;
     }
 
-    public static void showAlert(Alert.AlertType alertType, String title, String content) {
-        Alert alert = new Alert(alertType);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(content);
-        alert.showAndWait();
-    }
-
+    /**
+     * Helper method to get the parent window for new stages and dialogs.
+     */
     private Window getOwnerWindow() {
         return controller.statusTable.getScene().getWindow();
     }

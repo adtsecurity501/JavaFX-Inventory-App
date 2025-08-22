@@ -1,87 +1,74 @@
-/*
- * AtlantaFX Theme Colors (Hardcoded for Stability)
- * This prevents a ClassCastException during rapid TableView updates.
- */
-
-/* Flagged & WIP Row (Warning/Attention) - uses a dark orange/brown */
+/* Flagged & WIP Row (Warning/Attention) */
 .flagged-row .table-cell,
 .wip-row .table-cell {
-    -fx-background-color: #665133;
-    -fx-text-fill: #f8f8f2; /* Default foreground for readability */
+    -fx-background-color: -color-warning-emphasis;
+    -fx-text-fill: white; /* Use a static high-contrast color */
 }
 
-/* Disposal/EOL Row (Danger) - uses a dark red */
+/* Disposal/EOL Row (Danger) */
 .disposal-row .table-cell {
-    -fx-background-color: #663c33;
-    -fx-text-fill: #f8f8f2;
+    -fx-background-color: -color-danger-emphasis;
+    -fx-text-fill: white; /* Use a static high-contrast color */
 }
 
-/* Processed Row (Accent) - uses a dark purple */
+/* Processed Row (Accent/Info) */
 .processed-row .table-cell {
-    -fx-background-color: #3c3366;
-    -fx-text-fill: #f8f8f2;
+    -fx-background-color: -color-accent-emphasis;
+    -fx-text-fill: white; /* Use a static high-contrast color */
 }
 
-/* Shipped Row (Success) - uses a dark green */
+/* Shipped Row (Success) */
 .shipped-row .table-cell {
-    -fx-background-color: #376633;
-    -fx-text-fill: #f8f8f2;
+    -fx-background-color: -color-success-emphasis;
+    -fx-text-fill: white; /* Use a static high-contrast color */
 }
 
 /* ========================================================================== */
 /* TABLEVIEW ROW STYLING ---                                        */
 /* ========================================================================== */
 
-/* Enforce a fixed, consistent height for all table rows */
 .table-row-cell,
-.fixed-row-size .table-row-cell { /* FIX: Added new class for package management table */
-    -fx-cell-size: 35px; /* Adjust this value for desired row height */
+.fixed-row-size .table-row-cell {
+    -fx-cell-size: 35px;
 }
 
 /*
- * The AtlantaFX theme uses a subtle background for odd rows.
- * We need to ensure our custom-colored rows override this for BOTH even and odd rows.
+ * These rules ensure that the custom colors override the theme's default
+ * striping for BOTH even and odd rows.
  */
 .flagged-row:odd .table-cell,
 .wip-row:odd .table-cell {
-    -fx-background-color: #665133;
+    -fx-background-color: -color-warning-emphasis;
 }
 
 .disposal-row:odd .table-cell {
-    -fx-background-color: #663c33;
+    -fx-background-color: -color-danger-emphasis;
 }
 
 .processed-row:odd .table-cell {
-    -fx-background-color: #3c3366;
+    -fx-background-color: -color-accent-emphasis;
 }
 
 .shipped-row:odd .table-cell {
-    -fx-background-color: #376633;
+    -fx-background-color: -color-success-emphasis;
 }
+
 
 /* ========================================================================== */
 /* WIDER SCROLLBARS FOR BETTER USABILITY ---                  */
 /* ========================================================================== */
 
-/* Increase the width of the scrollbar's background track */
 .scroll-bar:vertical > .track-background {
-    -fx-pref-width: 16; /* Comfortable track width */
+    -fx-pref-width: 16;
 }
 
-/* Increase the size of the scrollbar thumb for vertical scrollbars */
 .scroll-bar:vertical > .thumb {
-    -fx-pref-width: 12; /* Thumb width, slightly less than track for balance */
+    -fx-pref-width: 12;
 }
 
 /* ========================================================================== */
 /* TYPOGRAPHY AND UI STYLES ---                                     */
 /* ========================================================================== */
-
-.main-header {
-    -fx-font-size: 24px;
-    -fx-font-weight: bold;
-    -fx-text-fill: -color-fg-default;
-}
 
 .kpi-title {
     -fx-font-size: 14px;
@@ -95,30 +82,11 @@
 }
 
 /* ========================================================================== */
-/* RADIO BUTTON STYLING ---                                          */
-/* ========================================================================== */
-
-/* Remove the strange background that appears in some containers */
-.radio-button {
-    -fx-background-color: transparent;
-}
-
-/* Standardize the size of the radio button's circle */
-.radio-button .radio {
-    -fx-padding: 4px; /* Adjust this to control the size of the circle */
-}
-
-/* Standardize the size of the dot inside the circle */
-.radio-button .dot {
-    -fx-padding: 5px; /* Adjust this to make the dot larger or smaller */
-}
-
-/* ========================================================================== */
 /* CUSTOM TITLE BAR STYLES ---                                      */
 /* ========================================================================== */
 
 .title-bar {
-    -fx-background-color: #282a36; /* Dark background to match the theme */
+    -fx-background-color: -color-bg-subtle;
     -fx-pref-height: 30px;
     -fx-alignment: center-left;
 }
@@ -146,6 +114,8 @@
 .window-icon {
     -fx-stroke: -color-fg-default;
     -fx-stroke-width: 1.5;
+    -fx-fill: transparent;
+    -fx-background-color: transparent;
 }
 
 .window-close-button:hover .window-icon {
@@ -156,36 +126,26 @@
 /* TOOL SELECTOR BAR STYLES (REWRITTEN FOR ROBUSTNESS & STYLE)              */
 /* ========================================================================== */
 
-/* The dark, rounded background bar that contains the tool buttons */
 .tool-bar {
     -fx-background-color: -color-bg-subtle;
     -fx-padding: 5px;
-    -fx-background-radius: 6; /* Rounded corners for the container */
+    -fx-background-radius: 6;
 }
 
-/* Base style for each tool button. We let the theme handle most of it. */
 .tool-selector-button {
-    /* Let the button inherit the default rounded corners and styles from the theme */
     -fx-font-size: 14px;
     -fx-pref-height: 40px;
     -fx-cursor: hand;
 }
 
-/*
- * FIX: The :hover state is now handled automatically by the AtlantaFX theme.
- * We don't need to specify it, ensuring a consistent look and feel with other buttons.
- */
-
-/*
- * Style for the currently ACTIVE/SELECTED tool button.
- * FIX: Using a hardcoded color 'white' instead of the unresolved theme variable
- * for the text fill to prevent the ClassCastException.
- */
 .tool-selector-button:selected {
     -fx-background-color: -color-accent-emphasis;
     -fx-text-fill: white;
-    /* FIX: Set border to transparent. This prevents a new, square border
-       from being drawn on top of the rounded background. */
     -fx-border-color: transparent;
     -fx-font-weight: bold;
+}
+
+/* Style for the Scan Update window's main container */
+.scan-update-pane {
+    -fx-background-color: -color-bg-default;
 }

@@ -24,6 +24,20 @@ public class StagedDevice {
         this.depotOrderNumber = new SimpleStringProperty(rosterEntry.getDepotOrderNumber());
     }
 
+    // --- NEW ---
+    // Add this new constructor to handle devices without a roster entry.
+    public StagedDevice(BulkDevice bulkDevice) {
+        this.firstName = new SimpleStringProperty(""); // Blank field for manual entry later
+        this.lastName = new SimpleStringProperty("");  // Blank field
+        this.serialNumber = new SimpleStringProperty(bulkDevice.getSerialNumber());
+        this.imei = new SimpleStringProperty(bulkDevice.getImei());
+        this.sim = new SimpleStringProperty(bulkDevice.getIccid());
+        this.snReferenceNumber = new SimpleStringProperty(""); // Blank field
+        this.employeeEmail = new SimpleStringProperty("");     // Blank field
+        this.depotOrderNumber = new SimpleStringProperty("");  // Blank field
+    }
+    // --- END NEW ---
+
     // Getters for TableView columns
     public String getFirstName() { return firstName.get(); }
     public String getLastName() { return lastName.get(); }

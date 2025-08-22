@@ -2,9 +2,11 @@ package assettracking.controller;
 
 import assettracking.db.DatabaseConnection;
 import assettracking.data.DeviceStatusView;
+import assettracking.ui.StageManager;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
@@ -71,7 +73,8 @@ public class DeviceHistoryController {
                 ));
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            // REFACTORED: Replaced printStackTrace with a user-facing alert
+            StageManager.showAlert(headerLabel.getScene().getWindow(), Alert.AlertType.ERROR, "Database Error", "Failed to load device history: " + e.getMessage());
         }
     }
 }

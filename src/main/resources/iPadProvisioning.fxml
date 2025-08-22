@@ -11,6 +11,9 @@
             <Button fx:id="importDeviceListButton" onAction="#handleImportDeviceList" text="Import/Update Device List..."/>
             <Label fx:id="deviceListStatusLabel" text="Device List: Not yet imported."/>
             <Region HBox.hgrow="ALWAYS"/>
+            <!-- NEW -->
+            <ToggleButton fx:id="bulkModeToggle" text="Bulk Assignment Mode: OFF" />
+            <!-- END NEW -->
             <Button fx:id="importRosterButton" onAction="#handleImportRoster" text="Load Roster File..."/>
         </HBox>
     </top>
@@ -21,7 +24,7 @@
                 <Label styleClass="h4" text="Step 1: Scan Device"/>
                 <TextField fx:id="serialScanField" promptText="Scan Serial Number here and press Enter"/>
                 <Separator/>
-                <Label styleClass="h4" text="Step 2: Assign Employee"/>
+                <Label styleClass="h4" text="Step 2: Assign Employee (If in Bulk Mode)"/>
                 <TextField fx:id="snRefFilterField" promptText="Type last 4 of SN Ref # to filter"/>
                 <TableView fx:id="rosterTable" prefHeight="200.0" VBox.vgrow="ALWAYS">
                     <columns>
@@ -29,7 +32,10 @@
                         <TableColumn fx:id="rosterSnRefCol" prefWidth="150.0" text="SN Reference #"/>
                     </columns>
                 </TableView>
-                <Button onAction="#handleAddDeviceToStaging" text="Add to Staging" maxWidth="Infinity" styleClass="accent"/>
+                <HBox spacing="10" fillHeight="false">
+                    <Button onAction="#handleAddDeviceToStaging" text="Add to Staging (Assigned)" styleClass="accent" maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
+                    <Button fx:id="stageUnassignedButton" onAction="#handleStageUnassigned" text="Stage Unassigned Device" maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
+                </HBox>
             </VBox>
             <VBox spacing="10" style="-fx-padding: 0 0 0 10;">
                 <Label styleClass="h4" text="Staged Devices for Export"/>
