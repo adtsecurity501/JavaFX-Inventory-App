@@ -9,13 +9,11 @@
             fitToWidth="true" prefHeight="700.0" prefWidth="800.0"
             style="-fx-background-color: transparent;">
     <content>
-        <!-- This VBox now has a valid styleClass and no invalid comments -->
         <VBox spacing="15" styleClass="scan-update-pane">
             <padding>
                 <Insets top="15" right="15" bottom="15" left="15"/>
             </padding>
 
-            <!-- Section for setting the new status -->
             <TitledPane text="Step 1: Choose the New Status" collapsible="false">
                 <GridPane hgap="10" vgap="8">
                     <columnConstraints>
@@ -26,8 +24,14 @@
                     <ComboBox fx:id="statusCombo" prefWidth="300.0" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
                     <Label text="Set Sub-Status:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
                     <ComboBox fx:id="subStatusCombo" prefWidth="300.0" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
-                    <Label fx:id="disposalLocationLabel" text="Disposal Location:" visible="false" managed="false" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
-                    <TextField fx:id="disposalLocationField" promptText="Scan location barcode..." visible="false" managed="false" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+
+                    <Label fx:id="disposalLocationLabel" text="Box ID:" visible="false" managed="false" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+                    <!-- FIX: Added fx:id="boxIdHBox" and fx:id="clearBoxIdButton" -->
+                    <HBox fx:id="boxIdHBox" spacing="10" alignment="CENTER_LEFT" visible="false" managed="false" GridPane.rowIndex="2" GridPane.columnIndex="1">
+                        <TextField fx:id="disposalLocationField" promptText="Scan Box ID to enable scanning..." HBox.hgrow="ALWAYS"/>
+                        <Button fx:id="clearBoxIdButton" onAction="#handleClearBoxId" text="Clear"/>
+                    </HBox>
+
                     <Label text="Change Note (Optional):" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
                     <TextField fx:id="changeLogField" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
                 </GridPane>
@@ -35,10 +39,8 @@
 
             <Label fx:id="feedbackLabel" alignment="CENTER" maxWidth="Infinity" styleClass="h2"/>
 
-            <!-- Section for the two update methods -->
             <TitledPane text="Step 2: Scan to Update" collapsible="false" VBox.vgrow="ALWAYS">
                 <VBox spacing="20" style="-fx-padding: 10;">
-                    <!-- Update a Single Device -->
                     <VBox spacing="8">
                         <Label styleClass="h4" text="Update a Single Device"/>
                         <HBox alignment="CENTER_LEFT" spacing="10">
@@ -47,19 +49,17 @@
                         </HBox>
                     </VBox>
                     <Separator/>
-                    <!-- Update All Devices in a Location -->
                     <VBox spacing="8">
-                        <Label styleClass="h4" text="Update All Devices in a Location"/>
+                        <Label styleClass="h4" text="Update All Devices by Box ID"/>
                         <HBox alignment="CENTER_LEFT" spacing="10">
-                            <Label text="Scan Location Barcode:"/>
+                            <Label text="Scan Box ID:"/>
                             <TextField fx:id="scanLocationField" onAction="#onUpdateByLocation" HBox.hgrow="ALWAYS"/>
-                            <Button onAction="#onUpdateByLocation" text="Update All in Location" styleClass="accent"/>
+                            <Button onAction="#onUpdateByLocation" text="Update All in Box" styleClass="accent"/>
                         </HBox>
                     </VBox>
                 </VBox>
             </TitledPane>
 
-            <!-- Tables for results -->
             <SplitPane dividerPositions="0.5" VBox.vgrow="ALWAYS" minHeight="400.0">
                 <TitledPane text="Successful Scans" collapsible="false">
                     <TableView fx:id="successTable">

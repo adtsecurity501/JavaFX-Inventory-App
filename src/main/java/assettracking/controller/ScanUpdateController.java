@@ -5,8 +5,8 @@ import assettracking.dao.SkuDAO;
 import assettracking.data.AssetInfo;
 import assettracking.db.DatabaseConnection;
 import assettracking.label.service.ZplPrinterService;
-import assettracking.manager.StatusManager;
 import assettracking.manager.StageManager;
+import assettracking.manager.StatusManager;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -14,6 +14,7 @@ import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.layout.HBox;
 import javafx.scene.paint.Color;
 
 import javax.print.PrintService;
@@ -24,11 +25,10 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class ScanUpdateController {
 
+    // --- FXML Fields ---
     @FXML private ComboBox<String> statusCombo;
     @FXML private ComboBox<String> subStatusCombo;
     @FXML private TextField changeLogField;
@@ -44,9 +44,12 @@ public class ScanUpdateController {
     @FXML private TableColumn<ScanResult, String> failedSerialCol;
     @FXML private TableColumn<ScanResult, String> failedReasonCol;
     @FXML private TableColumn<ScanResult, String> failedTimestampCol;
-
     @FXML private TextField scanLocationField;
+    // --- New FXML fields for the updated UI ---
+    @FXML private HBox boxIdHBox;
+    @FXML private Button clearBoxIdButton;
 
+    // --- Class Variables ---
     private DeviceStatusTrackingController parentController;
     private final ObservableList<ScanResult> successList = FXCollections.observableArrayList();
     private final ObservableList<ScanResult> failedList = FXCollections.observableArrayList();
@@ -54,31 +57,31 @@ public class ScanUpdateController {
     private final AssetDAO assetDAO = new AssetDAO();
     private final ZplPrinterService printerService = new ZplPrinterService();
 
-
     public void setParentController(DeviceStatusTrackingController parentController) {
         this.parentController = parentController;
     }
 
     @FXML
     public void initialize() {
-        // setupStatusMappings(); // <-- REMOVED
         setupTableColumns();
 
-        statusCombo.getItems().addAll(StatusManager.getStatuses()); // <-- MODIFIED
-        statusCombo.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
-            subStatusCombo.getItems().clear();
-            if (newVal != null) { // <-- MODIFIED BLOCK
-                subStatusCombo.getItems().addAll(StatusManager.getSubStatuses(newVal));
-                subStatusCombo.getSelectionModel().selectFirst();
-            }
+        statusCombo.getItems().addAll(StatusManager.getStatuses());
+        statusCombo.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> updateUiForStatusChange(newVal));
 
-            boolean isDisposal = "Disposal/EOL".equals(newVal);
-            disposalLocationLabel.setVisible(isDisposal);
-            disposalLocationLabel.setManaged(isDisposal);
-            disposalLocationField.setVisible(isDisposal);
-            disposalLocationField.setManaged(isDisposal);
+        // This listener controls the serial field's state based on Box ID input
+        disposalLocationField.textProperty().addListener((obs, oldVal, newVal) -> {
+            if ("Disposal".equals(statusCombo.getValue())) {
+                boolean hasBoxId = newVal != null && !newVal.trim().isEmpty();
+                scanSerialField.setDisable(!hasBoxId);
+                if (hasBoxId) {
+                    scanSerialField.requestFocus();
+                }
+            }
         });
+
         statusCombo.getSelectionModel().selectFirst();
+        // Set the initial UI state based on the default selected status
+        updateUiForStatusChange(statusCombo.getValue());
     }
 
     private void setupTableColumns() {
@@ -93,6 +96,48 @@ public class ScanUpdateController {
         failedTable.setItems(failedList);
     }
 
+    /**
+     * Central method to control the UI's state based on the selected status.
+     * @param newStatus The newly selected status from the ComboBox.
+     */
+    private void updateUiForStatusChange(String newStatus) {
+        // Update sub-status dropdown
+        subStatusCombo.getItems().clear();
+        if (newStatus != null) {
+            subStatusCombo.getItems().addAll(StatusManager.getSubStatuses(newStatus));
+            subStatusCombo.getSelectionModel().selectFirst();
+        }
+
+        boolean isDisposal = "Disposal".equals(newStatus);
+
+        // Show or hide the entire Box ID section
+        disposalLocationLabel.setVisible(isDisposal);
+        boxIdHBox.setVisible(isDisposal);
+        disposalLocationLabel.setManaged(isDisposal);
+        boxIdHBox.setManaged(isDisposal);
+
+        // Core logic for the new workflow
+        if (isDisposal) {
+            // If in Disposal mode, the serial field is only enabled if a Box ID has been entered.
+            scanSerialField.setDisable(disposalLocationField.getText().trim().isEmpty());
+            disposalLocationField.requestFocus();
+        } else {
+            // For all other statuses, the serial field is always enabled.
+            scanSerialField.setDisable(false);
+            scanSerialField.requestFocus();
+        }
+    }
+
+    /**
+     * New handler for the "Clear" button to reset the Box ID and focus.
+     */
+    @FXML
+    private void handleClearBoxId() {
+        disposalLocationField.clear();
+        changeLogField.clear(); // Also clear the note for a new box
+        disposalLocationField.requestFocus();
+    }
+
     @FXML
     private void onSerialScanned() {
         String serial = scanSerialField.getText().trim();
@@ -100,23 +145,67 @@ public class ScanUpdateController {
 
         String newStatus = statusCombo.getValue();
         String newSubStatus = subStatusCombo.getValue();
+        String boxId = disposalLocationField.getText().trim();
 
-        String location = disposalLocationField.getText().trim();
-        if ("Disposal/EOL".equals(newStatus) && location.isEmpty()) {
-            showAlert("Location Required", "A disposal location must be entered when setting status to Disposal/EOL.");
+        // Validate that a Box ID is present if the status requires it
+        if ("Disposal".equals(newStatus) && boxId.isEmpty()) {
+            showAlert("Box ID Required", "A Box ID must be entered for the 'Disposal' status.");
             disposalLocationField.requestFocus();
             return;
         }
 
         String baseNote = changeLogField.getText().trim();
-        String finalNote = "Disposal/EOL".equals(newStatus)
-                ? ("Location: " + location + ". " + baseNote).trim()
+        String finalNote = "Disposal".equals(newStatus)
+                ? ("Box ID: " + boxId + ". " + baseNote).trim()
                 : baseNote;
 
         feedbackLabel.setText("Processing " + serial + "...");
         feedbackLabel.setTextFill(Color.BLUE);
 
-        Task<String> updateTask = new Task<>() {
+        Task<String> updateTask = createTaskForSerialUpdate(serial, newStatus, newSubStatus, finalNote);
+
+        updateTask.setOnSucceeded(event -> {
+            String result = updateTask.getValue();
+            String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+
+            if (result.startsWith("Success")) {
+                feedbackLabel.setText("✔ " + result);
+                feedbackLabel.setTextFill(Color.GREEN);
+                successList.addFirst(new ScanResult(serial, newStatus + " / " + newSubStatus, timestamp));
+                if (parentController != null) parentController.refreshData();
+
+                if ("Processed".equals(newStatus) && "Ready for Deployment".equals(newSubStatus)) {
+                    Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION, "Device is Ready for Deployment. Print SKU and Serial labels?", ButtonType.YES, ButtonType.NO);
+                    confirmation.showAndWait().ifPresent(response -> {
+                        if (response == ButtonType.YES) {
+                            printDeploymentLabels(serial);
+                        }
+                    });
+                }
+            } else {
+                feedbackLabel.setText("❌ " + result);
+                feedbackLabel.setTextFill(Color.RED);
+                failedList.addFirst(new ScanResult(serial, result, timestamp));
+            }
+            // --- KEY CHANGE: DO NOT CLEAR THE BOX ID FIELD ---
+            scanSerialField.clear();
+            scanSerialField.requestFocus();
+        });
+
+        updateTask.setOnFailed(event -> {
+            Throwable ex = updateTask.getException();
+            String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+            feedbackLabel.setText("❌ Error: " + ex.getMessage());
+            feedbackLabel.setTextFill(Color.RED);
+            failedList.addFirst(new ScanResult(serial, "DB Error", timestamp));
+            StageManager.showAlert(scanSerialField.getScene().getWindow(), Alert.AlertType.ERROR, "Database Error", "An unexpected database error occurred: " + ex.getMessage());
+        });
+
+        new Thread(updateTask).start();
+    }
+
+    private Task<String> createTaskForSerialUpdate(String serial, String newStatus, String newSubStatus, String finalNote) {
+        return new Task<>() {
             @Override
             protected String call() throws Exception {
                 try (Connection conn = DatabaseConnection.getInventoryConnection()) {
@@ -144,45 +233,6 @@ public class ScanUpdateController {
                 }
             }
         };
-
-        updateTask.setOnSucceeded(event -> {
-            String result = updateTask.getValue();
-            String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
-
-            if (result.startsWith("Success")) {
-                feedbackLabel.setText("✔ " + result);
-                feedbackLabel.setTextFill(Color.GREEN);
-                successList.addFirst(new ScanResult(serial, newStatus + " / " + newSubStatus, timestamp));
-                if (parentController != null) parentController.refreshData();
-
-                if ("Processed".equals(newStatus) && "Ready for Deployment".equals(newSubStatus)) {
-                    Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION, "Device is Ready for Deployment. Print SKU and Serial labels?", ButtonType.YES, ButtonType.NO);
-                    confirmation.showAndWait().ifPresent(response -> {
-                        if (response == ButtonType.YES) {
-                            printDeploymentLabels(serial);
-                        }
-                    });
-                }
-            } else {
-                feedbackLabel.setText("❌ " + result);
-                feedbackLabel.setTextFill(Color.RED);
-                failedList.addFirst(new ScanResult(serial, result, timestamp));
-            }
-            scanSerialField.clear();
-            scanSerialField.requestFocus();
-            disposalLocationField.clear();
-        });
-
-        updateTask.setOnFailed(event -> {
-            Throwable ex = updateTask.getException();
-            String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
-            feedbackLabel.setText("❌ Error: " + ex.getMessage());
-            feedbackLabel.setTextFill(Color.RED);
-            failedList.addFirst(new ScanResult(serial, "DB Error", timestamp));
-            StageManager.showAlert(scanSerialField.getScene().getWindow(), Alert.AlertType.ERROR, "Database Error", "An unexpected database error occurred: " + ex.getMessage());
-        });
-
-        new Thread(updateTask).start();
     }
 
     @FXML
@@ -209,7 +259,7 @@ public class ScanUpdateController {
                 """;
                 try (Connection conn = DatabaseConnection.getInventoryConnection();
                      PreparedStatement stmt = conn.prepareStatement(findSql)) {
-                    stmt.setString(1, "Location: " + location + "%");
+                    stmt.setString(1, "Box ID: " + location + "%");
                     ResultSet rs = stmt.executeQuery();
                     while (rs.next()) {
                         receiptIds.add(rs.getInt("receipt_id"));
@@ -222,23 +272,26 @@ public class ScanUpdateController {
         findDevicesTask.setOnSucceeded(e -> {
             List<Integer> receiptIds = findDevicesTask.getValue();
             if (receiptIds.isEmpty()) {
-                showAlert("No Devices Found", "No active devices were found with the location note: '" + location + "'");
+                showAlert("No Devices Found", "No active devices were found with the Box ID: '" + location + "'");
                 return;
             }
 
-            Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
-            confirmation.setTitle("Confirm Bulk Update");
-            confirmation.setHeaderText("Update all devices in location '" + location + "'?");
-            confirmation.setContentText(String.format(
-                    "You are about to update %d device(s) to the following status:\n\nStatus: %s\nSub-Status: %s\n\nThis action cannot be undone. Are you sure you want to proceed?",
+            String header = "Update all devices in Box ID '" + location + "'?";
+            String content = String.format(
+                    "You are about to update %d device(s) to the following status:%n%nStatus: %s%nSub-Status: %s%n%nThis action cannot be undone. Are you sure you want to proceed?",
                     receiptIds.size(), newStatus, newSubStatus
-            ));
+            );
 
-            confirmation.showAndWait().ifPresent(response -> {
-                if (response == ButtonType.OK) {
-                    performBulkUpdate(receiptIds, newStatus, newSubStatus, finalNote, location);
-                }
-            });
+            boolean confirmed = StageManager.showConfirmationDialog(
+                    scanLocationField.getScene().getWindow(),
+                    "Confirm Bulk Update",
+                    header,
+                    content
+            );
+
+            if (confirmed) {
+                performBulkUpdate(receiptIds, newStatus, newSubStatus, finalNote, location);
+            }
         });
 
         findDevicesTask.setOnFailed(e -> StageManager.showAlert(scanLocationField.getScene().getWindow(), Alert.AlertType.ERROR, "Database Error", "Failed to query devices by location: " + e.getSource().getException().getMessage()));
@@ -275,7 +328,7 @@ public class ScanUpdateController {
             feedbackLabel.setText(String.format("✔ Successfully updated %d devices in location '%s'.", updatedCount, location));
             feedbackLabel.setTextFill(Color.GREEN);
             String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
-            successList.addFirst(new ScanResult("Location: " + location, String.format("Updated %d devices", updatedCount), timestamp));
+            successList.addFirst(new ScanResult("Box ID: " + location, String.format("Updated %d devices", updatedCount), timestamp));
             if (parentController != null) parentController.refreshData();
             scanLocationField.clear();
             scanLocationField.requestFocus();
@@ -332,8 +385,6 @@ public class ScanUpdateController {
     private void showAlert(String title, String content) {
         StageManager.showAlert(scanSerialField.getScene().getWindow(), Alert.AlertType.WARNING, title, content);
     }
-
-    // setupStatusMappings() method was here <-- REMOVED
 
     public static class ScanResult {
         private final SimpleStringProperty serial;

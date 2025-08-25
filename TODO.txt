@@ -8,10 +8,6 @@ Priority 1:
 - Dig into WIP backlog, what is that?
 - update statuses and substatuses across whole app so it's consistent
 - update categories and statuses in database
-- autogenerate box id, change labeling in gui from Disposal location to BoxID
-- when bulk on, in ipad provisioning, add a way or a button or something to say this is a Tmobile ipad, and a way to 	change the sim card number and then update it in the database. Also, instead of the button being Update Serial 	for.
-	Selected it should be Update Sim fort selected.
-	WHen it's a tmobile ipad the carrier should say Tmobile and the Carrier account number changes to TMB-x285
 
 Priority 2:
 - How to be more granular on dashboard.
@@ -20,7 +16,7 @@ Priority 2:
 - Test all features extensively
 - Make sure history works
 - add monitors back to WIP on dash
-- 
+-
 
 
 At End:
@@ -59,6 +55,11 @@ DONE:
 -on scan update location disapperas when you scan one, i dont want it to dissaper because sometimes I may scan multiplle 		things back to back
 - fix visual bug on device status tracking, per page: and the drop down are on seperate lines
 - update categories across whole app so it's consistent
+- when bulk on, in ipad provisioning, add a way or a button or something to say this is a Tmobile ipad, and a way to 	change the sim card number and then update it in the database. Also, instead of the button being Update Serial 	for.
+	Selected it should be Update Sim fort selected.
+	WHen it's a tmobile ipad the carrier should say Tmobile and the Carrier account number changes to TMB-x285
+- Change labeling in gui from Disposal location to BoxID
+- update the SIM on the last ipad sent 3003
 
 Current Categories:
 Disposal/EOL
@@ -87,7 +88,8 @@ Kept in Depot(Parts)
 Kept in Depot(Functioning)
 Ready for Deployment
 
-WIP
-Refurbishment
+WIP <-
+Refurbishment <- Move this to 
 Troubleshooting
 In Evaluation
+
