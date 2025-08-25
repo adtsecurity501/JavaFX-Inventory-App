@@ -7,6 +7,7 @@ import assettracking.data.bulk.StagedDevice;
 import assettracking.ui.ExcelReader;
 import assettracking.ui.ExcelWriter;
 import assettracking.manager.StageManager;
+import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -30,11 +31,13 @@ import java.util.Optional;
 
 public class iPadProvisioningController {
 
+    // --- All FXML Fields ---
     @FXML private Button importDeviceListButton;
     @FXML private Label deviceListStatusLabel;
     @FXML private Button importRosterButton;
     @FXML private TextField snRefFilterField;
     @FXML private TableView<RosterEntry> rosterTable;
+    // --- FIX: All @FXML declarations are now present ---
     @FXML private TableColumn<RosterEntry, String> rosterNameCol;
     @FXML private TableColumn<RosterEntry, String> rosterSnRefCol;
     @FXML private TextField serialScanField;
@@ -46,6 +49,8 @@ public class iPadProvisioningController {
     @FXML private TableColumn<StagedDevice, String> stageSimCol;
     @FXML private TableColumn<StagedDevice, String> stageSnRefCol;
     @FXML private TableColumn<StagedDevice, String> stageEmailCol;
+    @FXML private TableColumn<StagedDevice, String> stageCarrierCol;
+    @FXML private TableColumn<StagedDevice, String> stageCarrierAccountCol;
     @FXML private Button exportButton;
     @FXML private Label statusLabel;
     @FXML private TextField dbSearchField;
@@ -144,7 +149,6 @@ public class iPadProvisioningController {
         filteredRosterList = new FilteredList<>(rosterList, p -> true);
         rosterTable.setItems(filteredRosterList);
 
-        // REFACTORED: Replaced statement lambda with expression lambda
         snRefFilterField.textProperty().addListener((obs, oldVal, newVal) -> filteredRosterList.setPredicate(rosterEntry -> {
             if (newVal == null || newVal.isEmpty()) return true;
             return rosterEntry.getSnReferenceNumber().toLowerCase().endsWith(newVal.toLowerCase());
@@ -152,6 +156,8 @@ public class iPadProvisioningController {
     }
 
     private void setupStagingTable() {
+        stageCarrierCol.setCellValueFactory(new PropertyValueFactory<>("carrier"));
+        stageCarrierAccountCol.setCellValueFactory(new PropertyValueFactory<>("carrierAccountNumber"));
         stageFirstNameCol.setCellValueFactory(new PropertyValueFactory<>("firstName"));
         stageLastNameCol.setCellValueFactory(new PropertyValueFactory<>("lastName"));
         stageSerialCol.setCellValueFactory(new PropertyValueFactory<>("serialNumber"));
@@ -163,7 +169,7 @@ public class iPadProvisioningController {
         stageSimCol.setCellFactory(TextFieldTableCell.forTableColumn());
         stageSimCol.setOnEditCommit(event -> {
             StagedDevice device = event.getRowValue();
-            updateSimCard(device.getSerialNumber(), event.getNewValue());
+            updateSimCardInDb(device.getSerialNumber(), event.getNewValue());
         });
 
         stagingTable.setItems(stagedDeviceList);
@@ -272,7 +278,6 @@ public class iPadProvisioningController {
             return;
         }
 
-        // REFACTORED: Replaced .get(0) with .getFirst()
         RosterEntry employeeToAssign = rosterTable.getItems().size() == 1 ? rosterTable.getItems().getFirst() : rosterTable.getSelectionModel().getSelectedItem();
 
         if (employeeToAssign == null) {
@@ -332,7 +337,7 @@ public class iPadProvisioningController {
         serialScanField.requestFocus();
     }
 
-    private void updateSimCard(String serialNumber, String newSim) {
+    private void updateSimCardInDb(String serialNumber, String newSim) {
         Task<Void> updateTask = new Task<>() {
             @Override
             protected Void call() throws Exception {
@@ -340,55 +345,49 @@ public class iPadProvisioningController {
                 return null;
             }
         };
-        updateTask.setOnSucceeded(e -> statusLabel.setText("Updated SIM for " + serialNumber));
-        updateTask.setOnFailed(e -> StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Database Error", "Failed to update SIM: " + updateTask.getException().getMessage()));
+        updateTask.setOnSucceeded(e -> statusLabel.setText("Updated SIM in DB for " + serialNumber));
+        updateTask.setOnFailed(e -> StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Database Error", "Failed to update SIM in DB: " + updateTask.getException().getMessage()));
         new Thread(updateTask).start();
     }
 
     @FXML
-    private void handleUpdateSerial() {
+    private void handleSetTmobile() {
         StagedDevice selectedDevice = stagingTable.getSelectionModel().getSelectedItem();
         if (selectedDevice == null) {
             StageManager.showAlert(getStage(), Alert.AlertType.WARNING, "No Selection", "Please select a device in the staging table to update.");
             return;
         }
 
-        TextInputDialog dialog = new TextInputDialog();
-        dialog.setTitle("Update Serial Number");
-        dialog.setHeaderText("Update serial for " + selectedDevice.getFirstName() + " " + selectedDevice.getLastName());
-        dialog.setContentText("Please scan or enter the NEW serial number:");
+        selectedDevice.setCarrier("T-Mobile");
+        selectedDevice.setCarrierAccountNumber("TMB-x285");
+        stagingTable.refresh();
+        statusLabel.setText("Set " + selectedDevice.getSerialNumber() + " to T-Mobile.");
+    }
+
+    @FXML
+    private void handleUpdateSim() {
+        StagedDevice selectedDevice = stagingTable.getSelectionModel().getSelectedItem();
+        if (selectedDevice == null) {
+            StageManager.showAlert(getStage(), Alert.AlertType.WARNING, "No Selection", "Please select a device in the staging table to update its SIM.");
+            return;
+        }
+
+        TextInputDialog dialog = new TextInputDialog(selectedDevice.getSim());
+        dialog.setTitle("Update SIM Card Number");
+        dialog.setHeaderText("Update SIM for device: " + selectedDevice.getSerialNumber());
+        dialog.setContentText("Please scan or enter the NEW SIM card (ICCID):");
 
         Optional<String> result = dialog.showAndWait();
-        result.ifPresent(newSerialRaw -> {
-            String newSerial = newSerialRaw.trim().toUpperCase();
-            if (newSerial.isEmpty() || newSerial.equals(selectedDevice.getSerialNumber())) return;
+        result.ifPresent(newSimRaw -> {
+            String newSim = newSimRaw.trim();
+            if (newSim.isEmpty() || newSim.equals(selectedDevice.getSim())) return;
 
-            if (stagedDeviceList.stream().anyMatch(d -> d.getSerialNumber().equals(newSerial))) {
-                StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Duplicate Error", "Serial " + newSerial + " is already staged.");
-                return;
-            }
+            selectedDevice.setSim(newSim);
+            stagingTable.refresh();
 
-            Task<Optional<BulkDevice>> fetchTask = new Task<>() {
-                @Override
-                protected Optional<BulkDevice> call() throws Exception {
-                    return dao.findDeviceBySerial(newSerial);
-                }
-            };
+            updateSimCardInDb(selectedDevice.getSerialNumber(), newSim);
 
-            fetchTask.setOnSucceeded(e -> {
-                Optional<BulkDevice> newDeviceOpt = fetchTask.getValue();
-                if (newDeviceOpt.isPresent()) {
-                    RosterEntry originalRoster = new RosterEntry(selectedDevice.getFirstName(), selectedDevice.getLastName(), selectedDevice.getEmployeeEmail(), selectedDevice.getSnReferenceNumber(), selectedDevice.getDepotOrderNumber());
-                    StagedDevice updatedStagedDevice = new StagedDevice(originalRoster, newDeviceOpt.get());
-                    stagedDeviceList.set(stagingTable.getSelectionModel().getSelectedIndex(), updatedStagedDevice);
-                    statusLabel.setText("Updated serial for " + selectedDevice.getLastName() + " to " + newSerial);
-                } else {
-                    StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Device Not Found", "Serial " + newSerial + " not found in the database.");
-                }
-            });
-            fetchTask.setOnFailed(e -> StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Database Error", "Failed to look up new serial: " + fetchTask.getException().getMessage()));
-
-            new Thread(fetchTask).start();
+            statusLabel.setText("Updated SIM for " + selectedDevice.getSerialNumber());
         });
     }
 
@@ -408,7 +407,6 @@ public class iPadProvisioningController {
         File file = fileChooser.showSaveDialog(getStage());
         if (file == null) return;
 
-        // FIX: Added a null check to prevent NullPointerException if the template is not found.
         URL resourceUrl = getClass().getResource("/template/Device_Submission_Template.xlsx");
         if (resourceUrl == null) {
             StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Template Not Found", "The required Excel template 'Device_Submission_Template.xlsx' could not be found in the application resources.");
@@ -433,7 +431,6 @@ public class iPadProvisioningController {
             statusLabel.setText("Export complete.");
         });
         exportTask.setOnFailed(e -> {
-            // REFACTORED: Replaced printStackTrace with a user-facing alert
             StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Export Error", "An error occurred during export: " + e.getSource().getException().getMessage());
         });
         new Thread(exportTask).start();

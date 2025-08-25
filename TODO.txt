@@ -9,6 +9,9 @@ Priority 1:
 - update statuses and substatuses across whole app so it's consistent
 - update categories and statuses in database
 - autogenerate box id, change labeling in gui from Disposal location to BoxID
+- when bulk on, in ipad provisioning, add a way or a button or something to say this is a Tmobile ipad, and a way to 	change the sim card number and then update it in the database. Also, instead of the button being Update Serial 	for.
+	Selected it should be Update Sim fort selected.
+	WHen it's a tmobile ipad the carrier should say Tmobile and the Carrier account number changes to TMB-x285
 
 Priority 2:
 - How to be more granular on dashboard.
@@ -88,57 +91,3 @@ WIP
 Refurbishment
 Troubleshooting
 In Evaluation
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-WIP
-In Evaluation
-Troubleshooting
-Awaiting Parts
-Awaiting Dell Tech
-Shipped to Dell <- remove this one
-Refurbishment <- change this one to and move to 
-
-Processed
-Ready for Deployment
-Ready for Imaging
-
-Inventory
-Surplus
-Parts Harvest
-Awaiting Disposition
-
-Disposal
-CanAm, Pending Pickup
-CanAm, Picked Up
-Ingram Micro, Pending Pickup
-Ingram Micro, Picked Up
-Return to Vendor
-Donation
-e-Waste (General)
-
-Everon
-Pending Shipment
-Shipped
-
-Special Projects
-Project Intake
-Pending Deployment
-Deployed
-
-Flag!
-Requires Review

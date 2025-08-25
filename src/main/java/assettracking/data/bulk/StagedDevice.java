@@ -12,6 +12,9 @@ public class StagedDevice {
     private final SimpleStringProperty snReferenceNumber;
     private final SimpleStringProperty employeeEmail;
     private final SimpleStringProperty depotOrderNumber;
+    // --- NEW FIELDS ---
+    private final SimpleStringProperty carrier;
+    private final SimpleStringProperty carrierAccountNumber;
 
     public StagedDevice(RosterEntry rosterEntry, BulkDevice bulkDevice) {
         this.firstName = new SimpleStringProperty(rosterEntry.getFirstName());
@@ -22,21 +25,30 @@ public class StagedDevice {
         this.snReferenceNumber = new SimpleStringProperty(rosterEntry.getSnReferenceNumber());
         this.employeeEmail = new SimpleStringProperty(rosterEntry.getEmail());
         this.depotOrderNumber = new SimpleStringProperty(rosterEntry.getDepotOrderNumber());
+        // --- INITIALIZE NEW FIELDS (Default to Verizon) ---
+        this.carrier = new SimpleStringProperty("Verizon");
+        this.carrierAccountNumber = new SimpleStringProperty("VER-942x");
     }
 
-    // --- NEW ---
-    // Add this new constructor to handle devices without a roster entry.
     public StagedDevice(BulkDevice bulkDevice) {
-        this.firstName = new SimpleStringProperty(""); // Blank field for manual entry later
-        this.lastName = new SimpleStringProperty("");  // Blank field
+        this.firstName = new SimpleStringProperty("");
+        this.lastName = new SimpleStringProperty("");
         this.serialNumber = new SimpleStringProperty(bulkDevice.getSerialNumber());
         this.imei = new SimpleStringProperty(bulkDevice.getImei());
         this.sim = new SimpleStringProperty(bulkDevice.getIccid());
-        this.snReferenceNumber = new SimpleStringProperty(""); // Blank field
-        this.employeeEmail = new SimpleStringProperty("");     // Blank field
-        this.depotOrderNumber = new SimpleStringProperty("");  // Blank field
+        this.snReferenceNumber = new SimpleStringProperty("");
+        this.employeeEmail = new SimpleStringProperty("");
+        this.depotOrderNumber = new SimpleStringProperty("");
+        // --- INITIALIZE NEW FIELDS (Default to Verizon for unassigned too) ---
+        this.carrier = new SimpleStringProperty("Verizon");
+        this.carrierAccountNumber = new SimpleStringProperty("VER-942x");
     }
-    // --- END NEW ---
+
+    // --- SETTERS FOR NEW AND EXISTING FIELDS ---
+    public void setSim(String newSim) { this.sim.set(newSim); }
+    public void setCarrier(String newCarrier) { this.carrier.set(newCarrier); }
+    public void setCarrierAccountNumber(String newAccountNumber) { this.carrierAccountNumber.set(newAccountNumber); }
+
 
     // Getters for TableView columns
     public String getFirstName() { return firstName.get(); }
@@ -47,6 +59,8 @@ public class StagedDevice {
     public String getSnReferenceNumber() { return snReferenceNumber.get(); }
     public String getEmployeeEmail() { return employeeEmail.get(); }
     public String getDepotOrderNumber() { return depotOrderNumber.get(); }
+    public String getCarrier() { return carrier.get(); } // <-- NEW
+    public String getCarrierAccountNumber() { return carrierAccountNumber.get(); } // <-- NEW
 
     // Property Getters for JavaFX
     public SimpleStringProperty firstNameProperty() { return firstName; }
@@ -55,4 +69,6 @@ public class StagedDevice {
     public SimpleStringProperty imeiProperty() { return imei; }
     public SimpleStringProperty simProperty() { return sim; }
     public SimpleStringProperty snReferenceNumberProperty() { return snReferenceNumber; }
+    public SimpleStringProperty carrierProperty() { return carrier; } // <-- NEW
+    public SimpleStringProperty carrierAccountNumberProperty() { return carrierAccountNumber; } // <-- NEW
 }
