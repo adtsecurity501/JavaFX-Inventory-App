@@ -2,6 +2,7 @@ package assettracking.dao;
 
 import assettracking.db.DatabaseConnection;
 import assettracking.data.AssetInfo;
+import assettracking.data.MelRule;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -118,6 +119,27 @@ public class AssetDAO {
                     asset.setDescription(rs.getString("description"));
                     asset.setMake(rs.getString("make"));
                     return Optional.of(asset);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return Optional.empty();
+    }
+
+    public Optional<MelRule> findMelRule(String modelNumber, String description) {
+        String sql = "SELECT model_number, action, special_notes FROM Mel_Rules WHERE model_number = ? OR description = ?";
+        try (Connection conn = DatabaseConnection.getInventoryConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, modelNumber);
+            stmt.setString(2, description);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return Optional.of(new MelRule(
+                            rs.getString("model_number"),
+                            rs.getString("action"),
+                            rs.getString("special_notes")
+                    ));
                 }
             }
         } catch (SQLException e) {

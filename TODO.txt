@@ -1,9 +1,4 @@
 Priority 1:
-- Auto dispose EOL devices on intake
-	- upadate the mel rules table using the excel doc upload. It has these headers: Model	Description	Action	SPECIAL NOTES	Device	Mfg	RedeployOOWThreshold	Specification. We can use the Model column from the xlsx doc to match it to what we have in the model_number column of the db.
-	- add a way to upload the mel rules document to update the table
-	- add template information to recreate if needed and error checking for document format
-	- The templte document has these column headers: Model	Description	Action	SPECIAL NOTES	Device	Mfg	Redeploy   Threshold	Specification
 - clean the monitor data, look for long dell serials that are incorrect. 
 - Dig into WIP backlog, what is that?
 - update statuses and substatuses across whole app so it's consistent
@@ -60,36 +55,43 @@ DONE:
 	WHen it's a tmobile ipad the carrier should say Tmobile and the Carrier account number changes to TMB-x285
 - Change labeling in gui from Disposal location to BoxID
 - update the SIM on the last ipad sent 3003
-
-Current Categories:
-Disposal/EOL
-Ingram, Pending Pickup
-Can-Am, Pending Pickup
-
-Everon
-Shipped
-Pending Shipment
-
-Flag!
-Requires Review
-
-Found in sheet <- I want to get rid of this status
-Ready for Deployment <- change status of all of these to Processed Ready for deployment instead of Found in sheet Ready for deployment
-Refurbishment <- change all of these to 
+- Auto dispose EOL devices on intake
+	- upadate the mel rules table using the excel doc upload. It has these headers: Model	Description	Action	SPECIAL NOTES	Device	Mfg	RedeployOOWThreshold	Specification. We can use the Model column from the xlsx doc to match it to what we have in the model_number column of the db.
+	- add a way to upload the mel rules document to update the table
+	- add template information to recreate if needed and error checking for document format
+	- The templte document has these column headers: Model	Description	Action	SPECIAL NOTES	Device	Mfg	Redeploy   Threshold	Specification
 
 
-Phone
-Shipped
-Pending Shipment
 
 
-Processed
+
+
+
+
+Intake (Entry point for used assets)
+In Evaluation
+Triage & Repair (For devices being actively worked on)
+Troubleshooting
+Refurbishment
+Awaiting Parts
+Awaiting Dell Tech
+Shipped to Dell
+Processed (Ready for use or in storage)
+Ready for Deployment
+Ready for Imaging
 Kept in Depot(Parts)
 Kept in Depot(Functioning)
-Ready for Deployment
-
-WIP <-
-Refurbishment <- Move this to 
-Troubleshooting
-In Evaluation
-
+Disposed (Items that are physically leaving or have left)
+CanAm, Pending Pickup
+CanAm, Picked Up
+Ingram Micro, Pending Pickup
+Ingram Micro, Picked Up
+e-Waste (General)
+Everon (Shipping workflow)
+Pending Shipment
+Shipped
+Phone (Shipping workflow)
+Pending Shipment
+Shipped
+Flag! (System-level for attention)
+Requires Review

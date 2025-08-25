@@ -6,9 +6,10 @@ import assettracking.data.AssetEntry;
 import assettracking.data.AssetInfo;
 import assettracking.data.Package;
 import assettracking.data.ReceiptEvent;
+import assettracking.data.MelRule;
 import assettracking.db.DatabaseConnection;
 import assettracking.label.service.ZplPrinterService;
-import assettracking.manager.StatusManager; // <-- IMPORT ADDED
+import assettracking.manager.StatusManager;
 import assettracking.ui.AutoCompletePopup;
 import assettracking.manager.StageManager;
 import javafx.application.Platform;
@@ -263,8 +264,8 @@ public class AddAssetDialogController {
             if (sku.getCategory() != null && !sku.getCategory().isEmpty()) {
                 categoryBox.setValue(sku.getCategory());
             }
-            assetDAO.findActionFromMelRules(sku.getModelNumber(), sku.getDescription()).ifPresent(action ->
-                    melActionLabel.setText("MEL Action: " + action));
+            // Apply the rule check
+            applyMelRule(sku.getModelNumber(), sku.getDescription());
         });
     }
 
@@ -288,8 +289,7 @@ public class AddAssetDialogController {
             modelField.setText(asset.getModelNumber());
             descriptionField.setText(asset.getDescription());
 
-            assetDAO.findActionFromMelRules(asset.getModelNumber(), asset.getDescription()).ifPresent(action ->
-                    melActionLabel.setText("MEL Action: " + action));
+            applyMelRule(asset.getModelNumber(), asset.getDescription());
         }));
 
         try (Connection conn = DatabaseConnection.getInventoryConnection();
@@ -494,7 +494,7 @@ public class AddAssetDialogController {
             finalStatus = "Processed";
             finalSubStatus = "Ready for Deployment";
         } else {
-            finalStatus = "WIP";
+            finalStatus = "Intake";
             finalSubStatus = "In Evaluation";
         }
 
@@ -636,5 +636,28 @@ public class AddAssetDialogController {
         monitorModelField.clear();
         monitorDescriptionField.clear();
         monitorSerialField.requestFocus();
+    }
+    private void applyMelRule(String modelNumber, String description) {
+        Optional<MelRule> ruleOpt = assetDAO.findMelRule(modelNumber, description);
+
+        sellScrapCheckBox.setSelected(false);
+        disqualificationField.clear();
+        melActionLabel.setText("");
+
+        ruleOpt.ifPresent(rule -> {
+            melActionLabel.setText("MEL Action: " + rule.action());
+            if ("Dispose".equalsIgnoreCase(rule.action())) {
+                // --- THIS IS THE UPDATED LOGIC ---
+                // 1. Check the box to reveal the disposition dropdowns
+                sellScrapCheckBox.setSelected(true);
+
+                // 2. Set the FINAL disposition status, which will be saved if the user proceeds
+                sellScrapStatusCombo.setValue("Disposed");
+                sellScrapSubStatusCombo.setValue("e-Waste (General)");
+
+                // 3. Pre-fill the reason
+                disqualificationField.setText("EOL per MEL Rule. Awaiting drive wipe and boxing.");
+            }
+        });
     }
 }

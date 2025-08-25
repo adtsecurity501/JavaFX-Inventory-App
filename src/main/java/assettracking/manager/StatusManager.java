@@ -9,42 +9,51 @@ public final class StatusManager {
 
     // Static initializer block to populate the map once when the class is loaded.
     static {
-        // --- THIS BLOCK HAS BEEN UPDATED WITH THE NEW LISTS ---
-        STATUS_MAP.put("WIP", List.of(
-                "In Evaluation",
+        // 1. New default status for used/returned devices
+        STATUS_MAP.put("Intake", List.of(
+                "In Evaluation"
+        ));
+
+        // 2. New category for all "hands-on" work
+        STATUS_MAP.put("Triage & Repair", List.of(
                 "Troubleshooting",
+                "Refurbishment",
                 "Awaiting Parts",
                 "Awaiting Dell Tech",
-                "Shipped to Dell",
-                "Refurbishment"
+                "Shipped to Dell"
         ));
+
+        // 3. Status for devices ready for use or storage
         STATUS_MAP.put("Processed", List.of(
                 "Ready for Deployment",
-                "Ready for Imaging"
+                "Ready for Imaging",
+                "Kept in Depot(Parts)",
+                "Kept in Depot(Functioning)"
         ));
-        STATUS_MAP.put("Inventory", List.of(
-                "Surplus",
-                "Parts Harvest",
-                "Awaiting Disposition"
+
+        // 4. Final disposition statuses (items leaving inventory)
+        STATUS_MAP.put("Disposed", List.of(
+                "CanAm, Pending Pickup",
+                "CanAm, Picked Up",
+                "Ingram Micro, Pending Pickup",
+                "Ingram Micro, Picked Up",
+                "e-Waste (General)"
         ));
-        STATUS_MAP.put("Disposal", List.of(
-                "e-Waste",
-                "Return to Vendor",
-                "Donation"
-        ));
+
+        // 5. & 6. Shipping-related statuses
         STATUS_MAP.put("Everon", List.of(
                 "Pending Shipment",
                 "Shipped"
         ));
-        STATUS_MAP.put("Special Projects", List.of(
-                "Project Intake",
-                "Pending Deployment",
-                "Deployed"
+        STATUS_MAP.put("Phone", List.of(
+                "Pending Shipment",
+                "Shipped"
         ));
-        STATUS_MAP.put("Flag!", List.of( // This is kept for system functionality
+
+        // 7. System status for flagged items
+        STATUS_MAP.put("Flag!", List.of(
                 "Requires Review"
         ));
-        // --- END OF UPDATE ---
     }
 
     /**

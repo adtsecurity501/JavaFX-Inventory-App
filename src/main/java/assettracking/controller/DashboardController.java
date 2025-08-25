@@ -3,6 +3,7 @@ package assettracking.controller;
 import assettracking.db.DatabaseConnection;
 import assettracking.ui.ConfettiManager;
 import assettracking.ui.FlaggedDeviceImporter;
+import assettracking.ui.MelRulesImporter;
 import javafx.animation.ScaleTransition;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -102,6 +103,12 @@ public class DashboardController {
 
     private void setupFilters() {
         dateRangeToggleGroup.selectedToggleProperty().addListener((obs, oldVal, newVal) -> refreshAllCharts());
+    }
+
+    @FXML
+    private void handleManageMelRules() {
+        MelRulesImporter importer = new MelRulesImporter();
+        importer.importFromFile((Stage) importFlagsButton.getScene().getWindow());
     }
 
     @FXML
@@ -255,11 +262,13 @@ public class DashboardController {
     }
 
     private void loadStaticKpis() {
+        // --- THIS SQL QUERY IS UPDATED ---
+        // The "WIP Backlog" now accurately reflects the sum of devices in the "Intake" and "Triage & Repair" funnels.
         String wipSql = "SELECT COUNT(*) as count " +
                 "FROM Device_Status ds " +
                 "JOIN (" + LATEST_RECEIPT_SUBQUERY + ") latest_re ON ds.receipt_id = latest_re.max_receipt_id " +
                 "JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id " +
-                "WHERE ds.status = 'WIP' AND re.category NOT LIKE '%Monitor%'";
+                "WHERE ds.status IN ('Intake', 'Triage & Repair') AND re.category NOT LIKE '%Monitor%'";
 
         String turnaroundSql = "SELECT AVG(JULIANDAY(ds.last_update) - JULIANDAY(p.receive_date)) as avg_days FROM Device_Status ds JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id JOIN Packages p ON re.package_id = p.package_id WHERE ds.status = 'Processed' AND ds.sub_status = 'Ready for Deployment' AND ds.last_update >= date('now', '-30 days')";
 

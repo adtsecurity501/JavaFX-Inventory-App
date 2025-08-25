@@ -22,6 +22,7 @@
         <Region HBox.hgrow="ALWAYS" />
         <Button text="Refresh" onAction="#refreshAllCharts" styleClass="success"/>
         <Button fx:id="importFlagsButton" text="Import Flags..." onAction="#handleImportFlags"/>
+        <Button onAction="#handleManageMelRules" text="Update MEL Rules..."/>
     </HBox>
 
     <GridPane fx:id="mainGridPane" hgap="20" vgap="20" VBox.vgrow="ALWAYS">
