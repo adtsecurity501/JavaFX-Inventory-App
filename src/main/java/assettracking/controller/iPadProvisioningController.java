@@ -372,12 +372,14 @@ public class iPadProvisioningController {
             return;
         }
 
-        TextInputDialog dialog = new TextInputDialog(selectedDevice.getSim());
-        dialog.setTitle("Update SIM Card Number");
-        dialog.setHeaderText("Update SIM for device: " + selectedDevice.getSerialNumber());
-        dialog.setContentText("Please scan or enter the NEW SIM card (ICCID):");
+        Optional<String> result = StageManager.showTextInputDialog(
+                getStage(),
+                "Update SIM Card Number",
+                "Update SIM for device: " + selectedDevice.getSerialNumber(),
+                "Please scan or enter the NEW SIM card (ICCID):",
+                selectedDevice.getSim()
+        );
 
-        Optional<String> result = dialog.showAndWait();
         result.ifPresent(newSimRaw -> {
             String newSim = newSimRaw.trim();
             if (newSim.isEmpty() || newSim.equals(selectedDevice.getSim())) return;
@@ -390,6 +392,7 @@ public class iPadProvisioningController {
             statusLabel.setText("Updated SIM for " + selectedDevice.getSerialNumber());
         });
     }
+
 
     @FXML
     private void handleRemoveSelected() {

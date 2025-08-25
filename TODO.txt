@@ -3,6 +3,12 @@ Priority 1:
 - Dig into WIP backlog, what is that?
 - update statuses and substatuses across whole app so it's consistent
 - update categories and statuses in database
+- inlclude monitors in the WIP backlog on dashboard
+- double check all categories
+- update devcie status tracdking window to 
+- Update all items Disposal/EOL to new status 
+
+
 
 Priority 2:
 - How to be more granular on dashboard.
@@ -11,7 +17,7 @@ Priority 2:
 - Test all features extensively
 - Make sure history works
 - add monitors back to WIP on dash
--
+-add double click funtionality to packkage management to open selected package
 
 
 At End:
@@ -60,8 +66,8 @@ DONE:
 	- add a way to upload the mel rules document to update the table
 	- add template information to recreate if needed and error checking for document format
 	- The templte document has these column headers: Model	Description	Action	SPECIAL NOTES	Device	Mfg	Redeploy   Threshold	Specification
-
-
+-update migrate scripts for new categories.
+- update package details window and error windwos. Double check that all windows and popups to have same title menu bar styles as rest of app
 
 
 

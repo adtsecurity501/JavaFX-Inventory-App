@@ -8,9 +8,7 @@
             fx:controller="assettracking.controller.iPadProvisioningController">
     <center>
         <SplitPane dividerPositions="0.4" style="-fx-padding: 10 0 0 0;">
-            <!-- ======================================================= -->
-            <!-- THIS IS THE MISSING SECTION THAT HAS BEEN ADDED AND FIXED -->
-            <!-- ======================================================= -->
+            <!-- Left Side: Workflow -->
             <VBox spacing="10" style="-fx-padding: 0 10 0 0;">
                 <Label styleClass="h4" text="Assignment Workflow"/>
                 <HBox alignment="CENTER_LEFT" spacing="10">
@@ -29,17 +27,17 @@
 
                 <TableView fx:id="rosterTable" VBox.vgrow="ALWAYS">
                     <columns>
-                        <!-- FIX #1: Added fx:id="rosterNameCol" -->
+                        <!-- THIS IS THE FIX YOU FOUND: fx:id attributes are now present -->
                         <TableColumn fx:id="rosterNameCol" prefWidth="180" text="Name"/>
-                        <!-- FIX #2: Added fx:id="rosterSnRefCol" -->
                         <TableColumn fx:id="rosterSnRefCol" prefWidth="120" text="SN Ref #"/>
                     </columns>
                 </TableView>
 
+                <Button onAction="#handleAddDeviceToStaging" text="Add to Staging (Assigned)" styleClass="accent" maxWidth="Infinity"/>
                 <Button fx:id="stageUnassignedButton" onAction="#handleStageUnassigned" text="Stage as Unassigned" maxWidth="Infinity"/>
             </VBox>
 
-            <!-- This was the section you posted previously -->
+            <!-- Right Side: Staged Devices & Lookup -->
             <VBox spacing="10" style="-fx-padding: 0 0 0 10;">
                 <Label styleClass="h4" text="Staged Devices for Export"/>
                 <TableView fx:id="stagingTable" editable="true" VBox.vgrow="ALWAYS">

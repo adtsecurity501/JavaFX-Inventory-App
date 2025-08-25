@@ -8,6 +8,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -20,6 +21,7 @@ import javafx.stage.StageStyle;
 import javafx.stage.Window;
 import javafx.scene.control.Separator;
 
+import java.util.Optional;
 
 public final class StageManager {
 
@@ -34,7 +36,6 @@ public final class StageManager {
             stage.initModality(Modality.WINDOW_MODAL);
         }
 
-        // --- Create Custom Title Bar ---
         Label titleLabel = new Label(" " + title);
         titleLabel.getStyleClass().add("title-bar-text");
 
@@ -60,14 +61,9 @@ public final class StageManager {
             stage.setY(event.getScreenY() - yOffset);
         });
 
-        // --- Assemble the Scene ---
         BorderPane root = new BorderPane();
         root.setTop(titleBar);
         root.setCenter(content);
-
-        // --- MODIFIED ---
-        // This is the definitive fix. It applies the theme's main background color
-        // to the root of the new window, ensuring it's always in sync with the current theme.
         root.setStyle("-fx-background-color: -color-bg-default;");
 
         Scene scene = new Scene(root);
@@ -78,7 +74,7 @@ public final class StageManager {
     }
 
     public static boolean showConfirmationDialog(Window owner, String title, String headerText, String contentText) {
-        final boolean[] result = {false}; // Use an array to be modifiable from the lambda
+        final boolean[] result = {false};
 
         Label headerLabel = new Label(headerText);
         headerLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 1.1em;");
@@ -116,6 +112,40 @@ public final class StageManager {
         return result[0];
     }
 
+    public static Optional<String> showTextInputDialog(Window owner, String title, String headerText, String contentText, String initialValue) {
+        final String[] result = {null};
+
+        Label headerLabel = new Label(headerText);
+        headerLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 1.1em;");
+        Label contentLabel = new Label(contentText);
+        TextField inputField = new TextField(initialValue);
+
+        Button okButton = new Button("OK");
+        okButton.getStyleClass().add("success");
+        okButton.setDefaultButton(true);
+
+        Button cancelButton = new Button("Cancel");
+        cancelButton.setCancelButton(true);
+
+        HBox buttonBar = new HBox(10, cancelButton, okButton);
+        buttonBar.setAlignment(Pos.CENTER_RIGHT);
+
+        VBox layout = new VBox(15, headerLabel, contentLabel, inputField, buttonBar);
+        layout.setPadding(new Insets(20));
+
+        Stage dialogStage = createCustomStage(owner, title, layout);
+
+        okButton.setOnAction(e -> {
+            result[0] = inputField.getText();
+            dialogStage.close();
+        });
+        cancelButton.setOnAction(e -> dialogStage.close());
+
+        dialogStage.showAndWait();
+
+        return Optional.ofNullable(result[0]);
+    }
+
     public static void showAlert(Window owner, Alert.AlertType alertType, String title, String contentText) {
         Label contentLabel = new Label(contentText);
         contentLabel.setWrapText(true);
@@ -123,6 +153,7 @@ public final class StageManager {
 
         Button okButton = new Button("OK");
         okButton.getStyleClass().add("accent");
+        okButton.setDefaultButton(true);
 
         VBox layout = new VBox(20, contentLabel, okButton);
         layout.setAlignment(Pos.CENTER);

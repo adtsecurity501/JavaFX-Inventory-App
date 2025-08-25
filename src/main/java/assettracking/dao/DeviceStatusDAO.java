@@ -39,7 +39,6 @@ public class DeviceStatusDAO {
                 return rs.getInt(1);
             }
         } catch (SQLException e) {
-            // REFACTORED: Replaced printStackTrace with a user-facing alert
             StageManager.showAlert(null, Alert.AlertType.ERROR, "Database Error", "Failed to count records for pagination: " + e.getMessage());
         }
         return 0;
@@ -68,19 +67,17 @@ public class DeviceStatusDAO {
                 ));
             }
         } catch (SQLException e) {
-            // REFACTORED: Replaced printStackTrace with a user-facing alert
             StageManager.showAlert(null, Alert.AlertType.ERROR, "Database Error", "Failed to load page data: " + e.getMessage());
         }
     }
 
-    public void updateDeviceStatus(ObservableList<DeviceStatusView> selectedDevices, String newStatus, String newSubStatus) {
+    public void updateDeviceStatus(ObservableList<DeviceStatusView> selectedDevices, String newStatus, String newSubStatus, String note) {
         if (selectedDevices == null || selectedDevices.isEmpty()) {
-            // Note: The controller should handle this, but the check is kept for safety.
             StageManager.showAlert(null, Alert.AlertType.WARNING, "No Selection", "Please select one or more devices to update.");
             return;
         }
 
-        String updateStatusSql = "UPDATE Device_Status SET status = ?, sub_status = ?, last_update = CURRENT_TIMESTAMP WHERE receipt_id = ?";
+        String updateStatusSql = "UPDATE Device_Status SET status = ?, sub_status = ?, last_update = CURRENT_TIMESTAMP, change_log = ? WHERE receipt_id = ?";
         String deleteFlagSql = "DELETE FROM Flag_Devices WHERE serial_number = ?";
 
         Connection conn = null;
@@ -93,7 +90,8 @@ public class DeviceStatusDAO {
                 for (DeviceStatusView device : selectedDevices) {
                     updateStmt.setString(1, newStatus);
                     updateStmt.setString(2, newSubStatus);
-                    updateStmt.setInt(3, device.getReceiptId());
+                    updateStmt.setString(3, note);
+                    updateStmt.setInt(4, device.getReceiptId());
                     updateStmt.addBatch();
 
                     if ("Flag!".equals(device.getStatus())) {
@@ -106,7 +104,6 @@ public class DeviceStatusDAO {
             }
             conn.commit();
         } catch (SQLException e) {
-            // REFACTORED: Replaced printStackTrace with a user-facing alert
             StageManager.showAlert(null, Alert.AlertType.ERROR, "Update Failed", "Failed to update device statuses in the database: " + e.getMessage());
             if (conn != null) {
                 try { conn.rollback(); } catch (SQLException ex) {
@@ -163,7 +160,6 @@ public class DeviceStatusDAO {
         }
 
         String fullQuery;
-        // REFACTORED: Replaced .length() > 0 with !isEmpty() and removed redundant .toString()
         if (forCount) {
             fullQuery = "SELECT COUNT(*) FROM (" + subQuery + ")" + (!whereClause.isEmpty() ? " WHERE " + whereClause.substring(5) : "");
         } else {

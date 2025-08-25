@@ -3,6 +3,7 @@ package assettracking.controller;
 import assettracking.db.DatabaseConnection;
 import assettracking.data.Package;
 import assettracking.dao.PackageDAO;
+import assettracking.manager.StageManager;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
@@ -16,6 +17,7 @@ import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.stage.Window;
 
 import java.io.IOException;
 import java.sql.Connection;
@@ -236,13 +238,7 @@ public class PackageManagementController {
                 PackageDetailController controller = loader.getController();
                 controller.initData(selectedPackage);
 
-                Stage stage = new Stage();
-                stage.setTitle("Package Details: " + selectedPackage.getTrackingNumber());
-                Scene scene = new Scene(root);
-                scene.getStylesheets().addAll(Application.getUserAgentStylesheet(), getClass().getResource("/style.css").toExternalForm());
-                stage.setScene(scene);
-                stage.initModality(Modality.APPLICATION_MODAL);
-                stage.initOwner(packageTable.getScene().getWindow());
+                Stage stage = StageManager.createCustomStage(getOwnerWindow(), "Package Details", root);
                 stage.showAndWait();
 
                 updateTableForPage(pagination.getCurrentPageIndex());
@@ -257,12 +253,10 @@ public class PackageManagementController {
     }
 
     private void showAlert(Alert.AlertType alertType, String title, String message) {
-        Platform.runLater(() -> {
-            Alert alert = new Alert(alertType);
-            alert.setTitle(title);
-            alert.setHeaderText(null);
-            alert.setContentText(message);
-            alert.showAndWait();
-        });
+        Platform.runLater(() -> StageManager.showAlert(getOwnerWindow(), alertType, title, message));
+    }
+
+    private Window getOwnerWindow() {
+        return packageTable.getScene().getWindow();
     }
 }

@@ -6,11 +6,25 @@
 
 <BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="assettracking.controller.PackageDetailController" prefWidth="900.0" prefHeight="700.0">
     <top>
-        <Label fx:id="headerLabel" style="-fx-font-size: 16px; -fx-font-weight: bold; -fx-padding: 10;" text="Package Details" BorderPane.alignment="CENTER"/>
+        <VBox style="-fx-padding: 10;">
+            <Label styleClass="h3" text="Package Details"/>
+            <Separator/>
+            <GridPane hgap="10" vgap="5" style="-fx-padding: 10 0 10 0;">
+                <columnConstraints>
+                    <ColumnConstraints hgrow="NEVER" minWidth="120.0"/>
+                    <ColumnConstraints hgrow="ALWAYS"/>
+                </columnConstraints>
+                <Label text="Tracking Number:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+                <Label fx:id="trackingNumberLabel" style="-fx-font-weight: bold;" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+                <Label text="Sender:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+                <Label fx:id="senderNameLabel" style="-fx-font-weight: bold;" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+                <Label text="Origin:" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+                <Label fx:id="senderLocationLabel" style="-fx-font-weight: bold;" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+            </GridPane>
+        </VBox>
     </top>
     <center>
-        <!-- MODIFIED: Removed SplitPane, now just a TitledPane for assets -->
-        <TitledPane text="Devices / Assets" collapsible="false" BorderPane.alignment="CENTER">
+        <TitledPane text="Received Assets" collapsible="false" BorderPane.alignment="CENTER">
             <TableView fx:id="assetsTable">
                 <columns>
                     <TableColumn fx:id="assetSerialCol" prefWidth="150.0" text="Serial Number"/>
@@ -28,7 +42,6 @@
                 <Insets top="10" right="10" bottom="10" left="10"/>
             </padding>
             <Button onAction="#handleAddAsset" text="Receive Asset(s)..."/>
-            <!-- REMOVED: "Add Peripheral..." Button -->
             <Button onAction="#handleFinish" text="Finish" styleClass="success"/>
         </HBox>
     </bottom>

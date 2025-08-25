@@ -3,7 +3,7 @@ package assettracking.controller;
 import assettracking.data.DeviceStatusView;
 import assettracking.db.DatabaseConnection;
 import assettracking.manager.DeviceStatusManager;
-import assettracking.manager.StatusManager; // <-- IMPORT ADDED
+import assettracking.manager.StatusManager;
 import assettracking.ui.DeviceStatusActions;
 import assettracking.manager.StageManager;
 import javafx.beans.binding.Bindings;
@@ -12,14 +12,13 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.VBox;
+import javafx.stage.Window;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Map;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import java.util.Optional;
 
 public class DeviceStatusTrackingController {
 
@@ -85,8 +84,6 @@ public class DeviceStatusTrackingController {
     }
 
     private void setupFilters() {
-        // Status filter is now populated in setupStatusMappings()
-
         categoryFilterCombo.getItems().add("All Categories");
         loadFilterCategories();
         categoryFilterCombo.getSelectionModel().selectFirst();
@@ -123,13 +120,11 @@ public class DeviceStatusTrackingController {
         }
     }
 
-    private void setupStatusMappings() { // <-- ENTIRE METHOD MODIFIED
-        // Configure the filter combo
+    private void setupStatusMappings() {
         statusFilterCombo.getItems().add("All Statuses");
         statusFilterCombo.getItems().addAll(StatusManager.getStatuses());
         statusFilterCombo.getSelectionModel().selectFirst();
 
-        // Configure the update combo
         statusUpdateCombo.getItems().addAll(StatusManager.getStatuses());
         statusUpdateCombo.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
             subStatusUpdateCombo.getItems().clear();
@@ -268,7 +263,25 @@ public class DeviceStatusTrackingController {
         ObservableList<DeviceStatusView> selectedDevices = statusTable.getSelectionModel().getSelectedItems();
         String newStatus = statusUpdateCombo.getValue();
         String newSubStatus = subStatusUpdateCombo.getValue();
-        deviceStatusManager.updateDeviceStatus(selectedDevices, newStatus, newSubStatus);
+        String note = null;
+
+        if ("Disposed".equals(newStatus)) {
+            Optional<String> result = StageManager.showTextInputDialog(
+                    getOwnerWindow(),
+                    "Box ID Required",
+                    "Enter the Box ID for the " + selectedDevices.size() + " disposed item(s).",
+                    "Box ID:",
+                    ""
+            );
+
+            if (result.isPresent() && !result.get().trim().isEmpty()) {
+                note = "Box ID: " + result.get().trim();
+            } else {
+                StageManager.showAlert(getOwnerWindow(), Alert.AlertType.WARNING, "Update Cancelled", "A Box ID is required to set the status to 'Disposed'. The update was cancelled.");
+                return;
+            }
+        }
+        deviceStatusManager.updateDeviceStatus(selectedDevices, newStatus, newSubStatus, note);
     }
 
     @FXML
@@ -278,5 +291,9 @@ public class DeviceStatusTrackingController {
 
     public void refreshData() {
         deviceStatusManager.resetPagination();
+    }
+
+    private Window getOwnerWindow() {
+        return statusTable.getScene().getWindow();
     }
 }

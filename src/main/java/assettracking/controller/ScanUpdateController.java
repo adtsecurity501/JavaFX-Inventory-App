@@ -45,7 +45,6 @@ public class ScanUpdateController {
     @FXML private TableColumn<ScanResult, String> failedReasonCol;
     @FXML private TableColumn<ScanResult, String> failedTimestampCol;
     @FXML private TextField scanLocationField;
-    // --- New FXML fields for the updated UI ---
     @FXML private HBox boxIdHBox;
     @FXML private Button clearBoxIdButton;
 
@@ -68,9 +67,8 @@ public class ScanUpdateController {
         statusCombo.getItems().addAll(StatusManager.getStatuses());
         statusCombo.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> updateUiForStatusChange(newVal));
 
-        // This listener controls the serial field's state based on Box ID input
         disposalLocationField.textProperty().addListener((obs, oldVal, newVal) -> {
-            if ("Disposal".equals(statusCombo.getValue())) {
+            if ("Disposed".equals(statusCombo.getValue())) {
                 boolean hasBoxId = newVal != null && !newVal.trim().isEmpty();
                 scanSerialField.setDisable(!hasBoxId);
                 if (hasBoxId) {
@@ -80,7 +78,6 @@ public class ScanUpdateController {
         });
 
         statusCombo.getSelectionModel().selectFirst();
-        // Set the initial UI state based on the default selected status
         updateUiForStatusChange(statusCombo.getValue());
     }
 
@@ -96,45 +93,33 @@ public class ScanUpdateController {
         failedTable.setItems(failedList);
     }
 
-    /**
-     * Central method to control the UI's state based on the selected status.
-     * @param newStatus The newly selected status from the ComboBox.
-     */
     private void updateUiForStatusChange(String newStatus) {
-        // Update sub-status dropdown
         subStatusCombo.getItems().clear();
         if (newStatus != null) {
             subStatusCombo.getItems().addAll(StatusManager.getSubStatuses(newStatus));
             subStatusCombo.getSelectionModel().selectFirst();
         }
 
-        boolean isDisposal = "Disposal".equals(newStatus);
+        boolean isDisposal = "Disposed".equals(newStatus);
 
-        // Show or hide the entire Box ID section
         disposalLocationLabel.setVisible(isDisposal);
         boxIdHBox.setVisible(isDisposal);
         disposalLocationLabel.setManaged(isDisposal);
         boxIdHBox.setManaged(isDisposal);
 
-        // Core logic for the new workflow
         if (isDisposal) {
-            // If in Disposal mode, the serial field is only enabled if a Box ID has been entered.
             scanSerialField.setDisable(disposalLocationField.getText().trim().isEmpty());
             disposalLocationField.requestFocus();
         } else {
-            // For all other statuses, the serial field is always enabled.
             scanSerialField.setDisable(false);
             scanSerialField.requestFocus();
         }
     }
 
-    /**
-     * New handler for the "Clear" button to reset the Box ID and focus.
-     */
     @FXML
     private void handleClearBoxId() {
         disposalLocationField.clear();
-        changeLogField.clear(); // Also clear the note for a new box
+        changeLogField.clear();
         disposalLocationField.requestFocus();
     }
 
@@ -147,15 +132,14 @@ public class ScanUpdateController {
         String newSubStatus = subStatusCombo.getValue();
         String boxId = disposalLocationField.getText().trim();
 
-        // Validate that a Box ID is present if the status requires it
-        if ("Disposal".equals(newStatus) && boxId.isEmpty()) {
-            showAlert("Box ID Required", "A Box ID must be entered for the 'Disposal' status.");
+        if ("Disposed".equals(newStatus) && boxId.isEmpty()) {
+            showAlert("Box ID Required", "A Box ID must be entered for the 'Disposed' status.");
             disposalLocationField.requestFocus();
             return;
         }
 
         String baseNote = changeLogField.getText().trim();
-        String finalNote = "Disposal".equals(newStatus)
+        String finalNote = "Disposed".equals(newStatus)
                 ? ("Box ID: " + boxId + ". " + baseNote).trim()
                 : baseNote;
 
@@ -187,7 +171,6 @@ public class ScanUpdateController {
                 feedbackLabel.setTextFill(Color.RED);
                 failedList.addFirst(new ScanResult(serial, result, timestamp));
             }
-            // --- KEY CHANGE: DO NOT CLEAR THE BOX ID FIELD ---
             scanSerialField.clear();
             scanSerialField.requestFocus();
         });

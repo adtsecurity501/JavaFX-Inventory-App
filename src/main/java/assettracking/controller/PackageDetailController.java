@@ -22,7 +22,9 @@ import java.sql.SQLException;
 
 public class PackageDetailController {
 
-    @FXML private Label headerLabel;
+    @FXML private Label trackingNumberLabel;
+    @FXML private Label senderNameLabel;
+    @FXML private Label senderLocationLabel;
     @FXML private TableView<DeviceStatusView> assetsTable;
     @FXML private TableColumn<DeviceStatusView, String> assetSerialCol;
     @FXML private TableColumn<DeviceStatusView, String> assetCategoryCol;
@@ -44,7 +46,9 @@ public class PackageDetailController {
 
     public void initData(Package selectedPackage) {
         this.currentPackage = selectedPackage;
-        headerLabel.setText("Package: " + currentPackage.getTrackingNumber() + " | " + currentPackage.getFirstName() + " " + currentPackage.getLastName());
+        trackingNumberLabel.setText(currentPackage.getTrackingNumber());
+        senderNameLabel.setText(currentPackage.getFirstName() + " " + currentPackage.getLastName());
+        senderLocationLabel.setText(String.format("%s, %s %s", currentPackage.getCity(), currentPackage.getState(), currentPackage.getZipCode()));
         loadData();
     }
 
@@ -76,7 +80,6 @@ public class PackageDetailController {
                 }
             }
         } catch (SQLException e) {
-            // REFACTORED: Replaced printStackTrace with a call to our new showAlert method
             StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Database Error", "Failed to load package details.");
         }
     }
@@ -90,25 +93,21 @@ public class PackageDetailController {
             AddAssetDialogController controller = loader.getController();
             controller.initData(this.currentPackage, this);
 
-            // REFACTORED: Using StageManager to create the window
             Stage stage = StageManager.createCustomStage(getOwnerWindow(), "Receive Asset(s) for Package " + currentPackage.getTrackingNumber(), root);
             stage.showAndWait();
 
         } catch (IOException e) {
-            // REFACTORED: Replaced printStackTrace and local showAlert with StageManager
             StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Error", "Could not open the 'Add Asset' window.");
         }
     }
 
     @FXML
     private void handleFinish() {
-        Stage stage = (Stage) headerLabel.getScene().getWindow();
+        Stage stage = (Stage) trackingNumberLabel.getScene().getWindow();
         stage.close();
     }
 
-    // REFACTORED: Removed local showAlert method in favor of StageManager.
-
     private Window getOwnerWindow() {
-        return headerLabel.getScene().getWindow();
+        return trackingNumberLabel.getScene().getWindow();
     }
 }

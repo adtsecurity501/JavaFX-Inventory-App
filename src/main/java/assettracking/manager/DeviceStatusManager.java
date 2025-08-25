@@ -13,14 +13,11 @@ public class DeviceStatusManager {
     private final ObservableList<DeviceStatusView> deviceStatusList = FXCollections.observableArrayList();
     private int rowsPerPage = 200;
     private final DeviceStatusDAO deviceStatusDAO;
-// REMOVED: No more uiConfigurator field.
 
     public DeviceStatusManager(DeviceStatusTrackingController controller) {
         this.controller = controller;
         this.deviceStatusDAO = new DeviceStatusDAO(this, deviceStatusList);
     }
-
-// REMOVED: initializeUI() is no longer needed here.
 
     public void resetPagination() {
         Platform.runLater(() -> {
@@ -39,12 +36,11 @@ public class DeviceStatusManager {
     }
 
     public void clearFilters() {
-        // The manager's only job is to reload the data. The controller handles clearing the UI fields.
         resetPagination();
     }
 
-    public void updateDeviceStatus(ObservableList<DeviceStatusView> selectedDevices, String newStatus, String newSubStatus) {
-        deviceStatusDAO.updateDeviceStatus(selectedDevices, newStatus, newSubStatus);
+    public void updateDeviceStatus(ObservableList<DeviceStatusView> selectedDevices, String newStatus, String newSubStatus, String note) {
+        deviceStatusDAO.updateDeviceStatus(selectedDevices, newStatus, newSubStatus, note);
     }
 
     public int getRowsPerPage() {
@@ -59,7 +55,6 @@ public class DeviceStatusManager {
         return deviceStatusList;
     }
 
-    // Add this getter so the DAO can access the controller's UI fields for filtering
     public DeviceStatusTrackingController getController() {
         return controller;
     }

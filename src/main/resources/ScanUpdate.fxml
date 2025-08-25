@@ -26,7 +26,6 @@
                     <ComboBox fx:id="subStatusCombo" prefWidth="300.0" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
 
                     <Label fx:id="disposalLocationLabel" text="Box ID:" visible="false" managed="false" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
-                    <!-- FIX: Added fx:id="boxIdHBox" and fx:id="clearBoxIdButton" -->
                     <HBox fx:id="boxIdHBox" spacing="10" alignment="CENTER_LEFT" visible="false" managed="false" GridPane.rowIndex="2" GridPane.columnIndex="1">
                         <TextField fx:id="disposalLocationField" promptText="Scan Box ID to enable scanning..." HBox.hgrow="ALWAYS"/>
                         <Button fx:id="clearBoxIdButton" onAction="#handleClearBoxId" text="Clear"/>

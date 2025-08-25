@@ -17,6 +17,8 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.control.cell.TextFieldTableCell;
@@ -26,6 +28,7 @@ import javafx.stage.Stage;
 
 import javax.print.PrintService;
 import javax.print.PrintServiceLookup;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -35,21 +38,17 @@ import java.util.stream.Collectors;
 
 public class AddAssetDialogController {
 
-    // FXML Fields for Intake Mode Switching
+    // --- (All FXML fields and other variables remain unchanged) ---
     @FXML private RadioButton standardIntakeRadio;
     @FXML private RadioButton monitorIntakeRadio;
     @FXML private ToggleGroup intakeModeToggleGroup;
     @FXML private VBox standardModePane;
     @FXML private VBox monitorModePane;
-
-    // FXML Fields for Monitor Intake
     @FXML private ComboBox<String> monitorPrinterCombo;
     @FXML private TextField monitorSerialField;
     @FXML private TextField monitorModelField;
     @FXML private TextField monitorDescriptionField;
     @FXML private Label monitorFeedbackLabel;
-
-    // FXML Fields for Standard Intake
     @FXML private CheckBox bulkAddCheckBox;
     @FXML private BorderPane textModePane;
     @FXML private BorderPane tableModePane;
@@ -61,7 +60,6 @@ public class AddAssetDialogController {
     @FXML private TextField modelField;
     @FXML private TextField descriptionField;
     @FXML private TextField imeiField;
-    // Note: lookupButton is used by the FXML onAction event, so the warning is safe to ignore.
     @FXML private Button lookupButton;
     @FXML private Label probableCauseLabel;
     @FXML private Label melActionLabel;
@@ -83,7 +81,6 @@ public class AddAssetDialogController {
     @FXML private Label feedbackLabel;
     @FXML private Button saveButton;
     @FXML private Button closeButton;
-    // Note: conditionToggleGroup is used by FXML to group RadioButtons, so the warning is safe to ignore.
     @FXML private ToggleGroup conditionToggleGroup;
     @FXML private RadioButton refurbRadioButton;
     @FXML private RadioButton newRadioButton;
@@ -95,6 +92,7 @@ public class AddAssetDialogController {
     private final ReceiptEventDAO receiptEventDAO = new ReceiptEventDAO();
     private final ZplPrinterService printerService = new ZplPrinterService();
 
+    // --- (All methods from initData to clearMonitorFields remain unchanged) ---
     public void initData(Package pkg, PackageDetailController parent) {
         this.currentPackage = pkg;
         this.parentController = parent;
@@ -103,7 +101,6 @@ public class AddAssetDialogController {
 
     @FXML
     public void initialize() {
-        // setupStatusMappings(); // <-- REMOVED
         setupViewToggles();
         setupDispositionControls();
         setupTable();
@@ -124,8 +121,6 @@ public class AddAssetDialogController {
         loadCategoriesTask.setOnSucceeded(e -> categoryBox.setItems(FXCollections.observableArrayList(loadCategoriesTask.getValue())));
         new Thread(loadCategoriesTask).start();
     }
-
-    // setupStatusMappings() method was here <-- REMOVED
 
     private void setupMonitorIntake() {
         new AutoCompletePopup(monitorDescriptionField, () -> assetDAO.findDescriptionsLike(monitorDescriptionField.getText()))
@@ -184,20 +179,25 @@ public class AddAssetDialogController {
         disqualificationLabel.setDisable(true);
         disqualificationField.setDisable(true);
 
-        sellScrapStatusCombo.setItems(FXCollections.observableArrayList(StatusManager.getStatuses())); // <-- MODIFIED
+        sellScrapStatusCombo.setItems(FXCollections.observableArrayList(StatusManager.getStatuses()));
         sellScrapStatusCombo.getSelectionModel().selectFirst();
 
         sellScrapStatusCombo.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
             sellScrapSubStatusCombo.getItems().clear();
-            if (newVal != null) { // <-- MODIFIED BLOCK
+            if (newVal != null) {
                 sellScrapSubStatusCombo.getItems().addAll(StatusManager.getSubStatuses(newVal));
                 if (!sellScrapSubStatusCombo.getItems().isEmpty()) {
                     sellScrapSubStatusCombo.getSelectionModel().selectFirst();
                 }
+                if ("Disposed".equals(newVal)) {
+                    disqualificationField.setPromptText("Box ID is required for this status");
+                } else {
+                    disqualificationField.setPromptText("");
+                }
             }
         });
 
-        if (sellScrapStatusCombo.getValue() != null) { // <-- MODIFIED BLOCK
+        if (sellScrapStatusCombo.getValue() != null) {
             sellScrapSubStatusCombo.getItems().addAll(StatusManager.getSubStatuses(sellScrapStatusCombo.getValue()));
             sellScrapSubStatusCombo.getSelectionModel().selectFirst();
         }
@@ -264,7 +264,6 @@ public class AddAssetDialogController {
             if (sku.getCategory() != null && !sku.getCategory().isEmpty()) {
                 categoryBox.setValue(sku.getCategory());
             }
-            // Apply the rule check
             applyMelRule(sku.getModelNumber(), sku.getDescription());
         });
     }
@@ -326,6 +325,13 @@ public class AddAssetDialogController {
 
     @FXML
     private void handleSave() {
+        if (sellScrapCheckBox.isSelected() && "Disposed".equals(sellScrapStatusCombo.getValue())) {
+            if (disqualificationField.getText().trim().isEmpty()) {
+                StageManager.showAlert(saveButton.getScene().getWindow(), Alert.AlertType.WARNING, "Box ID Required", "A Box ID must be entered in the 'Reason' field when the status is 'Disposed'.");
+                return;
+            }
+        }
+
         saveButton.setDisable(true);
         closeButton.setDisable(true);
         feedbackLabel.setText("Processing...");
@@ -486,10 +492,16 @@ public class AddAssetDialogController {
     private void createInitialStatus(Connection conn, int receiptId, boolean isNewCondition, boolean isScrap, String scrapStatus, String scrapSubStatus, String scrapReason) throws SQLException {
         String finalStatus;
         String finalSubStatus;
+        String finalReason = null;
 
         if (isScrap) {
             finalStatus = scrapStatus;
             finalSubStatus = scrapSubStatus;
+            if ("Disposed".equals(scrapStatus) && scrapReason != null && !scrapReason.isEmpty()) {
+                finalReason = "Box ID: " + scrapReason;
+            } else {
+                finalReason = scrapReason;
+            }
         } else if (isNewCondition) {
             finalStatus = "Processed";
             finalSubStatus = "Ready for Deployment";
@@ -519,7 +531,7 @@ public class AddAssetDialogController {
         if (recordExistsByReceiptId(conn, "Disposition_Info", receiptId)) {
             String dispositionQuery = "UPDATE Disposition_Info SET other_disqualification = ? WHERE receipt_id = ?";
             try (PreparedStatement stmt = conn.prepareStatement(dispositionQuery)) {
-                stmt.setString(1, isScrap ? scrapReason : null);
+                stmt.setString(1, finalReason);
                 stmt.setInt(2, receiptId);
                 stmt.executeUpdate();
             }
@@ -527,7 +539,7 @@ public class AddAssetDialogController {
             String dispositionQuery = "INSERT INTO Disposition_Info (receipt_id, other_disqualification) VALUES (?, ?)";
             try (PreparedStatement stmt = conn.prepareStatement(dispositionQuery)) {
                 stmt.setInt(1, receiptId);
-                stmt.setString(2, isScrap ? scrapReason : null);
+                stmt.setString(2, finalReason);
                 stmt.executeUpdate();
             }
         }
@@ -550,26 +562,46 @@ public class AddAssetDialogController {
     }
 
     private void showAlert(String title, String content) {
-        Platform.runLater(() -> {
-            Alert alert = new Alert(Alert.AlertType.WARNING);
-            alert.setTitle(title);
-            alert.setHeaderText(null);
-            alert.setContentText(content);
-            alert.showAndWait();
-        });
+        StageManager.showAlert(getOwnerWindow(), Alert.AlertType.WARNING, title, content);
     }
 
     @FXML
     private void handleFunctioningButton() {
-        processMonitorIntake(true);
+        processFunctioningMonitor();
     }
 
     @FXML
     private void handleBrokenButton() {
-        processMonitorIntake(false);
+        String serial = monitorSerialField.getText().trim();
+        String model = monitorModelField.getText().trim();
+        String description = monitorDescriptionField.getText().trim();
+
+        if (serial.isEmpty() || model.isEmpty() || description.isEmpty()) {
+            showAlert("Input Required", "Serial, Model (SKU), and Description are required.");
+            return;
+        }
+
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/MonitorDisposalDialog.fxml"));
+            Parent root = loader.load();
+
+            MonitorDisposalDialogController dialogController = loader.getController();
+            dialogController.initData(serial);
+
+            Stage dialogStage = StageManager.createCustomStage(getOwnerWindow(), "Set Disposal Status", root);
+            dialogStage.showAndWait();
+
+            dialogController.getResult().ifPresent(result -> {
+                processBrokenMonitor(serial, model, description, result.status(), result.subStatus(), result.reason());
+            });
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            showAlert("Error", "Could not open the disposal dialog window.");
+        }
     }
 
-    private void processMonitorIntake(boolean isFunctioning) {
+    private void processFunctioningMonitor() {
         String serial = monitorSerialField.getText().trim();
         String model = monitorModelField.getText().trim();
         String description = monitorDescriptionField.getText().trim();
@@ -579,7 +611,7 @@ public class AddAssetDialogController {
             showAlert("Input Required", "Serial, Model (SKU), and Description are required.");
             return;
         }
-        if (isFunctioning && printer == null) {
+        if (printer == null) {
             showAlert("Printer Required", "Please select a printer to print labels.");
             return;
         }
@@ -597,28 +629,51 @@ public class AddAssetDialogController {
                 if (newReceiptId == -1) throw new Exception("Failed to create receipt event for S/N: " + serial);
 
                 try (Connection conn = DatabaseConnection.getInventoryConnection()) {
-                    if (isFunctioning) {
-                        createInitialStatus(conn, newReceiptId, false, false, "Processed", "Ready for Deployment", null);
-                    } else {
-                        createInitialStatus(conn, newReceiptId, false, true, "Disposal/EOL", "Can-Am, Pending Pickup", "Received Broken");
-                    }
+                    createInitialStatus(conn, newReceiptId, false, false, "Processed", "Ready for Deployment", null);
                 }
 
-                if (isFunctioning) {
-                    updateMonitorFeedback("Printing labels for " + serial + "...");
-                    String skuZpl = ZplPrinterService.getAdtLabelZpl(model, description);
-                    String serialZpl = ZplPrinterService.getSerialLabelZpl(model, serial);
-                    boolean s1 = printerService.sendZplToPrinter(printer, skuZpl);
-                    boolean s2 = printerService.sendZplToPrinter(printer, serialZpl);
-                    if (!s1 || !s2) throw new Exception("Failed to print one or both labels.");
+                updateMonitorFeedback("Printing labels for " + serial + "...");
+                String skuZpl = ZplPrinterService.getAdtLabelZpl(model, description);
+                String serialZpl = ZplPrinterService.getSerialLabelZpl(model, serial);
+                boolean s1 = printerService.sendZplToPrinter(printer, skuZpl);
+                boolean s2 = printerService.sendZplToPrinter(printer, serialZpl);
+                if (!s1 || !s2) throw new Exception("Failed to print one or both labels.");
+                return null;
+            }
+        };
+
+        task.setOnSucceeded(e -> {
+            updateMonitorFeedback("Success: " + serial + " processed and labels printed.");
+            clearMonitorFields();
+            if (parentController != null) parentController.refreshData();
+        });
+        task.setOnFailed(e -> updateMonitorFeedback("Error: " + e.getSource().getException().getMessage()));
+
+        new Thread(task).start();
+    }
+
+    private void processBrokenMonitor(String serial, String model, String description, String status, String subStatus, String reason) {
+        Task<Void> task = new Task<>() {
+            @Override
+            protected Void call() throws Exception {
+                AssetInfo assetInfo = new AssetInfo(serial, "Dell", model, description, "Monitor", null, false, "");
+                if (assetDAO.findAssetBySerialNumber(serial).isEmpty()) {
+                    assetDAO.addAsset(assetInfo);
+                }
+                ReceiptEvent newReceipt = new ReceiptEvent(0, serial, currentPackage.getPackageId(), assetInfo.getCategory(), assetInfo.getMake(), assetInfo.getModelNumber(), assetInfo.getDescription(), null);
+                int newReceiptId = receiptEventDAO.addReceiptEvent(newReceipt);
+
+                if (newReceiptId == -1) throw new Exception("Failed to create receipt event for S/N: " + serial);
+
+                try (Connection conn = DatabaseConnection.getInventoryConnection()) {
+                    createInitialStatus(conn, newReceiptId, false, true, status, subStatus, reason);
                 }
                 return null;
             }
         };
 
         task.setOnSucceeded(e -> {
-            String successMsg = isFunctioning ? " processed and labels printed." : " processed as broken.";
-            updateMonitorFeedback("Success: " + serial + successMsg);
+            updateMonitorFeedback("Success: " + serial + " processed with status '" + status + "'.");
             clearMonitorFields();
             if (parentController != null) parentController.refreshData();
         });
@@ -637,6 +692,7 @@ public class AddAssetDialogController {
         monitorDescriptionField.clear();
         monitorSerialField.requestFocus();
     }
+
     private void applyMelRule(String modelNumber, String description) {
         Optional<MelRule> ruleOpt = assetDAO.findMelRule(modelNumber, description);
 
@@ -647,17 +703,17 @@ public class AddAssetDialogController {
         ruleOpt.ifPresent(rule -> {
             melActionLabel.setText("MEL Action: " + rule.action());
             if ("Dispose".equalsIgnoreCase(rule.action())) {
-                // --- THIS IS THE UPDATED LOGIC ---
-                // 1. Check the box to reveal the disposition dropdowns
                 sellScrapCheckBox.setSelected(true);
-
-                // 2. Set the FINAL disposition status, which will be saved if the user proceeds
                 sellScrapStatusCombo.setValue("Disposed");
-                sellScrapSubStatusCombo.setValue("e-Waste (General)");
-
-                // 3. Pre-fill the reason
-                disqualificationField.setText("EOL per MEL Rule. Awaiting drive wipe and boxing.");
+                // --- UPDATED LOGIC ---
+                sellScrapSubStatusCombo.setValue("Ready for Wipe");
+                disqualificationField.clear();
+                disqualificationField.setPromptText("Enter Box ID for EOL Disposal");
             }
         });
+    }
+
+    private Stage getOwnerWindow() {
+        return (Stage) standardModePane.getScene().getWindow();
     }
 }

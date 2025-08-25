@@ -3,19 +3,17 @@ package assettracking.controller;
 import assettracking.db.DatabaseConnection;
 import assettracking.data.Package;
 import assettracking.dao.PackageDAO;
-import javafx.application.Application;
+import assettracking.manager.StageManager;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
-import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
-import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.stage.Window;
 
 import java.io.IOException;
 import java.sql.Connection;
@@ -24,7 +22,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.Arrays;
-import java.util.Optional;
 
 public class PackageIntakeController {
 
@@ -38,7 +35,7 @@ public class PackageIntakeController {
     @FXML private Label trackingErrorLabel;
     @FXML private Label zipErrorLabel;
 
-    private PackageDAO packageDAO = new PackageDAO();
+    private final PackageDAO packageDAO = new PackageDAO();
 
     @FXML
     private void initialize() {
@@ -63,7 +60,6 @@ public class PackageIntakeController {
             return;
         }
 
-        // 1. Check for duplicate package
         try (Connection conn = DatabaseConnection.getInventoryConnection();
              PreparedStatement stmt = conn.prepareStatement("SELECT * FROM Packages WHERE tracking_number = ?")) {
             stmt.setString(1, currentTracking);
@@ -71,27 +67,27 @@ public class PackageIntakeController {
             if (rs.next()) {
                 Package existingPkg = new Package(rs.getInt("package_id"), rs.getString("tracking_number"), rs.getString("first_name"), rs.getString("last_name"), rs.getString("city"), rs.getString("state"), rs.getString("zip_code"), LocalDate.parse(rs.getString("receive_date")));
 
-                Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-                alert.setTitle("Duplicate Package Found");
-                alert.setHeaderText("Package with tracking number '" + currentTracking + "' already exists.");
-                alert.setContentText("Do you want to open this existing package?");
-                Optional<ButtonType> result = alert.showAndWait();
+                boolean openExisting = StageManager.showConfirmationDialog(
+                        getOwnerWindow(),
+                        "Duplicate Package Found",
+                        "Package with tracking number '" + currentTracking + "' already exists.",
+                        "Do you want to open this existing package?"
+                );
 
-                if (result.isPresent() && result.get() == ButtonType.OK) {
+                if (openExisting) {
                     openPackageDetailWindow(existingPkg);
                     clearForm();
                 } else {
                     trackingErrorLabel.setText("Package already exists.");
                     startButton.setDisable(true);
                 }
-                return; // Stop further processing
+                return;
             }
         } catch (SQLException e) {
             showAlert(Alert.AlertType.ERROR, "Database Error", "Error checking for duplicate package: " + e.getMessage());
             return;
         }
 
-        // 2. If not a duplicate, check for return label info
         try (Connection conn = DatabaseConnection.getInventoryConnection();
              PreparedStatement stmt = conn.prepareStatement("SELECT contact_name, city, state, zip_code FROM Return_Labels WHERE substr(tracking_number, length(tracking_number) - 13) = ?")) {
             stmt.setString(1, currentTracking);
@@ -104,8 +100,6 @@ public class PackageIntakeController {
                 cityField.setText(rs.getString("city"));
                 stateField.setText(rs.getString("state"));
                 zipField.setText(rs.getString("zip_code"));
-
-                // Auto-start the intake process
                 Platform.runLater(this::handleStartIntake);
             }
         } catch (SQLException e) {
@@ -128,7 +122,7 @@ public class PackageIntakeController {
         int packageId = packageDAO.addPackage(pkg);
 
         if (packageId != -1) {
-            pkg.setPackageId(packageId); // Set the newly generated ID
+            pkg.setPackageId(packageId);
             openPackageDetailWindow(pkg);
             clearForm();
         } else {
@@ -163,14 +157,8 @@ public class PackageIntakeController {
             PackageDetailController controller = loader.getController();
             controller.initData(pkg);
 
-            Stage stage = new Stage();
-            stage.setTitle("Package Details: " + pkg.getTrackingNumber());
-            Scene scene = new Scene(root);
-            scene.getStylesheets().addAll(Application.getUserAgentStylesheet(), getClass().getResource("/style.css").toExternalForm());
-            stage.setScene(scene);
-            stage.initModality(Modality.WINDOW_MODAL);
-            stage.initOwner(startButton.getScene().getWindow());
-            stage.show(); // Use show() instead of showAndWait() to allow the form to clear immediately
+            Stage stage = StageManager.createCustomStage(getOwnerWindow(), "Package Details", root);
+            stage.show();
         } catch (IOException e) {
             e.printStackTrace();
             showAlert(Alert.AlertType.ERROR, "Error", "Could not open package detail window.");
@@ -190,10 +178,10 @@ public class PackageIntakeController {
     }
 
     private void showAlert(Alert.AlertType alertType, String title, String message) {
-        Alert alert = new Alert(alertType);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-        alert.showAndWait();
+        StageManager.showAlert(getOwnerWindow(), alertType, title, message);
+    }
+
+    private Window getOwnerWindow() {
+        return startButton.getScene().getWindow();
     }
 }

@@ -11,8 +11,7 @@
 <VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="assettracking.controller.DashboardController" spacing="15" style="-fx-padding: 15;">
 
-    <!-- Filter and Settings Bar -->
-    <HBox alignment="CENTER_LEFT" spacing="15" style="-fx-padding: 10; -fx-background-color: -color-bg-subtle; -fx-background-radius: 4;">
+    <HBox alignment="CENTER_LEFT" spacing="15" style="-fx-padding: 10; -fx-background-radius: 4;">
         <Label text="Time Range:"/>
         <RadioButton fx:id="todayRadio" text="Today">
             <toggleGroup><ToggleGroup fx:id="dateRangeToggleGroup"/></toggleGroup>
@@ -31,34 +30,45 @@
             <ColumnConstraints fx:id="rightColumn" percentWidth="40"/>
         </columnConstraints>
 
-        <!-- Left Side: Dynamic Metrics -->
         <ScrollPane fitToWidth="true" GridPane.columnIndex="0" VBox.vgrow="ALWAYS" style="-fx-background-color: transparent;">
             <VBox spacing="15">
                 <VBox spacing="5" style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 4;">
                     <Label fx:id="timeRangeTitleLabel" styleClass="h4"/>
                     <Separator/>
+                    <!-- ========== METRICS TABLE UPDATED FOR 4 COLUMNS ========== -->
                     <GridPane hgap="15" vgap="10">
                         <columnConstraints>
                             <ColumnConstraints hgrow="ALWAYS"/>
+                            <ColumnConstraints hgrow="NEVER" minWidth="80"/>
                             <ColumnConstraints hgrow="NEVER" minWidth="80"/>
                             <ColumnConstraints hgrow="NEVER" minWidth="80"/>
                         </columnConstraints>
                         <Label text="Device Type" styleClass="kpi-title" GridPane.columnIndex="0"/>
                         <Label text="Intaken" styleClass="kpi-title" GridPane.columnIndex="1"/>
                         <Label text="Processed" styleClass="kpi-title" GridPane.columnIndex="2"/>
+                        <Label text="Disposed" styleClass="kpi-title" GridPane.columnIndex="3"/>
+
                         <Label text="Laptops" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
                         <Label fx:id="laptopsIntakenLabel" styleClass="kpi-metric, text-accent" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
                         <Label fx:id="laptopsProcessedLabel" styleClass="kpi-metric, text-success" GridPane.rowIndex="1" GridPane.columnIndex="2"/>
+                        <Label fx:id="laptopsDisposedLabel" styleClass="kpi-metric, text-danger" GridPane.rowIndex="1" GridPane.columnIndex="3"/>
+
                         <Label text="Tablets" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
                         <Label fx:id="tabletsIntakenLabel" styleClass="kpi-metric, text-accent" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
                         <Label fx:id="tabletsProcessedLabel" styleClass="kpi-metric, text-success" GridPane.rowIndex="2" GridPane.columnIndex="2"/>
+                        <Label fx:id="tabletsDisposedLabel" styleClass="kpi-metric, text-danger" GridPane.rowIndex="2" GridPane.columnIndex="3"/>
+
                         <Label text="Desktops" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
                         <Label fx:id="desktopsIntakenLabel" styleClass="kpi-metric, text-accent" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
                         <Label fx:id="desktopsProcessedLabel" styleClass="kpi-metric, text-success" GridPane.rowIndex="3" GridPane.columnIndex="2"/>
+                        <Label fx:id="desktopsDisposedLabel" styleClass="kpi-metric, text-danger" GridPane.rowIndex="3" GridPane.columnIndex="3"/>
+
                         <Label text="Monitors" GridPane.rowIndex="4" GridPane.columnIndex="0"/>
                         <Label fx:id="monitorsIntakenLabel" styleClass="kpi-metric, text-accent" GridPane.rowIndex="4" GridPane.columnIndex="1"/>
                         <Label fx:id="monitorsProcessedLabel" styleClass="kpi-metric, text-success" GridPane.rowIndex="4" GridPane.columnIndex="2"/>
-                        <Separator GridPane.rowIndex="5" GridPane.columnSpan="3"/>
+                        <Label fx:id="monitorsDisposedLabel" styleClass="kpi-metric, text-danger" GridPane.rowIndex="4" GridPane.columnIndex="3"/>
+
+                        <Separator GridPane.rowIndex="5" GridPane.columnSpan="4"/>
                         <Label text="Total Processed:" styleClass="kpi-title" GridPane.rowIndex="6" GridPane.columnIndex="1"/>
                         <Label fx:id="totalProcessedLabel" styleClass="kpi-metric, text-success" GridPane.rowIndex="6" GridPane.columnIndex="2"/>
                     </GridPane>
@@ -77,7 +87,6 @@
             </VBox>
         </ScrollPane>
 
-        <!-- Right Side: Overall Health -->
         <ScrollPane fx:id="rightScrollPane" fitToWidth="true" GridPane.columnIndex="1" VBox.vgrow="ALWAYS" style="-fx-background-color: transparent;">
             <VBox spacing="15">
                 <VBox spacing="5" style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 4;">
@@ -88,12 +97,18 @@
                             <ColumnConstraints percentWidth="50"/><ColumnConstraints percentWidth="50"/>
                         </columnConstraints>
                         <VBox alignment="CENTER" spacing="5" GridPane.columnIndex="0">
-                            <Label text="WIP Backlog" styleClass="kpi-title"/>
-                            <Label fx:id="wipBacklogLabel" styleClass="kpi-metric, text-warning"/>
+                            <!-- RENAMED fx:id from wipBacklogLabel -->
+                            <Label text="Active Triage/Repair" styleClass="kpi-title"/>
+                            <Label fx:id="activeTriageLabel" styleClass="kpi-metric, text-warning"/>
                         </VBox>
                         <VBox alignment="CENTER" spacing="5" GridPane.columnIndex="1">
                             <Label text="Avg. Turnaround (30d)" styleClass="kpi-title"/>
                             <Label fx:id="avgTurnaroundLabel" styleClass="kpi-metric, text-info" />
+                        </VBox>
+                        <!-- NEW KPI -->
+                        <VBox alignment="CENTER" spacing="5" GridPane.columnIndex="0" GridPane.rowIndex="1">
+                            <Label text="Awaiting Disposal" styleClass="kpi-title"/>
+                            <Label fx:id="awaitingDisposalLabel" styleClass="kpi-metric, text-danger" />
                         </VBox>
                     </GridPane>
                 </VBox>
@@ -126,7 +141,6 @@
                 <VBox spacing="5" style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 4;">
                     <Label text="Set Weekly Goals" styleClass="h4"/>
                     <Separator/>
-                    <!-- FIX: Removed the progress bars and their labels from this section -->
                     <GridPane hgap="10" vgap="5" alignment="CENTER_LEFT">
                         <columnConstraints>
                             <ColumnConstraints hgrow="NEVER" minWidth="80"/>
@@ -140,7 +154,7 @@
                     </GridPane>
                 </VBox>
                 <VBox spacing="5" VBox.vgrow="ALWAYS" style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 4;">
-                    <Label text="Current Inventory Overview" styleClass="h4"/>
+                    <Label fx:id="inventoryOverviewTitleLabel" text="Asset Status Overview" styleClass="h4"/>
                     <PieChart fx:id="inventoryPieChart" animated="true" VBox.vgrow="ALWAYS"/>
                 </VBox>
             </VBox>
