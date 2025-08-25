@@ -1,7 +1,6 @@
-package assettracking.ui;
+package assettracking.manager;
 
 import javafx.application.Application;
-import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -19,6 +18,8 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.stage.Window;
+import javafx.scene.control.Separator;
+
 
 public final class StageManager {
 
@@ -74,6 +75,45 @@ public final class StageManager {
 
         stage.setScene(scene);
         return stage;
+    }
+
+    public static boolean showConfirmationDialog(Window owner, String title, String headerText, String contentText) {
+        final boolean[] result = {false}; // Use an array to be modifiable from the lambda
+
+        Label headerLabel = new Label(headerText);
+        headerLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 1.1em;");
+        Label contentLabel = new Label(contentText);
+        contentLabel.setWrapText(true);
+        contentLabel.setMaxWidth(450);
+
+        Button okButton = new Button("OK");
+        okButton.getStyleClass().add("success");
+        okButton.setDefaultButton(true);
+
+        Button cancelButton = new Button("Cancel");
+        cancelButton.setCancelButton(true);
+
+        HBox buttonBar = new HBox(10, cancelButton, okButton);
+        buttonBar.setAlignment(Pos.CENTER_RIGHT);
+
+        VBox layout = new VBox(20, headerLabel, new Separator(), contentLabel, buttonBar);
+        layout.setPadding(new Insets(20));
+
+        Stage dialogStage = createCustomStage(owner, title, layout);
+
+        okButton.setOnAction(e -> {
+            result[0] = true;
+            dialogStage.close();
+        });
+
+        cancelButton.setOnAction(e -> {
+            result[0] = false;
+            dialogStage.close();
+        });
+
+        dialogStage.showAndWait();
+
+        return result[0];
     }
 
     public static void showAlert(Window owner, Alert.AlertType alertType, String title, String contentText) {

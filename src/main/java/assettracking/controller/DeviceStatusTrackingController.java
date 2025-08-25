@@ -3,8 +3,9 @@ package assettracking.controller;
 import assettracking.data.DeviceStatusView;
 import assettracking.db.DatabaseConnection;
 import assettracking.manager.DeviceStatusManager;
+import assettracking.manager.StatusManager; // <-- IMPORT ADDED
 import assettracking.ui.DeviceStatusActions;
-import assettracking.ui.StageManager; // Import the StageManager
+import assettracking.manager.StageManager;
 import javafx.beans.binding.Bindings;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
@@ -48,7 +49,6 @@ public class DeviceStatusTrackingController {
 
     private DeviceStatusManager deviceStatusManager;
     private DeviceStatusActions deviceStatusActions;
-    private Map<String, String[]> subStatusOptionsMap;
 
     @FXML
     public void initialize() {
@@ -85,9 +85,7 @@ public class DeviceStatusTrackingController {
     }
 
     private void setupFilters() {
-        statusFilterCombo.getItems().add("All Statuses");
-        statusFilterCombo.getItems().addAll("Disposal/EOL", "Everon", "Phone", "WIP", "Processed", "Flag!");
-        statusFilterCombo.getSelectionModel().selectFirst();
+        // Status filter is now populated in setupStatusMappings()
 
         categoryFilterCombo.getItems().add("All Categories");
         loadFilterCategories();
@@ -121,26 +119,22 @@ public class DeviceStatusTrackingController {
                 categoryFilterCombo.getItems().add(rs.getString("category"));
             }
         } catch (SQLException e) {
-            // --- MODIFIED ---
-            // Replaced the incorrect call with the correct one to StageManager
             StageManager.showAlert(statusTable.getScene().getWindow(), Alert.AlertType.ERROR, "Database Error", "Failed to load categories for filtering.");
         }
     }
 
-    private void setupStatusMappings() {
-        subStatusOptionsMap = Stream.of(new Object[][]{
-                {"Disposal/EOL", new String[]{"Can-Am, Pending Pickup", "Ingram, Pending Pickup", "Can-Am, Picked Up", "Ingram, Pick Up"}},
-                {"Everon", new String[]{"Pending Shipment", "Shipped"}},
-                {"Phone", new String[]{"Pending Shipment", "Shipped"}},
-                {"WIP", new String[]{"In Evaluation", "Troubleshooting", "Awaiting Parts", "Awaiting Dell Tech", "Shipped to Dell", "Refurbishment", "Send to Inventory"}},
-                {"Processed", new String[]{"Kept in Depot(Parts)", "Kept in Depot(Functioning)", "Ready for Deployment"}}
-        }).collect(Collectors.toMap(data -> (String) data[0], data -> (String[]) data[1]));
+    private void setupStatusMappings() { // <-- ENTIRE METHOD MODIFIED
+        // Configure the filter combo
+        statusFilterCombo.getItems().add("All Statuses");
+        statusFilterCombo.getItems().addAll(StatusManager.getStatuses());
+        statusFilterCombo.getSelectionModel().selectFirst();
 
-        statusUpdateCombo.getItems().addAll("Disposal/EOL", "Everon", "Phone", "WIP", "Processed");
+        // Configure the update combo
+        statusUpdateCombo.getItems().addAll(StatusManager.getStatuses());
         statusUpdateCombo.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
             subStatusUpdateCombo.getItems().clear();
-            if (newVal != null && subStatusOptionsMap.containsKey(newVal)) {
-                subStatusUpdateCombo.getItems().addAll(subStatusOptionsMap.get(newVal));
+            if (newVal != null) {
+                subStatusUpdateCombo.getItems().addAll(StatusManager.getSubStatuses(newVal));
                 if (!subStatusUpdateCombo.getItems().isEmpty()) {
                     subStatusUpdateCombo.getSelectionModel().selectFirst();
                 }

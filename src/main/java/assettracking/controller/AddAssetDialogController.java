@@ -8,8 +8,9 @@ import assettracking.data.Package;
 import assettracking.data.ReceiptEvent;
 import assettracking.db.DatabaseConnection;
 import assettracking.label.service.ZplPrinterService;
+import assettracking.manager.StatusManager; // <-- IMPORT ADDED
 import assettracking.ui.AutoCompletePopup;
-import assettracking.ui.StageManager;
+import assettracking.manager.StageManager;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -89,7 +90,6 @@ public class AddAssetDialogController {
     private Package currentPackage;
     private PackageDetailController parentController;
     private final ObservableList<AssetEntry> assetEntries = FXCollections.observableArrayList();
-    private Map<String, String[]> subStatusOptionsMap;
     private final AssetDAO assetDAO = new AssetDAO();
     private final ReceiptEventDAO receiptEventDAO = new ReceiptEventDAO();
     private final ZplPrinterService printerService = new ZplPrinterService();
@@ -102,7 +102,7 @@ public class AddAssetDialogController {
 
     @FXML
     public void initialize() {
-        setupStatusMappings();
+        // setupStatusMappings(); // <-- REMOVED
         setupViewToggles();
         setupDispositionControls();
         setupTable();
@@ -124,16 +124,7 @@ public class AddAssetDialogController {
         new Thread(loadCategoriesTask).start();
     }
 
-    private void setupStatusMappings() {
-        subStatusOptionsMap = Arrays.stream(new Object[][]{
-                {"Disposal/EOL", new String[]{"Damaged, Pending Decision", "For Parts Harvesting", "Beyond Economic Repair (BER)", "Can-Am, Pending Pickup", "Ingram, Pending Pickup", "Can-Am, Picked Up", "Ingram, Pick Up"}},
-                {"Everon", new String[]{"Pending Shipment", "Shipped"}},
-                {"Phone", new String[]{"Pending Shipment", "Shipped"}},
-                {"WIP", new String[]{"Repair Backlog", "In Evaluation", "Troubleshooting", "Awaiting Parts", "Awaiting Dell Tech", "Shipped to Dell", "Refurbishment", "Send to Inventory"}},
-                {"Processed", new String[]{"Kept in Depot(Parts)", "Kept in Depot(Functioning)", "Ready for Deployment"}},
-                {"Action Required", new String[]{"Requires Review", "DOA", "Damaged"}}
-        }).collect(Collectors.toMap(data -> (String) data[0], data -> (String[]) data[1]));
-    }
+    // setupStatusMappings() method was here <-- REMOVED
 
     private void setupMonitorIntake() {
         new AutoCompletePopup(monitorDescriptionField, () -> assetDAO.findDescriptionsLike(monitorDescriptionField.getText()))
@@ -192,21 +183,21 @@ public class AddAssetDialogController {
         disqualificationLabel.setDisable(true);
         disqualificationField.setDisable(true);
 
-        sellScrapStatusCombo.setItems(FXCollections.observableArrayList(subStatusOptionsMap.keySet()));
+        sellScrapStatusCombo.setItems(FXCollections.observableArrayList(StatusManager.getStatuses())); // <-- MODIFIED
         sellScrapStatusCombo.getSelectionModel().selectFirst();
 
         sellScrapStatusCombo.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
             sellScrapSubStatusCombo.getItems().clear();
-            if (newVal != null && subStatusOptionsMap.containsKey(newVal)) {
-                sellScrapSubStatusCombo.getItems().addAll(subStatusOptionsMap.get(newVal));
+            if (newVal != null) { // <-- MODIFIED BLOCK
+                sellScrapSubStatusCombo.getItems().addAll(StatusManager.getSubStatuses(newVal));
                 if (!sellScrapSubStatusCombo.getItems().isEmpty()) {
                     sellScrapSubStatusCombo.getSelectionModel().selectFirst();
                 }
             }
         });
 
-        if (sellScrapStatusCombo.getValue() != null) {
-            sellScrapSubStatusCombo.getItems().addAll(subStatusOptionsMap.get(sellScrapStatusCombo.getValue()));
+        if (sellScrapStatusCombo.getValue() != null) { // <-- MODIFIED BLOCK
+            sellScrapSubStatusCombo.getItems().addAll(StatusManager.getSubStatuses(sellScrapStatusCombo.getValue()));
             sellScrapSubStatusCombo.getSelectionModel().selectFirst();
         }
 
@@ -261,7 +252,6 @@ public class AddAssetDialogController {
                 );
 
         new AutoCompletePopup(modelField, () -> assetDAO.findModelNumbersLike(modelField.getText()))
-                // REFACTORED: Lambda converted to method reference
                 .setOnSuggestionSelected(selectedValue -> assetDAO.findSkuDetails(selectedValue, "model_number").ifPresent(this::populateFieldsFromSku));
     }
 
@@ -361,7 +351,6 @@ public class AddAssetDialogController {
             Throwable ex = saveTask.getException();
             String errorMessage = "Critical Error: " + (ex.getCause() != null ? ex.getCause().getMessage() : ex.getMessage());
             feedbackLabel.setText(errorMessage);
-            // REFACTORED: Replaced printStackTrace with a user-facing alert
             StageManager.showAlert(saveButton.getScene().getWindow(), Alert.AlertType.ERROR, "Save Failed", errorMessage);
             saveButton.setDisable(false);
             closeButton.setDisable(false);
@@ -432,7 +421,6 @@ public class AddAssetDialogController {
                 }
             }
 
-            // REFACTORED: Replaced .length() > 0 with !isEmpty()
             if (!errors.isEmpty()) {
                 conn.rollback();
                 return "Errors occurred:\n" + errors;
@@ -481,7 +469,6 @@ public class AddAssetDialogController {
                 }
             }
 
-            // REFACTORED: Replaced .length() > 0 with !isEmpty()
             if (!errors.isEmpty()) {
                 conn.rollback();
                 return "Errors occurred:\n" + errors;
@@ -546,7 +533,6 @@ public class AddAssetDialogController {
         }
     }
 
-    // REFACTORED: Made method more specific to its use case, removing the redundant parameter.
     private boolean recordExistsByReceiptId(Connection conn, String tableName, int id) throws SQLException {
         String sql = "SELECT 1 FROM " + tableName + " WHERE receipt_id = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {

@@ -40,8 +40,14 @@
             <DatePicker fx:id="fromDateFilter"/>
             <Label text="To:"/>
             <DatePicker fx:id="toDateFilter"/>
-            <Label text="Per Page:"/>
-            <ComboBox fx:id="rowsPerPageCombo" prefWidth="80"/>
+
+            <!-- START FIX: Wrap Label and ComboBox in an HBox -->
+            <HBox spacing="5" alignment="CENTER_LEFT">
+                <children>
+                    <Label text="Per Page:"/>
+                    <ComboBox fx:id="rowsPerPageCombo" prefWidth="80"/>
+                </children>
+            </HBox>
             <Button onAction="#onClearFiltersAction" text="Clear Filters" />
             <Button onAction="#onRefreshAction" text="Refresh" styleClass="success"/>
         </FlowPane>

@@ -1,18 +1,23 @@
 Priority 1:
-- Auto dispose EOL on intake
-	- upadate the mel ruls using the excel
-	- add template information and error checking for document format
+- Auto dispose EOL devices on intake
+	- upadate the mel rules table using the excel doc upload. It has these headers: Model	Description	Action	SPECIAL NOTES	Device	Mfg	RedeployOOWThreshold	Specification. We can use the Model column from the xlsx doc to match it to what we have in the model_number column of the db.
+	- add a way to upload the mel rules document to update the table
+	- add template information to recreate if needed and error checking for document format
+	- The templte document has these column headers: Model	Description	Action	SPECIAL NOTES	Device	Mfg	Redeploy   Threshold	Specification
 - clean the monitor data, look for long dell serials that are incorrect. 
-- Bulk update status option, way to drag and select (or shift+click) to select multiple product in the device status 	window and then a way to bulk update to another status.
--on scan update location disapperas when you scan one, i dont want it to dissaper because sometimes I may scan multiplle 		things back to back
+- Dig into WIP backlog, what is that?
+- update statuses and substatuses across whole app so it's consistent
+- update categories and statuses in database
+- autogenerate box id, change labeling in gui from Disposal location to BoxID
 
 Priority 2:
 - How to be more granular on dashboard.
-- Dig into WIP backlog, what is that?
 - fix visual bug on label printing tab, when you click generic barcode the whole row increases in size
-- fix visual bug on device status tracking, per page: and the drop down are on seperate lines
 - test printing labels from scan update.
 - Test all features extensively
+- Make sure history works
+- add monitors back to WIP on dash
+- 
 
 
 At End:
@@ -48,3 +53,92 @@ DONE:
 - update the scsan update to allow for updating all the serials within a location instead of just a device one by one, if 	I have a bunch of devices in a location then I can update all at once when I scan the location barcode.
 - dropdown for themes
 - the row colors for device status tracking should be dynamic with theme as well, they should switch with the theme.
+-on scan update location disapperas when you scan one, i dont want it to dissaper because sometimes I may scan multiplle 		things back to back
+- fix visual bug on device status tracking, per page: and the drop down are on seperate lines
+- update categories across whole app so it's consistent
+
+Current Categories:
+Disposal/EOL
+Ingram, Pending Pickup
+Can-Am, Pending Pickup
+
+Everon
+Shipped
+Pending Shipment
+
+Flag!
+Requires Review
+
+Found in sheet <- I want to get rid of this status
+Ready for Deployment <- change status of all of these to Processed Ready for deployment instead of Found in sheet Ready for deployment
+Refurbishment <- change all of these to 
+
+
+Phone
+Shipped
+Pending Shipment
+
+
+Processed
+Kept in Depot(Parts)
+Kept in Depot(Functioning)
+Ready for Deployment
+
+WIP
+Refurbishment
+Troubleshooting
+In Evaluation
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+WIP
+In Evaluation
+Troubleshooting
+Awaiting Parts
+Awaiting Dell Tech
+Shipped to Dell <- remove this one
+Refurbishment <- change this one to and move to 
+
+Processed
+Ready for Deployment
+Ready for Imaging
+
+Inventory
+Surplus
+Parts Harvest
+Awaiting Disposition
+
+Disposal
+CanAm, Pending Pickup
+CanAm, Picked Up
+Ingram Micro, Pending Pickup
+Ingram Micro, Picked Up
+Return to Vendor
+Donation
+e-Waste (General)
+
+Everon
+Pending Shipment
+Shipped
+
+Special Projects
+Project Intake
+Pending Deployment
+Deployed
+
+Flag!
+Requires Review

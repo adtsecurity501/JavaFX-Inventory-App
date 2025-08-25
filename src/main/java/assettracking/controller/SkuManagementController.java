@@ -2,7 +2,7 @@ package assettracking.controller;
 
 import assettracking.data.Sku;
 import assettracking.dao.SkuDAO;
-import assettracking.ui.StageManager;
+import assettracking.manager.StageManager;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;

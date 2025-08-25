@@ -5,6 +5,7 @@ import assettracking.controller.DeviceStatusTrackingController;
 import assettracking.controller.ScanUpdateController;
 import assettracking.data.DeviceStatusView;
 import assettracking.db.DatabaseConnection;
+import assettracking.manager.StageManager;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.control.Alert;

@@ -5,7 +5,8 @@ import assettracking.dao.SkuDAO;
 import assettracking.data.AssetInfo;
 import assettracking.db.DatabaseConnection;
 import assettracking.label.service.ZplPrinterService;
-import assettracking.ui.StageManager; // Unused import 'java.util.stream.Stream' was here
+import assettracking.manager.StatusManager;
+import assettracking.manager.StageManager;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -49,7 +50,6 @@ public class ScanUpdateController {
     private DeviceStatusTrackingController parentController;
     private final ObservableList<ScanResult> successList = FXCollections.observableArrayList();
     private final ObservableList<ScanResult> failedList = FXCollections.observableArrayList();
-    private Map<String, String[]> subStatusOptionsMap;
     private final SkuDAO skuDAO = new SkuDAO();
     private final AssetDAO assetDAO = new AssetDAO();
     private final ZplPrinterService printerService = new ZplPrinterService();
@@ -61,14 +61,14 @@ public class ScanUpdateController {
 
     @FXML
     public void initialize() {
-        setupStatusMappings();
+        // setupStatusMappings(); // <-- REMOVED
         setupTableColumns();
 
-        statusCombo.getItems().addAll(subStatusOptionsMap.keySet().stream().sorted().toArray(String[]::new));
+        statusCombo.getItems().addAll(StatusManager.getStatuses()); // <-- MODIFIED
         statusCombo.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
             subStatusCombo.getItems().clear();
-            if (newVal != null && subStatusOptionsMap.containsKey(newVal)) {
-                subStatusCombo.getItems().addAll(subStatusOptionsMap.get(newVal));
+            if (newVal != null) { // <-- MODIFIED BLOCK
+                subStatusCombo.getItems().addAll(StatusManager.getSubStatuses(newVal));
                 subStatusCombo.getSelectionModel().selectFirst();
             }
 
@@ -152,7 +152,6 @@ public class ScanUpdateController {
             if (result.startsWith("Success")) {
                 feedbackLabel.setText("✔ " + result);
                 feedbackLabel.setTextFill(Color.GREEN);
-                // REFACTORED: Replaced .add(0, ...) with .addFirst()
                 successList.addFirst(new ScanResult(serial, newStatus + " / " + newSubStatus, timestamp));
                 if (parentController != null) parentController.refreshData();
 
@@ -167,7 +166,6 @@ public class ScanUpdateController {
             } else {
                 feedbackLabel.setText("❌ " + result);
                 feedbackLabel.setTextFill(Color.RED);
-                // REFACTORED: Replaced .add(0, ...) with .addFirst()
                 failedList.addFirst(new ScanResult(serial, result, timestamp));
             }
             scanSerialField.clear();
@@ -180,9 +178,7 @@ public class ScanUpdateController {
             String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
             feedbackLabel.setText("❌ Error: " + ex.getMessage());
             feedbackLabel.setTextFill(Color.RED);
-            // REFACTORED: Replaced .add(0, ...) with .addFirst()
             failedList.addFirst(new ScanResult(serial, "DB Error", timestamp));
-            // REFACTORED: Replaced printStackTrace with a user-facing alert
             StageManager.showAlert(scanSerialField.getScene().getWindow(), Alert.AlertType.ERROR, "Database Error", "An unexpected database error occurred: " + ex.getMessage());
         });
 
@@ -230,8 +226,6 @@ public class ScanUpdateController {
                 return;
             }
 
-            // REFACTORED: Lambda can be replaced with method reference.
-            // This is a minor style change, but good practice.
             Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION);
             confirmation.setTitle("Confirm Bulk Update");
             confirmation.setHeaderText("Update all devices in location '" + location + "'?");
@@ -312,8 +306,6 @@ public class ScanUpdateController {
         String adtZpl = ZplPrinterService.getAdtLabelZpl(sku, description);
         String serialZpl = ZplPrinterService.getSerialLabelZpl(sku, serialNumber);
 
-        // NOTE: The IDE warning that 'nameHint' is always "GX" is noted, but the method
-        // is kept generic for potential future use with other printer types.
         Optional<String> printerName = findPrinter("GX");
         if (printerName.isEmpty()) {
             showAlert("Printer Not Found", "Could not find a default SKU printer (containing 'GX'). Please configure printers.");
@@ -338,20 +330,10 @@ public class ScanUpdateController {
     }
 
     private void showAlert(String title, String content) {
-        // NOTE: The IDE warning that 'alertType' is always WARNING is noted.
-        // This method is kept generic for flexibility.
         StageManager.showAlert(scanSerialField.getScene().getWindow(), Alert.AlertType.WARNING, title, content);
     }
 
-    private void setupStatusMappings() {
-        subStatusOptionsMap = Stream.of(new Object[][]{
-                {"Disposal/EOL", new String[]{"Damaged, Pending Decision", "For Parts Harvesting", "Beyond Economic Repair (BER)", "Can-Am, Pending Pickup", "Ingram, Pending Pickup", "Can-Am, Picked Up", "Ingram, Pick Up"}},
-                {"Everon", new String[]{"Pending Shipment", "Shipped"}},
-                {"Phone", new String[]{"Pending Shipment", "Shipped"}},
-                {"WIP", new String[]{"Repair Backlog", "In Evaluation", "Troubleshooting", "Awaiting Parts", "Awaiting Dell Tech", "Shipped to Dell", "Refurbishment", "Send to Inventory"}},
-                {"Processed", new String[]{"Kept in Depot(Parts)", "Kept in Depot(Functioning)", "Ready for Deployment"}}
-        }).collect(Collectors.toMap(data -> (String) data[0], data -> (String[]) data[1]));
-    }
+    // setupStatusMappings() method was here <-- REMOVED
 
     public static class ScanResult {
         private final SimpleStringProperty serial;
