@@ -62,11 +62,15 @@ public class PackageIntakeController {
 
         try (Connection conn = DatabaseConnection.getInventoryConnection();
              PreparedStatement stmt = conn.prepareStatement("SELECT * FROM Packages WHERE tracking_number = ?")) {
+
             stmt.setString(1, currentTracking);
             ResultSet rs = stmt.executeQuery();
+
+            // STEP 1: Check if the query returned a result (i.e., the package exists)
             if (rs.next()) {
                 Package existingPkg = new Package(rs.getInt("package_id"), rs.getString("tracking_number"), rs.getString("first_name"), rs.getString("last_name"), rs.getString("city"), rs.getString("state"), rs.getString("zip_code"), LocalDate.parse(rs.getString("receive_date")));
 
+                // STEP 2: Show the confirmation dialog to the user
                 boolean openExisting = StageManager.showConfirmationDialog(
                         getOwnerWindow(),
                         "Duplicate Package Found",
@@ -74,14 +78,20 @@ public class PackageIntakeController {
                         "Do you want to open this existing package?"
                 );
 
+                // STEP 3A: If the user chose "Yes"
                 if (openExisting) {
+                    // Open the detail window for the EXISTING package
                     openPackageDetailWindow(existingPkg);
+                    // Clear the form for the next task
                     clearForm();
-                } else {
+                }
+                // STEP 3B: If the user chose "No"
+                else {
+                    // Display an error and disable the button to prevent mistakes
                     trackingErrorLabel.setText("Package already exists.");
                     startButton.setDisable(true);
                 }
-                return;
+                return; // Stop further processing
             }
         } catch (SQLException e) {
             showAlert(Alert.AlertType.ERROR, "Database Error", "Error checking for duplicate package: " + e.getMessage());

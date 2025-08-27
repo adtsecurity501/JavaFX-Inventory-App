@@ -4,13 +4,11 @@ Priority 1:
 - update statuses and substatuses across whole app so it's consistent
 - update categories and statuses in database
 - inlclude monitors in the WIP backlog on dashboard
-- double check all categories
-- update devcie status tracdking window to 
-- Update all items Disposal/EOL to new status
-- update autofill information, I don't see things that are considired disposal coming up on the autofill
--update script to use new categories
+- update devcie status tracdking window to include box id requirement for disposal when I click on a serial
 - add check when bulk ipad provsion on, if Country is PR change to tmobile automatically then mark which on is set to that on the gui
-- logic for handling same tracking number?
+-Sanitize device autofill data
+-add way to import information into the device_autofill_data table.
+
 
 
 Priority 2:
@@ -21,13 +19,11 @@ Priority 2:
 - Make sure history works
 - add monitors back to WIP on dash
 -add double click funtionality to packkage management to open selected package
-- sanitize (retunr)(reutnr)
-- 
-
+- double check all categories
+-rename the database and change paths everwhere
 
 At End:
-- import skus again just in case 
-- clean up code and extra files
+- clean up code and extra files and tables
 - create executable for program 
 
 
@@ -74,8 +70,12 @@ DONE:
 -update migrate scripts for new categories.
 - update package details window and error windwos. Double check that all windows and popups to have same title menu bar styles as rest of app
 - update GUI to only use orgiialnl dispoed substatueses and get rid of e-waste
-
-
+- logic for handling same tracking number?
+-update script to use new categories
+- update autofill information, I don't see things that are considired disposal coming up on the autofill
+- Update all items Disposal/EOL to new status
+- sanitize (retunr)(reutnr)
+- import skus again just in case 
 
 
 
