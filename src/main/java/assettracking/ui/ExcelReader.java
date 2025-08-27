@@ -69,7 +69,6 @@ public class ExcelReader {
 
             Map<String, Integer> headers = getHeaderMap(headerRow);
 
-            // --- START: NEW LOGIC TO FIND THE SECOND 'Email' COLUMN ---
             int employeeEmailIndex = -1;
             int emailColumnCount = 0;
             for (Cell cell : headerRow) {
@@ -77,15 +76,14 @@ public class ExcelReader {
                     emailColumnCount++;
                     if (emailColumnCount == 2) {
                         employeeEmailIndex = cell.getColumnIndex();
-                        break; // Found it, no need to continue
+                        break;
                     }
                 }
             }
-            // --- END: NEW LOGIC ---
 
-            // CORRECTED VALIDATION: Check for all required columns, including our manually found email index.
-            if (!headers.containsKey("first name") || !headers.containsKey("last name") || employeeEmailIndex == -1 || !headers.containsKey("sn reference number")) {
-                throw new IOException("Roster file is missing required columns. Ensure 'First name', 'Last name', 'SN Reference Number', and two separate 'Email' columns are present.");
+            // UPDATED VALIDATION: Add "country" to the list of required headers.
+            if (!headers.containsKey("first name") || !headers.containsKey("last name") || employeeEmailIndex == -1 || !headers.containsKey("sn reference number") || !headers.containsKey("country")) {
+                throw new IOException("Roster file is missing required columns. Ensure 'First name', 'Last name', 'SN Reference Number', 'Country', and two separate 'Email' columns are present.");
             }
 
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
@@ -95,12 +93,14 @@ public class ExcelReader {
                 String snRef = getCellValueAsString(row.getCell(headers.get("sn reference number")));
                 if (snRef.isEmpty()) continue;
 
+                // UPDATED CONSTRUCTOR CALL: Pass the country value.
                 roster.add(new RosterEntry(
                         getCellValueAsString(row.getCell(headers.get("first name"))),
                         getCellValueAsString(row.getCell(headers.get("last name"))),
-                        getCellValueAsString(row.getCell(employeeEmailIndex)), // CORRECTED: Use the explicitly found index
+                        getCellValueAsString(row.getCell(employeeEmailIndex)),
                         snRef,
-                        getCellValueAsString(row.getCell(headers.get("depot reference")))
+                        getCellValueAsString(row.getCell(headers.get("depot reference"))),
+                        getCellValueAsString(row.getCell(headers.get("country"))) // NEW: Read country
                 ));
             }
         }

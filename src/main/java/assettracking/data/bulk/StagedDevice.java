@@ -16,6 +16,10 @@ public class StagedDevice {
     private final SimpleStringProperty carrier;
     private final SimpleStringProperty carrierAccountNumber;
 
+    // NEW FIELD: Flag to indicate if this row was auto-changed.
+
+    private boolean wasAutoSetToTmobile = false;
+
     public StagedDevice(RosterEntry rosterEntry, BulkDevice bulkDevice) {
         this.firstName = new SimpleStringProperty(rosterEntry.getFirstName());
         this.lastName = new SimpleStringProperty(rosterEntry.getLastName());
@@ -42,6 +46,7 @@ public class StagedDevice {
         // --- INITIALIZE NEW FIELDS (Default to Verizon for unassigned too) ---
         this.carrier = new SimpleStringProperty("Verizon");
         this.carrierAccountNumber = new SimpleStringProperty("VER-942x");
+
     }
 
     // --- SETTERS FOR NEW AND EXISTING FIELDS ---
@@ -49,6 +54,14 @@ public class StagedDevice {
     public void setCarrier(String newCarrier) { this.carrier.set(newCarrier); }
     public void setCarrierAccountNumber(String newAccountNumber) { this.carrierAccountNumber.set(newAccountNumber); }
 
+
+    public boolean isWasAutoSetToTmobile() {
+        return wasAutoSetToTmobile;
+    }
+
+    public void setWasAutoSetToTmobile(boolean wasAutoSetToTmobile) {
+        this.wasAutoSetToTmobile = wasAutoSetToTmobile;
+    }
 
     // Getters for TableView columns
     public String getFirstName() { return firstName.get(); }

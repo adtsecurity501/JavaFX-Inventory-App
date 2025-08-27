@@ -149,3 +149,18 @@
 .scan-update-pane {
     -fx-background-color: -color-bg-default;
 }
+
+/* ========================================================================== */
+/* IPAD PROVISIONING STYLES ---                                     */
+/* ========================================================================== */
+
+/* Style for rows that were automatically set to T-Mobile */
+.t-mobile-override-row .table-cell {
+    -fx-background-color: -color-info-emphasis; /* A pleasant blue from the theme */
+    -fx-text-fill: white; /* High contrast text */
+}
+
+/* This ensures the style persists on alternating (odd) rows */
+.t-mobile-override-row:odd .table-cell {
+    -fx-background-color: -color-info-emphasis;
+}

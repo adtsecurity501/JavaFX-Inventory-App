@@ -5,8 +5,7 @@ Priority 1:
 - update categories and statuses in database
 - inlclude monitors in the WIP backlog on dashboard
 - update devcie status tracdking window to include box id requirement for disposal when I click on a serial
-- add check when bulk ipad provsion on, if Country is PR change to tmobile automatically then mark which on is set to that on the gui
--Sanitize device autofill data
+- Sanitize device autofill data
 -add way to import information into the device_autofill_data table.
 
 
@@ -76,7 +75,7 @@ DONE:
 - Update all items Disposal/EOL to new status
 - sanitize (retunr)(reutnr)
 - import skus again just in case 
-
+- add check when bulk ipad provsion on, if Country is PR change to tmobile automatically then mark which on is set to that on the gui
 
 
 

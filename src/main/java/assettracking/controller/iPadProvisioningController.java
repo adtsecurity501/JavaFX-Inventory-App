@@ -37,7 +37,6 @@ public class iPadProvisioningController {
     @FXML private Button importRosterButton;
     @FXML private TextField snRefFilterField;
     @FXML private TableView<RosterEntry> rosterTable;
-    // --- FIX: All @FXML declarations are now present ---
     @FXML private TableColumn<RosterEntry, String> rosterNameCol;
     @FXML private TableColumn<RosterEntry, String> rosterSnRefCol;
     @FXML private TextField serialScanField;
@@ -173,6 +172,20 @@ public class iPadProvisioningController {
         });
 
         stagingTable.setItems(stagedDeviceList);
+
+        // NEW: Add a Row Factory to apply custom styling for PR devices.
+        stagingTable.setRowFactory(tv -> new TableRow<StagedDevice>() {
+            @Override
+            protected void updateItem(StagedDevice item, boolean empty) {
+                super.updateItem(item, empty);
+                // Always remove the class first to handle list updates correctly.
+                getStyleClass().remove("t-mobile-override-row");
+                if (item != null && !empty && item.isWasAutoSetToTmobile()) {
+                    // Apply the CSS class if the flag is set.
+                    getStyleClass().add("t-mobile-override-row");
+                }
+            }
+        });
     }
 
     private void setupDbSearchTable() {
@@ -291,7 +304,19 @@ public class iPadProvisioningController {
                 if (stagedDeviceList.stream().anyMatch(d -> d.getSerialNumber().equals(serial))) {
                     StageManager.showAlert(getStage(), Alert.AlertType.WARNING, "Duplicate Entry", "Device " + serial + " is already staged.");
                 } else {
-                    stagedDeviceList.add(new StagedDevice(employeeToAssign, deviceOpt.get()));
+                    // Create the StagedDevice object first
+                    StagedDevice newDevice = new StagedDevice(employeeToAssign, deviceOpt.get());
+
+                    // --- NEW LOGIC BLOCK ---
+                    // Check if bulk mode is on and the employee's country is "PR"
+                    if (bulkModeToggle.isSelected() && "PR".equalsIgnoreCase(employeeToAssign.getCountry())) {
+                        newDevice.setCarrier("T-Mobile");
+                        newDevice.setCarrierAccountNumber("TMB-x285");
+                        newDevice.setWasAutoSetToTmobile(true); // Set the flag for the UI
+                    }
+                    // --- END OF NEW LOGIC ---
+
+                    stagedDeviceList.add(newDevice); // Add the (potentially modified) device to the list
                     statusLabel.setText("Added " + serial);
                     exportButton.setDisable(false);
                 }
