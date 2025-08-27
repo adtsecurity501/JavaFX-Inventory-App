@@ -38,7 +38,7 @@ import java.util.stream.Collectors;
 
 public class AddAssetDialogController {
 
-    // --- (All FXML fields and other variables remain unchanged) ---
+    // --- (All FXML fields remain the same) ---
     @FXML private RadioButton standardIntakeRadio;
     @FXML private RadioButton monitorIntakeRadio;
     @FXML private ToggleGroup intakeModeToggleGroup;
@@ -84,6 +84,8 @@ public class AddAssetDialogController {
     @FXML private ToggleGroup conditionToggleGroup;
     @FXML private RadioButton refurbRadioButton;
     @FXML private RadioButton newRadioButton;
+    @FXML private Label boxIdLabel;
+    @FXML private TextField boxIdField;
 
     private Package currentPackage;
     private PackageDetailController parentController;
@@ -92,7 +94,6 @@ public class AddAssetDialogController {
     private final ReceiptEventDAO receiptEventDAO = new ReceiptEventDAO();
     private final ZplPrinterService printerService = new ZplPrinterService();
 
-    // --- (All methods from initData to clearMonitorFields remain unchanged) ---
     public void initData(Package pkg, PackageDetailController parent) {
         this.currentPackage = pkg;
         this.parentController = parent;
@@ -123,9 +124,19 @@ public class AddAssetDialogController {
     }
 
     private void setupMonitorIntake() {
+        // Autocomplete for Description Field
         new AutoCompletePopup(monitorDescriptionField, () -> assetDAO.findDescriptionsLike(monitorDescriptionField.getText()))
                 .setOnSuggestionSelected(selectedValue ->
                         assetDAO.findSkuDetails(selectedValue, "description").ifPresent(sku -> Platform.runLater(() -> {
+                            monitorDescriptionField.setText(sku.getDescription());
+                            monitorModelField.setText(sku.getModelNumber());
+                        }))
+                );
+
+        // --- FIX: ADDED AUTOCOMPLETE FOR MODEL FIELD ---
+        new AutoCompletePopup(monitorModelField, () -> assetDAO.findModelNumbersLike(monitorModelField.getText()))
+                .setOnSuggestionSelected(selectedValue ->
+                        assetDAO.findSkuDetails(selectedValue, "model_number").ifPresent(sku -> Platform.runLater(() -> {
                             monitorDescriptionField.setText(sku.getDescription());
                             monitorModelField.setText(sku.getModelNumber());
                         }))
@@ -178,6 +189,13 @@ public class AddAssetDialogController {
         sellScrapSubStatusCombo.setDisable(true);
         disqualificationLabel.setDisable(true);
         disqualificationField.setDisable(true);
+        boxIdLabel.setDisable(true);
+        boxIdField.setDisable(true);
+
+        boxIdLabel.setVisible(false);
+        boxIdLabel.setManaged(false);
+        boxIdField.setVisible(false);
+        boxIdField.setManaged(false);
 
         sellScrapStatusCombo.setItems(FXCollections.observableArrayList(StatusManager.getStatuses()));
         sellScrapStatusCombo.getSelectionModel().selectFirst();
@@ -189,11 +207,17 @@ public class AddAssetDialogController {
                 if (!sellScrapSubStatusCombo.getItems().isEmpty()) {
                     sellScrapSubStatusCombo.getSelectionModel().selectFirst();
                 }
-                if ("Disposed".equals(newVal)) {
-                    disqualificationField.setPromptText("Box ID is required for this status");
-                } else {
-                    disqualificationField.setPromptText("");
-                }
+
+                boolean isDisposed = "Disposed".equals(newVal);
+                boxIdLabel.setVisible(isDisposed);
+                boxIdLabel.setManaged(isDisposed);
+                boxIdField.setVisible(isDisposed);
+                boxIdField.setManaged(isDisposed);
+
+                disqualificationLabel.setVisible(!isDisposed);
+                disqualificationLabel.setManaged(!isDisposed);
+                disqualificationField.setVisible(!isDisposed);
+                disqualificationField.setManaged(!isDisposed);
             }
         });
 
@@ -210,6 +234,8 @@ public class AddAssetDialogController {
             sellScrapSubStatusCombo.setDisable(!selected);
             disqualificationLabel.setDisable(!selected);
             disqualificationField.setDisable(!selected);
+            boxIdLabel.setDisable(!selected);
+            boxIdField.setDisable(!selected);
         });
     }
 
@@ -326,8 +352,8 @@ public class AddAssetDialogController {
     @FXML
     private void handleSave() {
         if (sellScrapCheckBox.isSelected() && "Disposed".equals(sellScrapStatusCombo.getValue())) {
-            if (disqualificationField.getText().trim().isEmpty()) {
-                StageManager.showAlert(saveButton.getScene().getWindow(), Alert.AlertType.WARNING, "Box ID Required", "A Box ID must be entered in the 'Reason' field when the status is 'Disposed'.");
+            if (boxIdField.getText().trim().isEmpty()) {
+                StageManager.showAlert(saveButton.getScene().getWindow(), Alert.AlertType.WARNING, "Box ID Required", "A Box ID must be entered when the status is 'Disposed'.");
                 return;
             }
         }
@@ -374,6 +400,7 @@ public class AddAssetDialogController {
         final String scrapStatus = sellScrapStatusCombo.getValue();
         final String scrapSubStatus = sellScrapSubStatusCombo.getValue();
         final String scrapReason = disqualificationField.getText().trim();
+        final String boxId = boxIdField.getText().trim();
         final boolean isNewCondition = newRadioButton.isSelected();
 
         final AssetInfo singleEntryInfo = !isBulkMode ? new AssetInfo("", makeField.getText(), modelField.getText(), descriptionField.getText(), categoryBox.getValue(), imeiField.getText(), false, "") : null;
@@ -382,15 +409,15 @@ public class AddAssetDialogController {
             @Override
             protected String call() throws Exception {
                 if (isBulkMode) {
-                    return processTable(entriesFromTable, isScrap, scrapStatus, scrapSubStatus, scrapReason, isNewCondition);
+                    return processTable(entriesFromTable, isScrap, scrapStatus, scrapSubStatus, scrapReason, boxId, isNewCondition);
                 } else {
-                    return processTextArea(serials, singleEntryInfo, isScrap, scrapStatus, scrapSubStatus, scrapReason, isNewCondition);
+                    return processTextArea(serials, singleEntryInfo, isScrap, scrapStatus, scrapSubStatus, scrapReason, boxId, isNewCondition);
                 }
             }
         };
     }
 
-    private String processTextArea(String[] serialNumbers, AssetInfo singleEntryDetails, boolean isScrap, String scrapStatus, String scrapSubStatus, String scrapReason, boolean isNewCondition) throws SQLException {
+    private String processTextArea(String[] serialNumbers, AssetInfo singleEntryDetails, boolean isScrap, String scrapStatus, String scrapSubStatus, String scrapReason, String boxId, boolean isNewCondition) throws SQLException {
         if (serialNumbers.length == 0 || serialNumbers[0].isEmpty()) {
             return "Input Required: Please enter at least one serial number.";
         }
@@ -420,7 +447,7 @@ public class AddAssetDialogController {
                 int newReceiptId = receiptEventDAO.addReceiptEvent(newReceipt);
 
                 if (newReceiptId != -1) {
-                    createInitialStatus(conn, newReceiptId, isNewCondition, isScrap, scrapStatus, scrapSubStatus, scrapReason);
+                    createInitialStatus(conn, newReceiptId, isNewCondition, isScrap, scrapStatus, scrapSubStatus, scrapReason, boxId);
                     successCount++;
                 } else {
                     errors.append("Failed to create receipt for S/N: ").append(serial).append("\n");
@@ -437,7 +464,7 @@ public class AddAssetDialogController {
         }
     }
 
-    private String processTable(List<AssetEntry> entries, boolean isScrap, String scrapStatus, String scrapSubStatus, String scrapReason, boolean isNewCondition) throws SQLException {
+    private String processTable(List<AssetEntry> entries, boolean isScrap, String scrapStatus, String scrapSubStatus, String scrapReason, String boxId, boolean isNewCondition) throws SQLException {
         if (entries.isEmpty()) { return "No devices in the table to process."; }
 
         int successCount = 0, duplicateCount = 0;
@@ -467,7 +494,7 @@ public class AddAssetDialogController {
                 int newReceiptId = receiptEventDAO.addReceiptEvent(newReceipt);
 
                 if (newReceiptId != -1) {
-                    createInitialStatus(conn, newReceiptId, isNewCondition, isScrap, scrapStatus, scrapSubStatus, scrapReason);
+                    createInitialStatus(conn, newReceiptId, isNewCondition, isScrap, scrapStatus, scrapSubStatus, scrapReason, boxId);
                     successCount++;
                     processedSerials.add(serial);
                 } else {
@@ -489,7 +516,7 @@ public class AddAssetDialogController {
         }
     }
 
-    private void createInitialStatus(Connection conn, int receiptId, boolean isNewCondition, boolean isScrap, String scrapStatus, String scrapSubStatus, String scrapReason) throws SQLException {
+    private void createInitialStatus(Connection conn, int receiptId, boolean isNewCondition, boolean isScrap, String scrapStatus, String scrapSubStatus, String scrapReason, String boxId) throws SQLException {
         String finalStatus;
         String finalSubStatus;
         String finalReason = null;
@@ -497,8 +524,11 @@ public class AddAssetDialogController {
         if (isScrap) {
             finalStatus = scrapStatus;
             finalSubStatus = scrapSubStatus;
-            if ("Disposed".equals(scrapStatus) && scrapReason != null && !scrapReason.isEmpty()) {
-                finalReason = "Box ID: " + scrapReason;
+            if ("Disposed".equals(scrapStatus) && boxId != null && !boxId.isEmpty()) {
+                finalReason = "Box ID: " + boxId;
+                if (scrapReason != null && !scrapReason.isEmpty()) {
+                    finalReason += ". " + scrapReason;
+                }
             } else {
                 finalReason = scrapReason;
             }
@@ -629,7 +659,7 @@ public class AddAssetDialogController {
                 if (newReceiptId == -1) throw new Exception("Failed to create receipt event for S/N: " + serial);
 
                 try (Connection conn = DatabaseConnection.getInventoryConnection()) {
-                    createInitialStatus(conn, newReceiptId, false, false, "Processed", "Ready for Deployment", null);
+                    createInitialStatus(conn, newReceiptId, false, false, "Processed", "Ready for Deployment", null, null);
                 }
 
                 updateMonitorFeedback("Printing labels for " + serial + "...");
@@ -666,7 +696,7 @@ public class AddAssetDialogController {
                 if (newReceiptId == -1) throw new Exception("Failed to create receipt event for S/N: " + serial);
 
                 try (Connection conn = DatabaseConnection.getInventoryConnection()) {
-                    createInitialStatus(conn, newReceiptId, false, true, status, subStatus, reason);
+                    createInitialStatus(conn, newReceiptId, false, true, status, subStatus, reason, null);
                 }
                 return null;
             }
@@ -705,10 +735,9 @@ public class AddAssetDialogController {
             if ("Dispose".equalsIgnoreCase(rule.action())) {
                 sellScrapCheckBox.setSelected(true);
                 sellScrapStatusCombo.setValue("Disposed");
-                // --- UPDATED LOGIC ---
                 sellScrapSubStatusCombo.setValue("Ready for Wipe");
                 disqualificationField.clear();
-                disqualificationField.setPromptText("Enter Box ID for EOL Disposal");
+                boxIdField.requestFocus();
             }
         });
     }

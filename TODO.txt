@@ -6,8 +6,11 @@ Priority 1:
 - inlclude monitors in the WIP backlog on dashboard
 - double check all categories
 - update devcie status tracdking window to 
-- Update all items Disposal/EOL to new status 
-
+- Update all items Disposal/EOL to new status
+- update autofill information, I don't see things that are considired disposal coming up on the autofill
+-update script to use new categories
+- add check when bulk ipad provsion on, if Country is PR change to tmobile automatically then mark which on is set to that on the gui
+- logic for handling same tracking number?
 
 
 Priority 2:
@@ -18,6 +21,8 @@ Priority 2:
 - Make sure history works
 - add monitors back to WIP on dash
 -add double click funtionality to packkage management to open selected package
+- sanitize (retunr)(reutnr)
+- 
 
 
 At End:
@@ -68,6 +73,7 @@ DONE:
 	- The templte document has these column headers: Model	Description	Action	SPECIAL NOTES	Device	Mfg	Redeploy   Threshold	Specification
 -update migrate scripts for new categories.
 - update package details window and error windwos. Double check that all windows and popups to have same title menu bar styles as rest of app
+- update GUI to only use orgiialnl dispoed substatueses and get rid of e-waste
 
 
 
@@ -76,28 +82,34 @@ DONE:
 
 Intake (Entry point for used assets)
 In Evaluation
+
 Triage & Repair (For devices being actively worked on)
 Troubleshooting
 Refurbishment
 Awaiting Parts
 Awaiting Dell Tech
 Shipped to Dell
+
 Processed (Ready for use or in storage)
 Ready for Deployment
 Ready for Imaging
 Kept in Depot(Parts)
 Kept in Depot(Functioning)
+
 Disposed (Items that are physically leaving or have left)
 CanAm, Pending Pickup
 CanAm, Picked Up
 Ingram Micro, Pending Pickup
 Ingram Micro, Picked Up
-e-Waste (General)
+Disposed - ready for wiping.
+
 Everon (Shipping workflow)
 Pending Shipment
 Shipped
+
 Phone (Shipping workflow)
 Pending Shipment
 Shipped
+
 Flag! (System-level for attention)
 Requires Review

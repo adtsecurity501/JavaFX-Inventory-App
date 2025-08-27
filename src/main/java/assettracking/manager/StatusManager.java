@@ -33,11 +33,11 @@ public final class StatusManager {
 
         // 4. Final disposition statuses (items leaving inventory)
         STATUS_MAP.put("Disposed", List.of(
-                "CanAm, Pending Pickup",
-                "CanAm, Picked Up",
-                "Ingram Micro, Pending Pickup",
-                "Ingram Micro, Picked Up",
-                "e-Waste (General)"
+                "Can-Am, Pending Pickup",
+                "Can-Am, Picked Up",
+                "Ingram, Pending Pickup",
+                "Ingram, Picked Up",
+                "Ready for Wipe"
         ));
 
         // 5. & 6. Shipping-related statuses

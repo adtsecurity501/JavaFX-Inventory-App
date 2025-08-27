@@ -143,6 +143,8 @@
                                     <ComboBox fx:id="sellScrapSubStatusCombo" prefWidth="200.0" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
                                     <Label fx:id="disqualificationLabel" text="Reason:" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
                                     <TextField fx:id="disqualificationField" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
+                                    <Label fx:id="boxIdLabel" text="Box ID:" GridPane.rowIndex="4" GridPane.columnIndex="0"/>
+                                    <TextField fx:id="boxIdField" GridPane.rowIndex="4" GridPane.columnIndex="1"/>
                                 </GridPane>
                             </VBox>
                         </HBox>

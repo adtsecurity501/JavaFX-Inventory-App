@@ -19,12 +19,14 @@ public class MonitorDisposalDialogController {
     @FXML private ComboBox<String> statusCombo;
     @FXML private ComboBox<String> subStatusCombo;
     @FXML private TextField reasonField;
+    @FXML private Label boxIdLabel;
+    @FXML private TextField boxIdField;
     @FXML private Button confirmButton;
     @FXML private Button cancelButton;
 
     private DisposalResult result;
 
-    public record DisposalResult(String status, String subStatus, String reason) {}
+    public record DisposalResult(String status, String subStatus, String reason, String boxId) {}
 
     @FXML
     public void initialize() {
@@ -37,12 +39,14 @@ public class MonitorDisposalDialogController {
                 if (!subStatusCombo.getItems().isEmpty()) {
                     subStatusCombo.getSelectionModel().selectFirst();
                 }
-                // --- NEW UI CUE ---
-                if ("Disposed".equals(newVal)) {
-                    reasonField.setPromptText("Box ID is required");
-                } else {
-                    reasonField.setPromptText("");
-                }
+
+                boolean isDisposed = "Disposed".equals(newVal);
+                boxIdLabel.setVisible(isDisposed);
+                boxIdLabel.setManaged(isDisposed);
+                boxIdField.setVisible(isDisposed);
+                boxIdField.setManaged(isDisposed);
+                confirmButton.getStyleClass().setAll(isDisposed ? "danger" : "success");
+                confirmButton.setText(isDisposed ? "Confirm Disposal" : "Confirm Status");
             }
         });
 
@@ -59,24 +63,17 @@ public class MonitorDisposalDialogController {
     }
 
     private void handleConfirm() {
-        // --- NEW VALIDATION ---
-        if ("Disposed".equals(statusCombo.getValue()) && reasonField.getText().trim().isEmpty()) {
+        if ("Disposed".equals(statusCombo.getValue()) && boxIdField.getText().trim().isEmpty()) {
             StageManager.showAlert(
                     (Stage) confirmButton.getScene().getWindow(),
                     Alert.AlertType.WARNING,
                     "Input Required",
-                    "A Box ID must be entered in the 'Reason/Note' field when the status is 'Disposed'."
+                    "A Box ID must be entered when the status is 'Disposed'."
             );
-            return; // Stop the process
+            return;
         }
 
-        String finalReason = reasonField.getText().trim();
-        // --- NEW FORMATTING ---
-        if ("Disposed".equals(statusCombo.getValue())) {
-            finalReason = "Box ID: " + finalReason;
-        }
-
-        result = new DisposalResult(statusCombo.getValue(), subStatusCombo.getValue(), finalReason);
+        result = new DisposalResult(statusCombo.getValue(), subStatusCombo.getValue(), reasonField.getText(), boxIdField.getText());
         closeStage();
     }
 

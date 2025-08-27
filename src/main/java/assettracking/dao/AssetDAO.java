@@ -81,12 +81,19 @@ public class AssetDAO {
         return suggestions;
     }
 
+    /**
+     * MODIFIED: This method now searches both the model_number and description fields
+     * to provide a more flexible and user-friendly search for the model number field.
+     */
     public List<String> findModelNumbersLike(String modelFragment) {
         List<String> suggestions = new ArrayList<>();
-        String sql = "SELECT DISTINCT model_number FROM SKU_Table WHERE model_number LIKE ? ORDER BY model_number LIMIT 10";
+        // The query now checks if the fragment is in the model number OR the description
+        String sql = "SELECT DISTINCT model_number FROM SKU_Table WHERE model_number LIKE ? OR description LIKE ? ORDER BY model_number LIMIT 10";
         try (Connection conn = DatabaseConnection.getInventoryConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, "%" + modelFragment + "%");
+            String searchTerm = "%" + modelFragment + "%";
+            stmt.setString(1, searchTerm);
+            stmt.setString(2, searchTerm); // Set the same term for the description search
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
                     suggestions.add(rs.getString("model_number"));
@@ -148,7 +155,6 @@ public class AssetDAO {
         return Optional.empty();
     }
 
-    // New method to find action from Mel_Rules
     public Optional<String> findActionFromMelRules(String modelNumber, String description) {
         String sql = "SELECT action FROM Mel_Rules WHERE model_number = ? OR description = ?";
         try (Connection conn = DatabaseConnection.getInventoryConnection();
