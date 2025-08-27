@@ -265,7 +265,7 @@ public class DeviceStatusTrackingController {
         String newSubStatus = subStatusUpdateCombo.getValue();
         String note = null;
 
-        if ("Disposed".equals(newStatus)) {
+        if ("Disposed".equals(newStatus) && !"Ready for Wipe".equals(newSubStatus)) {
             Optional<String> result = StageManager.showTextInputDialog(
                     getOwnerWindow(),
                     "Box ID Required",
@@ -277,7 +277,7 @@ public class DeviceStatusTrackingController {
             if (result.isPresent() && !result.get().trim().isEmpty()) {
                 note = "Box ID: " + result.get().trim();
             } else {
-                StageManager.showAlert(getOwnerWindow(), Alert.AlertType.WARNING, "Update Cancelled", "A Box ID is required to set the status to 'Disposed'. The update was cancelled.");
+                StageManager.showAlert(getOwnerWindow(), Alert.AlertType.WARNING, "Update Cancelled", "A Box ID is required for this disposed status. The update was cancelled.");
                 return;
             }
         }

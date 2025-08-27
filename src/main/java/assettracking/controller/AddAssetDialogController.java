@@ -352,8 +352,9 @@ public class AddAssetDialogController {
     @FXML
     private void handleSave() {
         if (sellScrapCheckBox.isSelected() && "Disposed".equals(sellScrapStatusCombo.getValue())) {
-            if (boxIdField.getText().trim().isEmpty()) {
-                StageManager.showAlert(saveButton.getScene().getWindow(), Alert.AlertType.WARNING, "Box ID Required", "A Box ID must be entered when the status is 'Disposed'.");
+            String subStatus = sellScrapSubStatusCombo.getValue();
+            if (!"Ready for Wipe".equals(subStatus) && boxIdField.getText().trim().isEmpty()) {
+                StageManager.showAlert(saveButton.getScene().getWindow(), Alert.AlertType.WARNING, "Box ID Required", "A Box ID is required for this disposed status. It is optional only for 'Ready for Wipe'.");
                 return;
             }
         }

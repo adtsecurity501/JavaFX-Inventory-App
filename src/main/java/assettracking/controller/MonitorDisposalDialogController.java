@@ -63,14 +63,17 @@ public class MonitorDisposalDialogController {
     }
 
     private void handleConfirm() {
-        if ("Disposed".equals(statusCombo.getValue()) && boxIdField.getText().trim().isEmpty()) {
-            StageManager.showAlert(
-                    (Stage) confirmButton.getScene().getWindow(),
-                    Alert.AlertType.WARNING,
-                    "Input Required",
-                    "A Box ID must be entered when the status is 'Disposed'."
-            );
-            return;
+        if ("Disposed".equals(statusCombo.getValue())) {
+            String subStatus = subStatusCombo.getValue();
+            if (!"Ready for Wipe".equals(subStatus) && boxIdField.getText().trim().isEmpty()) {
+                StageManager.showAlert(
+                        (Stage) confirmButton.getScene().getWindow(),
+                        Alert.AlertType.WARNING,
+                        "Input Required",
+                        "A Box ID is required for this disposed status. It is optional only for 'Ready for Wipe'."
+                );
+                return;
+            }
         }
 
         result = new DisposalResult(statusCombo.getValue(), subStatusCombo.getValue(), reasonField.getText(), boxIdField.getText());

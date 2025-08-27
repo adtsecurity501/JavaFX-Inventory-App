@@ -65,20 +65,21 @@ public class ScanUpdateController {
         setupTableColumns();
 
         statusCombo.getItems().addAll(StatusManager.getStatuses());
-        statusCombo.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> updateUiForStatusChange(newVal));
-
-        disposalLocationField.textProperty().addListener((obs, oldVal, newVal) -> {
-            if ("Disposed".equals(statusCombo.getValue())) {
-                boolean hasBoxId = newVal != null && !newVal.trim().isEmpty();
-                scanSerialField.setDisable(!hasBoxId);
-                if (hasBoxId) {
-                    scanSerialField.requestFocus();
+        statusCombo.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+            subStatusCombo.getItems().clear();
+            if (newVal != null) {
+                subStatusCombo.getItems().addAll(StatusManager.getSubStatuses(newVal));
+                if (!subStatusCombo.getItems().isEmpty()) {
+                    subStatusCombo.getSelectionModel().selectFirst();
                 }
             }
+            updateUiForStatusChange();
         });
 
+        subStatusCombo.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> updateUiForStatusChange());
+        disposalLocationField.textProperty().addListener((obs, oldVal, newVal) -> updateUiForStatusChange());
+
         statusCombo.getSelectionModel().selectFirst();
-        updateUiForStatusChange(statusCombo.getValue());
     }
 
     private void setupTableColumns() {
@@ -93,25 +94,23 @@ public class ScanUpdateController {
         failedTable.setItems(failedList);
     }
 
-    private void updateUiForStatusChange(String newStatus) {
-        subStatusCombo.getItems().clear();
-        if (newStatus != null) {
-            subStatusCombo.getItems().addAll(StatusManager.getSubStatuses(newStatus));
-            subStatusCombo.getSelectionModel().selectFirst();
-        }
+    private void updateUiForStatusChange() {
+        String status = statusCombo.getValue();
+        String subStatus = subStatusCombo.getValue();
 
-        boolean isDisposal = "Disposed".equals(newStatus);
+        boolean isDisposal = "Disposed".equals(status);
+        boolean needsBoxId = isDisposal && !"Ready for Wipe".equals(subStatus);
 
         disposalLocationLabel.setVisible(isDisposal);
         boxIdHBox.setVisible(isDisposal);
         disposalLocationLabel.setManaged(isDisposal);
         boxIdHBox.setManaged(isDisposal);
 
-        if (isDisposal) {
-            scanSerialField.setDisable(disposalLocationField.getText().trim().isEmpty());
+        scanSerialField.setDisable(needsBoxId && disposalLocationField.getText().trim().isEmpty());
+
+        if (needsBoxId && disposalLocationField.getText().trim().isEmpty()) {
             disposalLocationField.requestFocus();
         } else {
-            scanSerialField.setDisable(false);
             scanSerialField.requestFocus();
         }
     }
@@ -132,8 +131,8 @@ public class ScanUpdateController {
         String newSubStatus = subStatusCombo.getValue();
         String boxId = disposalLocationField.getText().trim();
 
-        if ("Disposed".equals(newStatus) && boxId.isEmpty()) {
-            showAlert("Box ID Required", "A Box ID must be entered for the 'Disposed' status.");
+        if ("Disposed".equals(newStatus) && !"Ready for Wipe".equals(newSubStatus) && boxId.isEmpty()) {
+            showAlert("Box ID Required", "A Box ID must be entered for this disposed status.");
             disposalLocationField.requestFocus();
             return;
         }
