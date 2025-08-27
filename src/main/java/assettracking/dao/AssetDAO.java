@@ -13,9 +13,11 @@ import java.util.*;
 public class AssetDAO {
 
     public Optional<AssetInfo> findAssetBySerialNumber(String serialNumber) {
-        String sql = "SELECT serial_number, make, part_number, description, category, imei, everon_serial, capacity FROM Physical_Assets WHERE serial_number = ?";
+        // Query 1: Check the primary inventory table first. This contains the most accurate,
+        // up-to-date information for devices currently in your inventory.
+        String sqlPhysicalAssets = "SELECT serial_number, make, part_number, description, category, imei, everon_serial, capacity FROM Physical_Assets WHERE serial_number = ?";
         try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+             PreparedStatement stmt = conn.prepareStatement(sqlPhysicalAssets)) {
             stmt.setString(1, serialNumber);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
@@ -28,13 +30,41 @@ public class AssetDAO {
                     asset.setImei(rs.getString("imei"));
                     asset.setEveronSerial(rs.getBoolean("everon_serial"));
                     asset.setCapacity(rs.getString("capacity"));
+                    // If found here, we have the best data, so we return it immediately.
                     return Optional.of(asset);
                 }
             }
         } catch (SQLException e) {
-            System.err.println("Error finding asset by serial number '" + serialNumber + "': " + e.getMessage());
-            e.printStackTrace();
+            System.err.println("Error finding asset in Physical_Assets for serial '" + serialNumber + "': " + e.getMessage());
+            // Log the error but allow the code to fall through to the next query.
         }
+
+        // Query 2: If not found in the primary table, check the historical autofill data as a fallback.
+        // This is useful for devices that are being returned or re-processed.
+        String sqlAutofill = "SELECT serial_number, make, model_number, description, category, IMEI FROM Device_Autofill_Data WHERE serial_number = ?";
+        try (Connection conn = DatabaseConnection.getInventoryConnection();
+             PreparedStatement stmt = conn.prepareStatement(sqlAutofill)) {
+            stmt.setString(1, serialNumber);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    AssetInfo asset = new AssetInfo();
+                    asset.setSerialNumber(rs.getString("serial_number"));
+                    asset.setMake(rs.getString("make"));
+                    asset.setModelNumber(rs.getString("model_number"));
+                    asset.setDescription(rs.getString("description"));
+                    asset.setCategory(rs.getString("category"));
+                    asset.setImei(rs.getString("IMEI"));
+                    // Set sensible defaults for fields that don't exist in the historical table.
+                    asset.setEveronSerial(false);
+                    asset.setCapacity(null);
+                    return Optional.of(asset);
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Error finding asset in Device_Autofill_Data for serial '" + serialNumber + "': " + e.getMessage());
+        }
+
+        // If the serial number was not found in either table, return empty.
         return Optional.empty();
     }
 
