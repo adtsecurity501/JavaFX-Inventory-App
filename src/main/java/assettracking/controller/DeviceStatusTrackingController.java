@@ -46,6 +46,11 @@ public class DeviceStatusTrackingController {
     @FXML public ComboBox<Integer> rowsPerPageCombo;
     @FXML public Label flagReasonLabel;
 
+    // NEW FXML Fields for Box ID
+    @FXML private Label boxIdLabel;
+    @FXML private TextField boxIdField;
+    @FXML private Button updateButton;
+
     private DeviceStatusManager deviceStatusManager;
     private DeviceStatusActions deviceStatusActions;
 
@@ -53,9 +58,7 @@ public class DeviceStatusTrackingController {
     public void initialize() {
         this.deviceStatusManager = new DeviceStatusManager(this);
         this.deviceStatusActions = new DeviceStatusActions(this);
-
         configureAllUI();
-
         deviceStatusManager.resetPagination();
     }
 
@@ -66,6 +69,110 @@ public class DeviceStatusTrackingController {
         configureTableRowFactory();
         setupFilters();
     }
+
+    private void setupStatusMappings() {
+        statusFilterCombo.getItems().add("All Statuses");
+        statusFilterCombo.getItems().addAll(StatusManager.getStatuses());
+        statusFilterCombo.getSelectionModel().selectFirst();
+
+        statusUpdateCombo.getItems().addAll(StatusManager.getStatuses());
+
+        // Add listeners to both combo boxes to update the UI
+        statusUpdateCombo.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+            subStatusUpdateCombo.getItems().clear();
+            if (newVal != null) {
+                subStatusUpdateCombo.getItems().addAll(StatusManager.getSubStatuses(newVal));
+                if (!subStatusUpdateCombo.getItems().isEmpty()) {
+                    subStatusUpdateCombo.getSelectionModel().selectFirst();
+                }
+            }
+            updateDisposalControlsVisibility(); // Call the UI update method
+        });
+
+        subStatusUpdateCombo.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+            updateDisposalControlsVisibility(); // Call the UI update method
+        });
+    }
+
+    private void setupTableSelectionListener() {
+        statusTable.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
+            boolean isItemSelected = newSelection != null;
+            updateDetailsPanel.setVisible(isItemSelected);
+            updateDetailsPanel.setManaged(isItemSelected);
+
+            if (isItemSelected) {
+                serialDisplayField.setText(newSelection.getSerialNumber());
+                statusUpdateCombo.setValue(newSelection.getStatus());
+                subStatusUpdateCombo.setValue(newSelection.getSubStatus());
+
+                if (newSelection.isIsFlagged()) {
+                    String reason = findFlagReason(newSelection.getSerialNumber());
+                    flagReasonLabel.setText("Flag Reason: " + reason);
+                    flagReasonLabel.setVisible(true);
+                    flagReasonLabel.setManaged(true);
+                } else {
+                    flagReasonLabel.setVisible(false);
+                    flagReasonLabel.setManaged(false);
+                }
+                // Ensure the Box ID field visibility is correct upon selection change
+                updateDisposalControlsVisibility();
+            } else {
+                flagReasonLabel.setVisible(false);
+                flagReasonLabel.setManaged(false);
+            }
+        });
+    }
+
+    /**
+     * NEW METHOD: Controls the visibility of the Box ID label and text field
+     * based on the selected status and sub-status.
+     */
+    private void updateDisposalControlsVisibility() {
+        String status = statusUpdateCombo.getValue();
+        String subStatus = subStatusUpdateCombo.getValue();
+
+        boolean needsBoxId = "Disposed".equals(status) && !"Ready for Wipe".equals(subStatus);
+
+        boxIdLabel.setVisible(needsBoxId);
+        boxIdLabel.setManaged(needsBoxId);
+        boxIdField.setVisible(needsBoxId);
+        boxIdField.setManaged(needsBoxId);
+
+        // Clear the field if it's hidden to prevent accidental data submission
+        if (!needsBoxId) {
+            boxIdField.clear();
+        }
+    }
+
+    /**
+     * REWRITTEN METHOD: Removes the popup dialog and now reads directly from the
+     * new boxIdField, performing validation before updating.
+     */
+    @FXML
+    private void onUpdateDeviceAction() {
+        ObservableList<DeviceStatusView> selectedDevices = statusTable.getSelectionModel().getSelectedItems();
+        String newStatus = statusUpdateCombo.getValue();
+        String newSubStatus = subStatusUpdateCombo.getValue();
+        String note = null;
+
+        boolean needsBoxId = "Disposed".equals(newStatus) && !"Ready for Wipe".equals(newSubStatus);
+
+        // If a Box ID is required for the selected status, validate the field.
+        if (needsBoxId) {
+            String boxId = boxIdField.getText().trim();
+            if (boxId.isEmpty()) {
+                StageManager.showAlert(getOwnerWindow(), Alert.AlertType.WARNING, "Box ID Required", "A Box ID is required for this disposed status. The update was cancelled.");
+                return; // Stop the update process
+            }
+            note = "Box ID: " + boxId;
+        }
+
+        // Proceed with the update
+        deviceStatusManager.updateDeviceStatus(selectedDevices, newStatus, newSubStatus, note);
+        boxIdField.clear(); // Clear the field after a successful update
+    }
+
+    // --- NO CHANGES TO THE METHODS BELOW THIS LINE ---
 
     private void setupTableColumns() {
         serialNumberCol.setCellValueFactory(new PropertyValueFactory<>("serialNumber"));
@@ -118,50 +225,6 @@ public class DeviceStatusTrackingController {
         } catch (SQLException e) {
             StageManager.showAlert(statusTable.getScene().getWindow(), Alert.AlertType.ERROR, "Database Error", "Failed to load categories for filtering.");
         }
-    }
-
-    private void setupStatusMappings() {
-        statusFilterCombo.getItems().add("All Statuses");
-        statusFilterCombo.getItems().addAll(StatusManager.getStatuses());
-        statusFilterCombo.getSelectionModel().selectFirst();
-
-        statusUpdateCombo.getItems().addAll(StatusManager.getStatuses());
-        statusUpdateCombo.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
-            subStatusUpdateCombo.getItems().clear();
-            if (newVal != null) {
-                subStatusUpdateCombo.getItems().addAll(StatusManager.getSubStatuses(newVal));
-                if (!subStatusUpdateCombo.getItems().isEmpty()) {
-                    subStatusUpdateCombo.getSelectionModel().selectFirst();
-                }
-            }
-        });
-    }
-
-    private void setupTableSelectionListener() {
-        statusTable.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
-            boolean isItemSelected = newSelection != null;
-            updateDetailsPanel.setVisible(isItemSelected);
-            updateDetailsPanel.setManaged(isItemSelected);
-
-            if (isItemSelected) {
-                serialDisplayField.setText(newSelection.getSerialNumber());
-                statusUpdateCombo.setValue(newSelection.getStatus());
-                subStatusUpdateCombo.setValue(newSelection.getSubStatus());
-
-                if (newSelection.isIsFlagged()) {
-                    String reason = findFlagReason(newSelection.getSerialNumber());
-                    flagReasonLabel.setText("Flag Reason: " + reason);
-                    flagReasonLabel.setVisible(true);
-                    flagReasonLabel.setManaged(true);
-                } else {
-                    flagReasonLabel.setVisible(false);
-                    flagReasonLabel.setManaged(false);
-                }
-            } else {
-                flagReasonLabel.setVisible(false);
-                flagReasonLabel.setManaged(false);
-            }
-        });
     }
 
     private String findFlagReason(String serialNumber) {
@@ -227,73 +290,13 @@ public class DeviceStatusTrackingController {
         toDateFilter.setValue(null);
     }
 
-    @FXML
-    private void onRefreshAction() {
-        refreshData();
-    }
-
-    @FXML
-    private void onClearFiltersAction() {
-        clearFilterInputs();
-        deviceStatusManager.resetPagination();
-    }
-
-    @FXML
-    private void onViewHistoryAction() {
-        deviceStatusActions.openDeviceHistoryWindow();
-    }
-
-    @FXML
-    private void onSearchAction() {
-        deviceStatusManager.resetPagination();
-    }
-
-    @FXML
-    private void handleImportFlags() {
-        deviceStatusActions.importFlags();
-    }
-
-    @FXML
-    private void handleExportToCSV() {
-        deviceStatusActions.exportToCSV();
-    }
-
-    @FXML
-    private void onUpdateDeviceAction() {
-        ObservableList<DeviceStatusView> selectedDevices = statusTable.getSelectionModel().getSelectedItems();
-        String newStatus = statusUpdateCombo.getValue();
-        String newSubStatus = subStatusUpdateCombo.getValue();
-        String note = null;
-
-        if ("Disposed".equals(newStatus) && !"Ready for Wipe".equals(newSubStatus)) {
-            Optional<String> result = StageManager.showTextInputDialog(
-                    getOwnerWindow(),
-                    "Box ID Required",
-                    "Enter the Box ID for the " + selectedDevices.size() + " disposed item(s).",
-                    "Box ID:",
-                    ""
-            );
-
-            if (result.isPresent() && !result.get().trim().isEmpty()) {
-                note = "Box ID: " + result.get().trim();
-            } else {
-                StageManager.showAlert(getOwnerWindow(), Alert.AlertType.WARNING, "Update Cancelled", "A Box ID is required for this disposed status. The update was cancelled.");
-                return;
-            }
-        }
-        deviceStatusManager.updateDeviceStatus(selectedDevices, newStatus, newSubStatus, note);
-    }
-
-    @FXML
-    private void onScanUpdateAction() {
-        deviceStatusActions.openScanUpdateWindow();
-    }
-
-    public void refreshData() {
-        deviceStatusManager.resetPagination();
-    }
-
-    private Window getOwnerWindow() {
-        return statusTable.getScene().getWindow();
-    }
+    @FXML private void onRefreshAction() { refreshData(); }
+    @FXML private void onClearFiltersAction() { clearFilterInputs(); deviceStatusManager.resetPagination(); }
+    @FXML private void onViewHistoryAction() { deviceStatusActions.openDeviceHistoryWindow(); }
+    @FXML private void onSearchAction() { deviceStatusManager.resetPagination(); }
+    @FXML private void handleImportFlags() { deviceStatusActions.importFlags(); }
+    @FXML private void handleExportToCSV() { deviceStatusActions.exportToCSV(); }
+    @FXML private void onScanUpdateAction() { deviceStatusActions.openScanUpdateWindow(); }
+    public void refreshData() { deviceStatusManager.resetPagination(); }
+    private Window getOwnerWindow() { return statusTable.getScene().getWindow(); }
 }
