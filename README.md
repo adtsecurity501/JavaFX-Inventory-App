@@ -43,26 +43,31 @@ Designed for IT depots and refurbishment centers, this application centralizes a
 
 ## Getting Started
 
-Set up and run the application locally with these steps.
-
 ### Prerequisites
 
--   Java JDK 21 or higher
--   Apache Maven installed and configured in your `PATH`
--   **For Windows**: Access to the network share hosting the SQLite database.
--   **For macOS**: Ability to mount the Windows network share via SMB.
+-   Java JDK 21 or higher (for developers)
+-   Apache Maven installed and configured in your `PATH` (for developers)
 
-### Configuration
+### Database Setup & Configuration
 
-The database connection path is now **dynamically configured** in the code to be cross-platform.
+The application is designed to be highly resilient and requires zero manual database configuration for end-users.
 
--   **File**: `src/main/java/assettracking/db/DatabaseConnection.java`
--   The code will automatically attempt to connect to:
-    -   `\\UTSPRJ2C2333\Server\inventorybackup.db` on **Windows**.
-    -   `/Volumes/Server/inventorybackup.db` on **macOS**.
--   **On macOS**, you must first connect to the server via Finder (`Cmd`+`K`) using the address `smb://UTSPRJ2C2333/Server`.
+**How it Works:**
+1.  **Primary Connection (Network):** The application will first attempt to connect to the central, shared database located at `\\UTSPRJ2C2333\Server\inventorybackup.db`. This is the main source of truth.
+2.  **Secondary Connection (Local Cache):** If the network share is unavailable, it will try to use a local copy of the database stored in the user's application data folder (`%APPDATA%\AssetTracking`).
+3.  **Automatic Creation (First-Time Setup):** If neither the network nor the local database is found, the application will **automatically create a new, blank SQLite database** (`inventory.db`) in the user's local application data folder with the complete, correct table schema.
+
+This means a new user can start the application for the first time without any database setup, and it will work out-of-the-box with a fresh, local database.
 
 ### Installation & Running
+
+#### For Standard Users
+
+1.  Download and run the `AssetTrackingInstaller.msi` file from the latest release.
+2.  Launch the application from the Start Menu shortcut.
+3.  The application will automatically connect to the network database or create a new local one if this is your first time running it.
+
+#### For Developers
 
 1.  Clone the repository:
     ```bash
@@ -70,7 +75,9 @@ The database connection path is now **dynamically configured** in the code to be
     cd JavaFX-Inventory-App
     ```
 
-2.  Run the application using Maven:
+2.  **On macOS**: Before running, you must connect to the network share. Open Finder, press `Cmd`+`K`, and connect to `smb://UTSPRJ2C2333/Server`.
+
+3.  Run the application using Maven:
     ```bash
     mvn javafx:run
     ```
@@ -127,4 +134,4 @@ For questions or feedback, open an [issue](https://github.com/adtsecurity501/Jav
 
 ---
 
-*Built with 💡 for efficient IT asset management.*
+*Fueled by a drive to be efficient, powered by coffee*
