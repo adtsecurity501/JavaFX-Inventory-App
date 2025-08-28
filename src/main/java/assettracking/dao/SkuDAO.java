@@ -12,8 +12,6 @@ import java.util.Optional;
 
 public class SkuDAO {
 
-    // ... (getAllSkus, findSkuByNumber, addSku, updateSku, deleteSku, and mapRowToSku methods remain unchanged) ...
-
     public List<Sku> getAllSkus() {
         List<Sku> skus = new ArrayList<>();
         String sql = "SELECT sku_number, model_number, category, manufac, description FROM SKU_Table ORDER BY sku_number";
@@ -88,8 +86,8 @@ public class SkuDAO {
         }
     }
 
-    // --- NEW METHOD FOR AUTOCOMPLETE ---
     /**
+     * MODIFIED to filter out any results where the SKU number is missing or blank.
      * Finds SKUs where the SKU number or description matches the given fragment.
      * Returns a list of formatted strings "SKU - Description" for display in suggestions.
      * @param fragment The text typed by the user.
@@ -97,7 +95,11 @@ public class SkuDAO {
      */
     public List<String> findSkusLike(String fragment) {
         List<String> suggestions = new ArrayList<>();
-        String sql = "SELECT sku_number, description FROM SKU_Table WHERE sku_number LIKE ? OR description LIKE ? LIMIT 15";
+        // This query now explicitly excludes rows with no valid sku_number.
+        String sql = "SELECT sku_number, description FROM SKU_Table " +
+                "WHERE (sku_number LIKE ? OR description LIKE ?) " +
+                "AND sku_number IS NOT NULL AND sku_number != '' " +
+                "LIMIT 15";
         try (Connection conn = DatabaseConnection.getInventoryConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             String queryFragment = "%" + fragment + "%";
