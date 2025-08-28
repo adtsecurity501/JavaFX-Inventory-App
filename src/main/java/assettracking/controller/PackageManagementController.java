@@ -4,7 +4,6 @@ import assettracking.db.DatabaseConnection;
 import assettracking.data.Package;
 import assettracking.dao.PackageDAO;
 import assettracking.manager.StageManager;
-import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
@@ -12,10 +11,8 @@ import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
-import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
-import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 
@@ -56,6 +53,7 @@ public class PackageManagementController {
     public void initialize() {
         packageDAO = new PackageDAO();
         setupTableColumns();
+        setupDoubleClickHandling(); // NEW: Call method to set up double-click
 
         rowsPerPageCombo.getItems().addAll(50, 100, 200, 500);
         rowsPerPageCombo.setValue(rowsPerPage);
@@ -87,10 +85,63 @@ public class PackageManagementController {
         zipCodeCol.setCellValueFactory(new PropertyValueFactory<>("zipCode"));
 
         packageTable.setItems(packageList);
-        // FIX: Replace the deprecated constant
         packageTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
         packageTable.setPlaceholder(new Label("No packages found matching the current filters."));
     }
+
+    /**
+     * NEW METHOD: Sets up the row factory to handle double-click events on the table.
+     */
+    private void setupDoubleClickHandling() {
+        packageTable.setRowFactory(tv -> {
+            TableRow<Package> row = new TableRow<>();
+            row.setOnMouseClicked(event -> {
+                // Check for a double-click on a non-empty row
+                if (!row.isEmpty() && event.getClickCount() == 2) {
+                    Package clickedPackage = row.getItem();
+                    openPackageDetail(clickedPackage);
+                }
+            });
+            return row;
+        });
+    }
+
+    @FXML
+    private void handleOpenPackage() {
+        Package selectedPackage = packageTable.getSelectionModel().getSelectedItem();
+        if (selectedPackage != null) {
+            openPackageDetail(selectedPackage);
+        } else {
+            showAlert(Alert.AlertType.WARNING, "No Selection", "Please select a package to open.");
+        }
+    }
+
+    /**
+     * NEW REFACTORED METHOD: Contains the logic to open the detail window for a given package.
+     * This can be called by both the button and the double-click event.
+     * @param selectedPackage The package to open.
+     */
+    private void openPackageDetail(Package selectedPackage) {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/PackageDetail.fxml"));
+            Parent root = loader.load();
+
+            PackageDetailController controller = loader.getController();
+            controller.initData(selectedPackage);
+
+            Stage stage = StageManager.createCustomStage(getOwnerWindow(), "Package Details", root);
+            stage.showAndWait();
+
+            // Refresh the table data after the detail window is closed
+            updateTableForPage(pagination.getCurrentPageIndex());
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            showAlert(Alert.AlertType.ERROR, "Error", "Could not open the package detail window.");
+        }
+    }
+
+    // --- NO CHANGES TO THE METHODS BELOW THIS LINE ---
 
     private void resetPagination() {
         int totalCount = fetchPackageCount();
@@ -225,31 +276,6 @@ public class PackageManagementController {
         toDatePicker.valueProperty().addListener(filterChangeListener);
 
         resetPagination();
-    }
-
-    @FXML
-    private void handleOpenPackage() {
-        Package selectedPackage = packageTable.getSelectionModel().getSelectedItem();
-        if (selectedPackage != null) {
-            try {
-                FXMLLoader loader = new FXMLLoader(getClass().getResource("/PackageDetail.fxml"));
-                Parent root = loader.load();
-
-                PackageDetailController controller = loader.getController();
-                controller.initData(selectedPackage);
-
-                Stage stage = StageManager.createCustomStage(getOwnerWindow(), "Package Details", root);
-                stage.showAndWait();
-
-                updateTableForPage(pagination.getCurrentPageIndex());
-
-            } catch (IOException e) {
-                e.printStackTrace();
-                showAlert(Alert.AlertType.ERROR, "Error", "Could not open the package detail window.");
-            }
-        } else {
-            showAlert(Alert.AlertType.WARNING, "No Selection", "Please select a package to open.");
-        }
     }
 
     private void showAlert(Alert.AlertType alertType, String title, String message) {
