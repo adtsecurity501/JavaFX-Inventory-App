@@ -115,9 +115,12 @@
                             <ColumnConstraints percentWidth="50"/><ColumnConstraints percentWidth="50"/>
                         </columnConstraints>
                         <VBox alignment="CENTER" spacing="5" GridPane.columnIndex="0">
-                            <!-- RENAMED fx:id from wipBacklogLabel -->
                             <Label text="Active Triage/Repair" styleClass="kpi-title"/>
-                            <Label fx:id="activeTriageLabel" styleClass="kpi-metric, text-warning"/>
+                            <Label fx:id="activeTriageLabel" styleClass="kpi-metric, text-warning">
+                                <tooltip>
+                                    <Tooltip text="Counts devices with a current status of 'Intake' or 'Triage &amp; Repair'."/>
+                                </tooltip>
+                            </Label>
                         </VBox>
                         <VBox alignment="CENTER" spacing="5" GridPane.columnIndex="1">
                             <Label text="Avg. Turnaround (30d)" styleClass="kpi-title"/>
@@ -126,7 +129,11 @@
                         <!-- NEW KPI -->
                         <VBox alignment="CENTER" spacing="5" GridPane.columnIndex="0" GridPane.rowIndex="1">
                             <Label text="Awaiting Disposal" styleClass="kpi-title"/>
-                            <Label fx:id="awaitingDisposalLabel" styleClass="kpi-metric, text-danger" />
+                            <Label fx:id="awaitingDisposalLabel" styleClass="kpi-metric, text-danger">
+                                <tooltip>
+                                    <Tooltip text="Counts devices with a status of 'Disposed' and a sub-status of:&#10;- Can-Am, Pending Pickup&#10;- Ingram, Pending Pickup&#10;- Ready for Wipe"/>
+                                </tooltip>
+                            </Label>
                         </VBox>
                     </GridPane>
                 </VBox>

@@ -1,5 +1,6 @@
 package assettracking.controller;
 
+import assettracking.dao.AppSettingsDAO;
 import assettracking.data.TopModelStat;
 import assettracking.db.DatabaseConnection;
 import assettracking.manager.StageManager;
@@ -104,6 +105,7 @@ public class DashboardController {
     private TableColumn<TopModelStat, Integer> modelCountCol;
 
     private final ObservableList<TopModelStat> topModelsList = FXCollections.observableArrayList();
+    private final AppSettingsDAO appSettingsDAO = new AppSettingsDAO();
 
     private double weeklyDeviceGoal = 100.0;
     private double weeklyMonitorGoal = 50.0;
@@ -116,6 +118,7 @@ public class DashboardController {
     public void initialize() {
         setupFilters();
         setupTopModelsTable();
+        loadGoals();
         if (deviceGoalField != null) deviceGoalField.setText(String.valueOf((int) weeklyDeviceGoal));
         if (monitorGoalField != null) monitorGoalField.setText(String.valueOf((int) weeklyMonitorGoal));
 
@@ -401,21 +404,47 @@ public class DashboardController {
         importer.importFromFile((Stage) importFlagsButton.getScene().getWindow(), this::refreshAllCharts);
     }
 
+    /**
+     * NEW METHOD: Loads goal values from the database when the dashboard starts.
+     * If no values are found, it uses the default hardcoded values.
+     */
+    private void loadGoals() {
+        // Load device goal, default to 100 if not found
+        String deviceGoalStr = appSettingsDAO.getSetting("device_goal").orElse("100.0");
+        this.weeklyDeviceGoal = Double.parseDouble(deviceGoalStr);
+        if (deviceGoalField != null) {
+            deviceGoalField.setText(String.valueOf((int)this.weeklyDeviceGoal));
+        }
+
+        // Load monitor goal, default to 50 if not found
+        String monitorGoalStr = appSettingsDAO.getSetting("monitor_goal").orElse("50.0");
+        this.weeklyMonitorGoal = Double.parseDouble(monitorGoalStr);
+        if (monitorGoalField != null) {
+            monitorGoalField.setText(String.valueOf((int)this.weeklyMonitorGoal));
+        }
+    }
+
+    /**
+     * MODIFIED METHOD: Now saves the goals to the database when the "Apply" button is clicked.
+     */
     @FXML
     private void handleApplyGoals() {
         try {
             weeklyDeviceGoal = Double.parseDouble(deviceGoalField.getText());
+            appSettingsDAO.saveSetting("device_goal", String.valueOf(weeklyDeviceGoal)); // SAVE TO DB
         } catch (NumberFormatException e) {
-            deviceGoalField.setText(String.valueOf((int) weeklyDeviceGoal));
+            deviceGoalField.setText(String.valueOf((int)weeklyDeviceGoal));
         }
         try {
             weeklyMonitorGoal = Double.parseDouble(monitorGoalField.getText());
+            appSettingsDAO.saveSetting("monitor_goal", String.valueOf(weeklyMonitorGoal)); // SAVE TO DB
         } catch (NumberFormatException e) {
-            monitorGoalField.setText(String.valueOf((int) weeklyMonitorGoal));
+            monitorGoalField.setText(String.valueOf((int)weeklyMonitorGoal));
         }
         goalMetCelebrated = false;
         refreshAllCharts();
     }
+
 
     @FXML
     private void handleManageMelRules() {
