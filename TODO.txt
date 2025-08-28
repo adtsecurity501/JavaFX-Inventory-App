@@ -5,8 +5,8 @@ Priority 1:
 - update categories and statuses in database
 - inlclude monitors in the WIP backlog on dashboard
 - add way to import information into the device_autofill_data table.
--find a way to fix the flag requires review status, I think i've already intook and processed a bunch of these devices so i want to dou8ble check that only the ones that have that status are the right ones.I want to compare the intake date of the device as also use the probable cause report that I use to import flags, it includes the Opened columed which is the date the ticket was opened and then probalbe causde and serial numerb, the ticket gets made first and then the user ships it back so we receive it after the ticket is made. Lets use that data to decipher what I've received already or not and then set the status apprpriately, I want to recusievely go through and have it ask me if I want to update it based and give me all the info about it so I can make the decision. I want to also consider the staus the device currently has as well.
-
+-when I updateathe status on the device status stracking page It shoiuld auto refresh when I cluck the update button
+- How does the device autofill data table work, the everon serial column is only for eveeron devies right to display that device is a everon serial when we intake, how does that work with is_everon in the deispotion info table. how does the dispotion info 
 
 
 Priority 2:
@@ -79,6 +79,8 @@ DONE:
 - awaiting disposal is showing 0
 - add a way to store dynamically the device goals so it saves if we update that goal instead of hardcoding it.
 - when I hover over awaiting disposal I want it to tell me what types of devices / statues are included in that number. Same for Avtive Triage/Repair.
+-find a way to fix the flag requires review status, I think i've already intook and processed a bunch of these devices so i want to dou8ble check that only the ones that have that status are the right ones.I want to compare the intake date of the device as also use the probable cause report that I use to import flags, it includes the Opened columed which is the date the ticket was opened and then probalbe causde and serial numerb, the ticket gets made first and then the user ships it back so we receive it after the ticket is made. Lets use that data to decipher what I've received already or not and then set the status apprpriately, I want to recusievely go through and have it ask me if I want to update it based and give me all the info about it so I can make the decision. I want to also consider the staus the device currently has as well.
+
 
 
 
@@ -105,7 +107,7 @@ CanAm, Pending Pickup
 CanAm, Picked Up
 Ingram Micro, Pending Pickup
 Ingram Micro, Picked Up
-Disposed - ready for wiping.
+ready for wiping.
 
 Everon (Shipping workflow)
 Pending Shipment

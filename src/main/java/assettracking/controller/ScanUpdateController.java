@@ -28,7 +28,7 @@ import java.util.*;
 
 public class ScanUpdateController {
 
-    // --- FXML Fields ---
+    // --- (All FXML Fields are the same) ---
     @FXML private ComboBox<String> statusCombo;
     @FXML private ComboBox<String> subStatusCombo;
     @FXML private TextField changeLogField;
@@ -48,7 +48,6 @@ public class ScanUpdateController {
     @FXML private HBox boxIdHBox;
     @FXML private Button clearBoxIdButton;
 
-    // --- Class Variables ---
     private DeviceStatusTrackingController parentController;
     private final ObservableList<ScanResult> successList = FXCollections.observableArrayList();
     private final ObservableList<ScanResult> failedList = FXCollections.observableArrayList();
@@ -94,6 +93,10 @@ public class ScanUpdateController {
         failedTable.setItems(failedList);
     }
 
+    /**
+     * MODIFIED: This method no longer aggressively manages focus. It only controls
+     * visibility and whether the serial field is enabled.
+     */
     private void updateUiForStatusChange() {
         String status = statusCombo.getValue();
         String subStatus = subStatusCombo.getValue();
@@ -107,13 +110,18 @@ public class ScanUpdateController {
         boxIdHBox.setManaged(isDisposal);
 
         scanSerialField.setDisable(needsBoxId && disposalLocationField.getText().trim().isEmpty());
-
-        if (needsBoxId && disposalLocationField.getText().trim().isEmpty()) {
-            disposalLocationField.requestFocus();
-        } else {
-            scanSerialField.requestFocus();
-        }
     }
+
+    /**
+     * NEW METHOD: This is called when the user presses Enter in the Box ID field.
+     * It simply moves the focus to the next logical field.
+     */
+    @FXML
+    private void onBoxIdScanned() {
+        scanSerialField.requestFocus();
+    }
+
+    // --- (The rest of the file is unchanged) ---
 
     @FXML
     private void handleClearBoxId() {
@@ -138,7 +146,7 @@ public class ScanUpdateController {
         }
 
         String baseNote = changeLogField.getText().trim();
-        String finalNote = "Disposed".equals(newStatus)
+        String finalNote = "Disposed".equals(newStatus) && !boxId.isEmpty()
                 ? ("Box ID: " + boxId + ". " + baseNote).trim()
                 : baseNote;
 
@@ -154,7 +162,7 @@ public class ScanUpdateController {
             if (result.startsWith("Success")) {
                 feedbackLabel.setText("✔ " + result);
                 feedbackLabel.setTextFill(Color.GREEN);
-                successList.addFirst(new ScanResult(serial, newStatus + " / " + newSubStatus, timestamp));
+                successList.add(0, new ScanResult(serial, newStatus + " / " + newSubStatus, timestamp));
                 if (parentController != null) parentController.refreshData();
 
                 if ("Processed".equals(newStatus) && "Ready for Deployment".equals(newSubStatus)) {
@@ -168,7 +176,7 @@ public class ScanUpdateController {
             } else {
                 feedbackLabel.setText("❌ " + result);
                 feedbackLabel.setTextFill(Color.RED);
-                failedList.addFirst(new ScanResult(serial, result, timestamp));
+                failedList.add(0, new ScanResult(serial, result, timestamp));
             }
             scanSerialField.clear();
             scanSerialField.requestFocus();
@@ -179,7 +187,7 @@ public class ScanUpdateController {
             String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
             feedbackLabel.setText("❌ Error: " + ex.getMessage());
             feedbackLabel.setTextFill(Color.RED);
-            failedList.addFirst(new ScanResult(serial, "DB Error", timestamp));
+            failedList.add(0, new ScanResult(serial, "DB Error", timestamp));
             StageManager.showAlert(scanSerialField.getScene().getWindow(), Alert.AlertType.ERROR, "Database Error", "An unexpected database error occurred: " + ex.getMessage());
         });
 
@@ -310,7 +318,7 @@ public class ScanUpdateController {
             feedbackLabel.setText(String.format("✔ Successfully updated %d devices in location '%s'.", updatedCount, location));
             feedbackLabel.setTextFill(Color.GREEN);
             String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
-            successList.addFirst(new ScanResult("Box ID: " + location, String.format("Updated %d devices", updatedCount), timestamp));
+            successList.add(0, new ScanResult("Box ID: " + location, String.format("Updated %d devices", updatedCount), timestamp));
             if (parentController != null) parentController.refreshData();
             scanLocationField.clear();
             scanLocationField.requestFocus();
