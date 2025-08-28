@@ -22,38 +22,27 @@ import java.util.Optional;
 
 public class LabelPrintingController {
 
-    // --- Services ---
+    // --- (All existing services and FXML components are the same) ---
     private final SkuDAO skuDAO = new SkuDAO();
     private final AssetDAO assetDAO = new AssetDAO();
     private final ZplPrinterService printerService = new ZplPrinterService();
 
-    // --- FXML UI Components ---
     @FXML private ComboBox<String> printerNameField;
     @FXML private ComboBox<String> assetPrinterNameField;
     @FXML private Label statusLabel;
     @FXML private ToggleGroup menuGroup;
     @FXML private StackPane mainStackPane;
     @FXML private Pane welcomePane;
-
-    // --- Tool Selector Buttons ---
     @FXML private ToggleButton menuDeployDevice, menuPrintSingle, menuPrintMultiple, menuPrintSerial, menuPrintAssetTag, menuPrintBarcode, menuImageLabels;
-
-    // --- Content Panes ---
     @FXML private ScrollPane deployDevicePane, printSinglePane, printMultiplePane, printSerialPane, printAssetTagPane, printBarcodePane, imageLabelsPane;
-
-    // --- Fields for each function, including NEW search fields and list views ---
     @FXML private TextField deploySkuSearchField, deploySkuField, deployDescriptionField, deploySerialField;
     @FXML private ListView<String> deploySkuListView;
-
     @FXML private TextField singleSkuSearchField, singleSkuField;
     @FXML private ListView<String> singleSkuListView;
-
     @FXML private TextField multiSkuSearchField, multiSkuField, multiCopiesField;
     @FXML private ListView<String> multiSkuListView;
-
     @FXML private TextField serialSkuSearchField, serialSkuField, serialSerialField;
     @FXML private ListView<String> serialSkuListView;
-
     @FXML private ToggleGroup assetTagTypeGroup;
     @FXML private RadioButton assetTagStandardRadio;
     @FXML private VBox assetStandardPane, assetCombinedPane;
@@ -62,21 +51,23 @@ public class LabelPrintingController {
     @FXML private TextField genericBarcodeField;
     @FXML private TextField imageSkuField, imageDeviceSkuField, imagePrefixField, imageCopiesField;
 
+    // --- NEW FXML Fields for the barcode options ---
+    @FXML private RadioButton barcodeFullRadio;
+    @FXML private RadioButton barcode14Radio;
+    @FXML private RadioButton barcode20Radio;
+
     @FXML
     public void initialize() {
         populatePrinterComboBoxes();
 
-        // --- SETUP THE NEW SEARCH FUNCTIONALITY ---
         setupSearchableSkuField(deploySkuSearchField, deploySkuListView, deploySkuField, deployDescriptionField, deploySerialField);
-        setupSearchableSkuField(singleSkuSearchField, singleSkuListView, singleSkuField, null, singleSkuField); // Focus itself after selection
+        setupSearchableSkuField(singleSkuSearchField, singleSkuListView, singleSkuField, null, singleSkuField);
         setupSearchableSkuField(multiSkuSearchField, multiSkuListView, multiSkuField, null, multiCopiesField);
         setupSearchableSkuField(serialSkuSearchField, serialSkuListView, serialSkuField, null, serialSerialField);
 
-        // --- SETUP AUTOCOMPLETE FOR THE REMAINING UTILITY FIELDS ---
         setupAutocomplete(imageSkuField);
         setupAutocomplete(imageDeviceSkuField);
 
-        // Link tool selector buttons to their content panes
         menuDeployDevice.setUserData(deployDevicePane);
         menuPrintSingle.setUserData(printSinglePane);
         menuPrintMultiple.setUserData(printMultiplePane);
@@ -99,17 +90,47 @@ public class LabelPrintingController {
             }
         });
 
-        // --- SET DEFAULT SELECTED TOOL ---
         menuDeployDevice.setSelected(true);
-
-        // --- Other event handlers ---
         assetImeiCheckbox.selectedProperty().addListener((obs, wasSelected, isSelected) -> assetImeiField.setDisable(!isSelected));
     }
 
     /**
-     * Sets up a search field to populate a ListView with SKU suggestions.
-     * When a suggestion is selected, it populates target fields and moves focus.
+     * MODIFIED to implement the new truncation logic based on which radio button is selected.
      */
+    @FXML
+    private void handlePrintGenericBarcode() {
+        String fullBarcode = genericBarcodeField.getText().trim();
+        if (fullBarcode.isEmpty()) return;
+
+        String barcodeToPrint;
+
+        if (barcode14Radio.isSelected()) {
+            if (fullBarcode.length() > 14) {
+                barcodeToPrint = fullBarcode.substring(fullBarcode.length() - 14);
+            } else {
+                barcodeToPrint = fullBarcode;
+            }
+        } else if (barcode20Radio.isSelected()) {
+            if (fullBarcode.length() > 20) {
+                barcodeToPrint = fullBarcode.substring(fullBarcode.length() - 20);
+            } else {
+                barcodeToPrint = fullBarcode;
+            }
+        } else { // barcodeFullRadio is selected by default
+            barcodeToPrint = fullBarcode;
+        }
+
+        String zpl = ZplPrinterService.getGenericBarcodeZpl(barcodeToPrint);
+        if (printerService.sendZplToPrinter(printerNameField.getValue(), zpl)) {
+            updateStatus("Printed barcode: " + barcodeToPrint, false);
+            genericBarcodeField.clear();
+        } else {
+            updateStatus("Failed to send barcode to printer.", true);
+        }
+    }
+
+    // --- NO CHANGES TO ANY OTHER METHODS IN THIS FILE ---
+
     private void setupSearchableSkuField(TextField searchField, ListView<String> listView, TextField targetSkuField, TextField targetDescriptionField, Control nextFocusTarget) {
         searchField.textProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal == null || newVal.trim().isEmpty()) {
@@ -141,9 +162,6 @@ public class LabelPrintingController {
         });
     }
 
-    /**
-     * Attaches a simpler autocompletion popup for utility fields.
-     */
     private void setupAutocomplete(TextField textField) {
         new AutoCompletePopup(textField, () -> skuDAO.findSkusLike(textField.getText()))
                 .setOnSuggestionSelected(selectedValue -> {
@@ -160,9 +178,13 @@ public class LabelPrintingController {
         });
     }
 
-    // ... (showAlert method is unchanged)
-
-    // --- ACTION HANDLERS (Updated to use correct fields) ---
+    private void showAlert(Alert.AlertType type, String title, String content) {
+        Alert alert = new Alert(type);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(content);
+        alert.showAndWait();
+    }
 
     @FXML
     private void handleDeploySerialScan() {
@@ -211,16 +233,6 @@ public class LabelPrintingController {
         } else {
             updateStatus("Failed to print label for SKU: " + sku, true);
         }
-    }
-
-    // ... (The rest of your action handlers and the populatePrinters method are unchanged and can be pasted here)
-
-    private void showAlert(Alert.AlertType type, String title, String content) {
-        Alert alert = new Alert(type);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(content);
-        alert.showAndWait();
     }
 
     @FXML private void handlePrintMultiple() {
@@ -293,19 +305,6 @@ public class LabelPrintingController {
             assetImeiField.clear();
         } else {
             updateStatus("Failed to print asset tag.", true);
-        }
-    }
-
-    @FXML private void handlePrintGenericBarcode() {
-        String barcode = genericBarcodeField.getText().trim();
-        if (barcode.isEmpty()) return;
-
-        String zpl = ZplPrinterService.getGenericBarcodeZpl(barcode);
-        if (printerService.sendZplToPrinter(printerNameField.getValue(), zpl)) {
-            updateStatus("Printed barcode: " + barcode, false);
-            genericBarcodeField.clear();
-        } else {
-            updateStatus("Failed to send barcode to printer.", true);
         }
     }
 
