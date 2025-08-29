@@ -25,14 +25,19 @@
                     <Label text="Set Sub-Status:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
                     <ComboBox fx:id="subStatusCombo" prefWidth="300.0" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
 
-                    <Label fx:id="disposalLocationLabel" text="Box ID:" visible="false" managed="false" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
-                    <HBox fx:id="boxIdHBox" spacing="10" alignment="CENTER_LEFT" visible="false" managed="false" GridPane.rowIndex="2" GridPane.columnIndex="1">
-                        <TextField fx:id="disposalLocationField" promptText="Scan Box ID to enable scanning..." HBox.hgrow="ALWAYS"/>
+                    <!-- NEW CHECKBOX FOR LABEL PRINTING -->
+                    <CheckBox fx:id="printLabelsToggle" text="Print Deployment Labels on Scan"
+                              GridPane.rowIndex="2" GridPane.columnIndex="1"
+                              visible="false" managed="false" selected="true"/>
+
+                    <Label fx:id="disposalLocationLabel" text="Box ID:" visible="false" managed="false" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
+                    <HBox fx:id="boxIdHBox" spacing="10" alignment="CENTER_LEFT" visible="false" managed="false" GridPane.rowIndex="3" GridPane.columnIndex="1">
+                        <TextField fx:id="disposalLocationField" onAction="#onBoxIdScanned" promptText="Scan Box ID and press Enter..." HBox.hgrow="ALWAYS"/>
                         <Button fx:id="clearBoxIdButton" onAction="#handleClearBoxId" text="Clear"/>
                     </HBox>
 
-                    <Label text="Change Note (Optional):" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
-                    <TextField fx:id="changeLogField" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
+                    <Label text="Change Note (Optional):" GridPane.rowIndex="4" GridPane.columnIndex="0"/>
+                    <TextField fx:id="changeLogField" GridPane.rowIndex="4" GridPane.columnIndex="1"/>
                 </GridPane>
             </TitledPane>
 

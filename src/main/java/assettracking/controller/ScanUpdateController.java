@@ -28,7 +28,7 @@ import java.util.*;
 
 public class ScanUpdateController {
 
-    // --- (All FXML Fields are the same) ---
+    // --- (All existing FXML Fields are the same) ---
     @FXML private ComboBox<String> statusCombo;
     @FXML private ComboBox<String> subStatusCombo;
     @FXML private TextField changeLogField;
@@ -47,6 +47,9 @@ public class ScanUpdateController {
     @FXML private TextField scanLocationField;
     @FXML private HBox boxIdHBox;
     @FXML private Button clearBoxIdButton;
+
+    // --- NEW FXML Field for the toggle ---
+    @FXML private CheckBox printLabelsToggle;
 
     private DeviceStatusTrackingController parentController;
     private final ObservableList<ScanResult> successList = FXCollections.observableArrayList();
@@ -94,42 +97,31 @@ public class ScanUpdateController {
     }
 
     /**
-     * MODIFIED: This method no longer aggressively manages focus. It only controls
-     * visibility and whether the serial field is enabled.
+     * MODIFIED: Now also controls the visibility of the new printLabelsToggle.
      */
     private void updateUiForStatusChange() {
         String status = statusCombo.getValue();
         String subStatus = subStatusCombo.getValue();
 
+        // Logic for disposal fields
         boolean isDisposal = "Disposed".equals(status);
         boolean needsBoxId = isDisposal && !"Ready for Wipe".equals(subStatus);
-
         disposalLocationLabel.setVisible(isDisposal);
         boxIdHBox.setVisible(isDisposal);
         disposalLocationLabel.setManaged(isDisposal);
         boxIdHBox.setManaged(isDisposal);
-
         scanSerialField.setDisable(needsBoxId && disposalLocationField.getText().trim().isEmpty());
+
+        // NEW LOGIC: Logic for the print labels toggle
+        boolean isReadyForDeployment = "Processed".equals(status) && "Ready for Deployment".equals(subStatus);
+        printLabelsToggle.setVisible(isReadyForDeployment);
+        printLabelsToggle.setManaged(isReadyForDeployment);
     }
 
     /**
-     * NEW METHOD: This is called when the user presses Enter in the Box ID field.
-     * It simply moves the focus to the next logical field.
+     * MODIFIED: The pop-up confirmation dialog has been completely removed.
+     * It now checks the state of the printLabelsToggle checkbox instead.
      */
-    @FXML
-    private void onBoxIdScanned() {
-        scanSerialField.requestFocus();
-    }
-
-    // --- (The rest of the file is unchanged) ---
-
-    @FXML
-    private void handleClearBoxId() {
-        disposalLocationField.clear();
-        changeLogField.clear();
-        disposalLocationField.requestFocus();
-    }
-
     @FXML
     private void onSerialScanned() {
         String serial = scanSerialField.getText().trim();
@@ -165,14 +157,13 @@ public class ScanUpdateController {
                 successList.add(0, new ScanResult(serial, newStatus + " / " + newSubStatus, timestamp));
                 if (parentController != null) parentController.refreshData();
 
-                if ("Processed".equals(newStatus) && "Ready for Deployment".equals(newSubStatus)) {
-                    Alert confirmation = new Alert(Alert.AlertType.CONFIRMATION, "Device is Ready for Deployment. Print SKU and Serial labels?", ButtonType.YES, ButtonType.NO);
-                    confirmation.showAndWait().ifPresent(response -> {
-                        if (response == ButtonType.YES) {
-                            printDeploymentLabels(serial);
-                        }
-                    });
+                // --- THIS IS THE NEW LOGIC ---
+                // If the toggle is visible and selected, print the labels. No more pop-up!
+                if (printLabelsToggle.isVisible() && printLabelsToggle.isSelected()) {
+                    printDeploymentLabels(serial);
                 }
+                // --- END OF NEW LOGIC ---
+
             } else {
                 feedbackLabel.setText("❌ " + result);
                 feedbackLabel.setTextFill(Color.RED);
@@ -192,6 +183,20 @@ public class ScanUpdateController {
         });
 
         new Thread(updateTask).start();
+    }
+
+    // --- NO CHANGES TO ANY OTHER METHODS IN THIS FILE ---
+
+    @FXML
+    private void onBoxIdScanned() {
+        scanSerialField.requestFocus();
+    }
+
+    @FXML
+    private void handleClearBoxId() {
+        disposalLocationField.clear();
+        changeLogField.clear();
+        disposalLocationField.requestFocus();
     }
 
     private Task<String> createTaskForSerialUpdate(String serial, String newStatus, String newSubStatus, String finalNote) {
