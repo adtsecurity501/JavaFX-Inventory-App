@@ -22,7 +22,7 @@ import java.util.Optional;
 
 public class DeviceStatusTrackingController {
 
-    // --- FXML Fields ---
+    // --- (All FXML Fields are the same) ---
     @FXML public Pagination pagination;
     @FXML public TextField serialSearchField;
     @FXML public TableView<DeviceStatusView> statusTable;
@@ -45,8 +45,6 @@ public class DeviceStatusTrackingController {
     @FXML public DatePicker toDateFilter;
     @FXML public ComboBox<Integer> rowsPerPageCombo;
     @FXML public Label flagReasonLabel;
-
-    // NEW FXML Fields for Box ID
     @FXML private Label boxIdLabel;
     @FXML private TextField boxIdField;
     @FXML private Button updateButton;
@@ -77,7 +75,6 @@ public class DeviceStatusTrackingController {
 
         statusUpdateCombo.getItems().addAll(StatusManager.getStatuses());
 
-        // Add listeners to both combo boxes to update the UI
         statusUpdateCombo.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
             subStatusUpdateCombo.getItems().clear();
             if (newVal != null) {
@@ -86,11 +83,11 @@ public class DeviceStatusTrackingController {
                     subStatusUpdateCombo.getSelectionModel().selectFirst();
                 }
             }
-            updateDisposalControlsVisibility(); // Call the UI update method
+            updateDisposalControlsVisibility();
         });
 
         subStatusUpdateCombo.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
-            updateDisposalControlsVisibility(); // Call the UI update method
+            updateDisposalControlsVisibility();
         });
     }
 
@@ -114,7 +111,6 @@ public class DeviceStatusTrackingController {
                     flagReasonLabel.setVisible(false);
                     flagReasonLabel.setManaged(false);
                 }
-                // Ensure the Box ID field visibility is correct upon selection change
                 updateDisposalControlsVisibility();
             } else {
                 flagReasonLabel.setVisible(false);
@@ -123,10 +119,6 @@ public class DeviceStatusTrackingController {
         });
     }
 
-    /**
-     * NEW METHOD: Controls the visibility of the Box ID label and text field
-     * based on the selected status and sub-status.
-     */
     private void updateDisposalControlsVisibility() {
         String status = statusUpdateCombo.getValue();
         String subStatus = subStatusUpdateCombo.getValue();
@@ -138,15 +130,13 @@ public class DeviceStatusTrackingController {
         boxIdField.setVisible(needsBoxId);
         boxIdField.setManaged(needsBoxId);
 
-        // Clear the field if it's hidden to prevent accidental data submission
         if (!needsBoxId) {
             boxIdField.clear();
         }
     }
 
     /**
-     * REWRITTEN METHOD: Removes the popup dialog and now reads directly from the
-     * new boxIdField, performing validation before updating.
+     * MODIFIED: Added a call to refreshData() at the end of the method.
      */
     @FXML
     private void onUpdateDeviceAction() {
@@ -157,22 +147,24 @@ public class DeviceStatusTrackingController {
 
         boolean needsBoxId = "Disposed".equals(newStatus) && !"Ready for Wipe".equals(newSubStatus);
 
-        // If a Box ID is required for the selected status, validate the field.
         if (needsBoxId) {
             String boxId = boxIdField.getText().trim();
             if (boxId.isEmpty()) {
                 StageManager.showAlert(getOwnerWindow(), Alert.AlertType.WARNING, "Box ID Required", "A Box ID is required for this disposed status. The update was cancelled.");
-                return; // Stop the update process
+                return;
             }
             note = "Box ID: " + boxId;
         }
 
-        // Proceed with the update
         deviceStatusManager.updateDeviceStatus(selectedDevices, newStatus, newSubStatus, note);
-        boxIdField.clear(); // Clear the field after a successful update
+        boxIdField.clear();
+
+        // --- THIS IS THE NEW LINE ---
+        // Refreshes the table to show the change immediately.
+        refreshData();
     }
 
-    // --- NO CHANGES TO THE METHODS BELOW THIS LINE ---
+    // --- NO CHANGES TO ANY OTHER METHODS IN THIS FILE ---
 
     private void setupTableColumns() {
         serialNumberCol.setCellValueFactory(new PropertyValueFactory<>("serialNumber"));

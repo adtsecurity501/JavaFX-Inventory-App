@@ -23,7 +23,11 @@
             <VBox fx:id="monitorModePane" spacing="15" style="-fx-padding: 20;" managed="false" visible="false">
                 <Label styleClass="h4" text="Monitor Intake Workflow"/>
                 <Separator/>
-                <GridPane hgap="10" vgap="8">
+
+                <CheckBox fx:id="standardMonitorCheckBox" text="Standard Deployable Monitor" selected="true"/>
+
+                <!-- Pane for Standard, SKU-based monitors -->
+                <GridPane fx:id="standardMonitorPane" hgap="10" vgap="8">
                     <columnConstraints>
                         <ColumnConstraints hgrow="NEVER" minWidth="120.0"/>
                         <ColumnConstraints hgrow="ALWAYS"/>
@@ -32,13 +36,24 @@
                     <ComboBox fx:id="monitorPrinterCombo" prefWidth="350.0" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
                     <Label text="Serial Number:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
                     <TextField fx:id="monitorSerialField" promptText="Scan or enter Serial Number" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
-                    <Label text="Model (SKU):" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
-                    <TextField fx:id="monitorModelField" promptText="Enter Model or SKU" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+                    <Label text="Model:" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+                    <TextField fx:id="monitorModelField" promptText="Enter Model (autocompletes)" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
                     <Label text="Description:" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
                     <TextField fx:id="monitorDescriptionField" promptText="Enter description (autocompletes)" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
                 </GridPane>
+                <!-- Pane for Non-Standard, manual entry monitors -->
+                <GridPane fx:id="manualMonitorPane" hgap="10" vgap="8" visible="false" managed="false">
+                    <columnConstraints>
+                        <ColumnConstraints hgrow="NEVER" minWidth="120.0"/>
+                        <ColumnConstraints hgrow="ALWAYS"/>
+                    </columnConstraints>
+                    <Label text="Serial Number:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+                    <TextField fx:id="manualSerialField" promptText="Scan or enter Serial Number" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+                    <Label text="Manual Description:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+                    <TextField fx:id="manualDescriptionField" promptText="e.g., Old 19-inch Dell Monitor" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+                </GridPane>
                 <HBox alignment="CENTER" spacing="20" style="-fx-padding: 20 0 0 0;">
-                    <Button onAction="#handleFunctioningButton" text="Functioning &amp; Print Labels" styleClass="success" prefHeight="50.0"/>
+                    <Button fx:id="functioningButton" onAction="#handleFunctioningButton" text="Functioning &amp; Print Labels" styleClass="success" prefHeight="50.0"/>
                     <Button onAction="#handleBrokenButton" text="Broken / Dispose" styleClass="danger" prefHeight="50.0"/>
                 </HBox>
                 <Label fx:id="monitorFeedbackLabel" alignment="CENTER" maxWidth="Infinity" style="-fx-font-weight: bold; -fx-padding: 10 0 0 0;"/>

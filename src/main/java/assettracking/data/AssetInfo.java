@@ -2,32 +2,24 @@ package assettracking.data;
 
 public class AssetInfo {
     private String serialNumber;
+    private String skuNumber;
     private String make;
-    private String modelNumber; // Corresponds to part_number in your DB's Assets table
+    private String modelNumber;
     private String description;
     private String category;
     private String imei;
     private boolean everonSerial;
     private String capacity;
 
-    // Default constructor
+    // Default constructor is essential for this fix
     public AssetInfo() {}
-
-    // Parameterized constructor (optional, but can be useful)
-    public AssetInfo(String serialNumber, String make, String modelNumber, String description, String category, String imei, boolean everonSerial, String capacity) {
-        this.serialNumber = serialNumber;
-        this.make = make;
-        this.modelNumber = modelNumber;
-        this.description = description;
-        this.category = category;
-        this.imei = imei;
-        this.everonSerial = everonSerial;
-        this.capacity = capacity;
-    }
 
     // Getters and Setters
     public String getSerialNumber() { return serialNumber; }
     public void setSerialNumber(String serialNumber) { this.serialNumber = serialNumber; }
+
+    public String getSkuNumber() { return skuNumber; }
+    public void setSkuNumber(String skuNumber) { this.skuNumber = skuNumber; }
 
     public String getMake() { return make; }
     public void setMake(String make) { this.make = make; }
@@ -49,18 +41,4 @@ public class AssetInfo {
 
     public String getCapacity() { return capacity; }
     public void setCapacity(String capacity) { this.capacity = capacity; }
-
-    @Override
-    public String toString() {
-        return "AssetInfo{" +
-               "serialNumber='" + serialNumber + '\'' +
-               ", make='" + make + '\'' +
-               ", modelNumber='" + modelNumber + '\'' +
-               ", description='" + description + '\'' +
-               ", category='" + category + '\'' +
-               ", imei='" + imei + '\'' +
-               ", everonSerial=" + everonSerial +
-               ", capacity='" + capacity + '\'' +
-               '}';
-    }
 }

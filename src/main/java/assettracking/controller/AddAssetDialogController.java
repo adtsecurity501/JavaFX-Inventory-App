@@ -23,6 +23,7 @@ import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
@@ -38,7 +39,7 @@ import java.util.stream.Collectors;
 
 public class AddAssetDialogController {
 
-    // --- (All FXML fields remain the same) ---
+    // --- (All FXML fields are the same) ---
     @FXML private RadioButton standardIntakeRadio;
     @FXML private RadioButton monitorIntakeRadio;
     @FXML private ToggleGroup intakeModeToggleGroup;
@@ -49,6 +50,12 @@ public class AddAssetDialogController {
     @FXML private TextField monitorModelField;
     @FXML private TextField monitorDescriptionField;
     @FXML private Label monitorFeedbackLabel;
+    @FXML private CheckBox standardMonitorCheckBox;
+    @FXML private GridPane standardMonitorPane;
+    @FXML private GridPane manualMonitorPane;
+    @FXML private TextField manualSerialField;
+    @FXML private TextField manualDescriptionField;
+    @FXML private Button functioningButton;
     @FXML private CheckBox bulkAddCheckBox;
     @FXML private BorderPane textModePane;
     @FXML private BorderPane tableModePane;
@@ -124,7 +131,14 @@ public class AddAssetDialogController {
     }
 
     private void setupMonitorIntake() {
-        // Autocomplete for Description Field
+        standardMonitorCheckBox.selectedProperty().addListener((obs, oldVal, isStandard) -> {
+            standardMonitorPane.setVisible(isStandard);
+            standardMonitorPane.setManaged(isStandard);
+            manualMonitorPane.setVisible(!isStandard);
+            manualMonitorPane.setManaged(!isStandard);
+            functioningButton.setDisable(!isStandard);
+        });
+
         new AutoCompletePopup(monitorDescriptionField, () -> assetDAO.findDescriptionsLike(monitorDescriptionField.getText()))
                 .setOnSuggestionSelected(selectedValue ->
                         assetDAO.findSkuDetails(selectedValue, "description").ifPresent(sku -> Platform.runLater(() -> {
@@ -133,7 +147,6 @@ public class AddAssetDialogController {
                         }))
                 );
 
-        // --- FIX: ADDED AUTOCOMPLETE FOR MODEL FIELD ---
         new AutoCompletePopup(monitorModelField, () -> assetDAO.findModelNumbersLike(monitorModelField.getText()))
                 .setOnSuggestionSelected(selectedValue ->
                         assetDAO.findSkuDetails(selectedValue, "model_number").ifPresent(sku -> Platform.runLater(() -> {
@@ -392,6 +405,9 @@ public class AddAssetDialogController {
         new Thread(saveTask).start();
     }
 
+    /**
+     * MODIFIED to use the default constructor and setters instead of the failing parameterized constructor.
+     */
     private Task<String> createSaveTask() {
         final boolean isBulkMode = bulkAddCheckBox.isSelected();
         final String[] serials = multiSerialToggle.isSelected() ? serialArea.getText().trim().split("\\r?\\n") : new String[]{serialField.getText().trim()};
@@ -404,7 +420,20 @@ public class AddAssetDialogController {
         final String boxId = boxIdField.getText().trim();
         final boolean isNewCondition = newRadioButton.isSelected();
 
-        final AssetInfo singleEntryInfo = !isBulkMode ? new AssetInfo("", makeField.getText(), modelField.getText(), descriptionField.getText(), categoryBox.getValue(), imeiField.getText(), false, "") : null;
+        // --- THIS IS THE CRITICAL FIX ---
+        final AssetInfo singleEntryInfo;
+        if (!isBulkMode) {
+            AssetInfo info = new AssetInfo();
+            info.setMake(makeField.getText());
+            info.setModelNumber(modelField.getText());
+            info.setDescription(descriptionField.getText());
+            info.setCategory(categoryBox.getValue());
+            info.setImei(imeiField.getText());
+            singleEntryInfo = info;
+        } else {
+            singleEntryInfo = null;
+        }
+        // --- END OF FIX ---
 
         return new Task<>() {
             @Override
@@ -485,7 +514,13 @@ public class AddAssetDialogController {
                 }
 
                 boolean isReturn = assetDAO.findAssetBySerialNumber(serial).isPresent();
-                AssetInfo assetInfo = new AssetInfo(serial, entry.getMake(), entry.getModelNumber(), entry.getDescription(), entry.getCategory(), entry.getImei(), false, "");
+                AssetInfo assetInfo = new AssetInfo();
+                assetInfo.setSerialNumber(serial);
+                assetInfo.setMake(entry.getMake());
+                assetInfo.setModelNumber(entry.getModelNumber());
+                assetInfo.setDescription(entry.getDescription());
+                assetInfo.setCategory(entry.getCategory());
+                assetInfo.setImei(entry.getImei());
 
                 if (!isReturn) {
                     assetDAO.addAsset(assetInfo);
@@ -603,13 +638,26 @@ public class AddAssetDialogController {
 
     @FXML
     private void handleBrokenButton() {
-        String serial = monitorSerialField.getText().trim();
-        String model = monitorModelField.getText().trim();
-        String description = monitorDescriptionField.getText().trim();
+        String serial;
+        String model;
+        String description;
 
-        if (serial.isEmpty() || model.isEmpty() || description.isEmpty()) {
-            showAlert("Input Required", "Serial, Model (SKU), and Description are required.");
-            return;
+        if (standardMonitorCheckBox.isSelected()) {
+            serial = monitorSerialField.getText().trim();
+            model = monitorModelField.getText().trim();
+            description = monitorDescriptionField.getText().trim();
+            if (serial.isEmpty() || model.isEmpty() || description.isEmpty()) {
+                showAlert("Input Required", "Serial, Model, and Description are required for standard monitors.");
+                return;
+            }
+        } else {
+            serial = manualSerialField.getText().trim();
+            description = manualDescriptionField.getText().trim();
+            model = "NON-STANDARD";
+            if (serial.isEmpty() || description.isEmpty()) {
+                showAlert("Input Required", "Serial and Manual Description are required for non-standard monitors.");
+                return;
+            }
         }
 
         try {
@@ -637,20 +685,38 @@ public class AddAssetDialogController {
         String model = monitorModelField.getText().trim();
         String description = monitorDescriptionField.getText().trim();
         String printer = monitorPrinterCombo.getValue();
+        boolean isRefurb = refurbRadioButton.isSelected();
 
         if (serial.isEmpty() || model.isEmpty() || description.isEmpty()) {
-            showAlert("Input Required", "Serial, Model (SKU), and Description are required.");
+            showAlert("Input Required", "Serial, Model, and Description are required.");
             return;
         }
         if (printer == null) {
-            showAlert("Printer Required", "Please select a printer to print labels.");
+            showAlert("Printer Required", "Please select a printer.");
             return;
         }
+
+        Optional<AssetInfo> skuDetailsOpt = assetDAO.findSkuByModelAndCondition(model, isRefurb);
+        if (skuDetailsOpt.isEmpty()) {
+            String conditionText = isRefurb ? "Refurbished" : "New";
+            showAlert("SKU Not Found", "Could not find a valid " + conditionText + " SKU for the model '" + model + "'. Please check the SKU_Table.");
+            return;
+        }
+
+        AssetInfo finalSkuDetails = skuDetailsOpt.get();
+        String officialSku = finalSkuDetails.getSkuNumber();
+        String finalLabelDescription = finalSkuDetails.getDescription();
 
         Task<Void> task = new Task<>() {
             @Override
             protected Void call() throws Exception {
-                AssetInfo assetInfo = new AssetInfo(serial, "Dell", model, description, "Monitor", null, false, "");
+                AssetInfo assetInfo = new AssetInfo();
+                assetInfo.setSerialNumber(serial);
+                assetInfo.setMake("Dell");
+                assetInfo.setModelNumber(model);
+                assetInfo.setDescription(description);
+                assetInfo.setCategory("Monitor");
+
                 if (assetDAO.findAssetBySerialNumber(serial).isEmpty()) {
                     assetDAO.addAsset(assetInfo);
                 }
@@ -663,9 +729,11 @@ public class AddAssetDialogController {
                     createInitialStatus(conn, newReceiptId, false, false, "Processed", "Ready for Deployment", null, null);
                 }
 
-                updateMonitorFeedback("Printing labels for " + serial + "...");
-                String skuZpl = ZplPrinterService.getAdtLabelZpl(model, description);
-                String serialZpl = ZplPrinterService.getSerialLabelZpl(model, serial);
+                updateMonitorFeedback("Printing labels for " + serial + " with SKU: " + officialSku + "...");
+
+                String skuZpl = ZplPrinterService.getAdtLabelZpl(officialSku, finalLabelDescription);
+                String serialZpl = ZplPrinterService.getSerialLabelZpl(officialSku, serial);
+
                 boolean s1 = printerService.sendZplToPrinter(printer, skuZpl);
                 boolean s2 = printerService.sendZplToPrinter(printer, serialZpl);
                 if (!s1 || !s2) throw new Exception("Failed to print one or both labels.");
@@ -687,7 +755,13 @@ public class AddAssetDialogController {
         Task<Void> task = new Task<>() {
             @Override
             protected Void call() throws Exception {
-                AssetInfo assetInfo = new AssetInfo(serial, "Dell", model, description, "Monitor", null, false, "");
+                AssetInfo assetInfo = new AssetInfo();
+                assetInfo.setSerialNumber(serial);
+                assetInfo.setMake("Dell");
+                assetInfo.setModelNumber(model);
+                assetInfo.setDescription(description);
+                assetInfo.setCategory("Monitor");
+
                 if (assetDAO.findAssetBySerialNumber(serial).isEmpty()) {
                     assetDAO.addAsset(assetInfo);
                 }
