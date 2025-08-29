@@ -1,6 +1,7 @@
 package assettracking.controller;
 
 import assettracking.dao.AssetDAO;
+import assettracking.dao.SkuDAO;
 import assettracking.dao.ReceiptEventDAO;
 import assettracking.data.AssetEntry;
 import assettracking.data.AssetInfo;
@@ -49,6 +50,9 @@ public class AddAssetDialogController {
     @FXML private TextField monitorSerialField;
     @FXML private TextField monitorModelField;
     @FXML private TextField monitorDescriptionField;
+    @FXML private TextField monitorSkuSearchField;
+    @FXML private ListView<String> monitorSkuListView;
+    @FXML private TextField monitorSelectedSkuField;
     @FXML private Label monitorFeedbackLabel;
     @FXML private CheckBox standardMonitorCheckBox;
     @FXML private GridPane standardMonitorPane;
@@ -100,6 +104,7 @@ public class AddAssetDialogController {
     private final AssetDAO assetDAO = new AssetDAO();
     private final ReceiptEventDAO receiptEventDAO = new ReceiptEventDAO();
     private final ZplPrinterService printerService = new ZplPrinterService();
+    private final SkuDAO skuDAO = new SkuDAO();
 
     public void initData(Package pkg, PackageDetailController parent) {
         this.currentPackage = pkg;
@@ -137,6 +142,9 @@ public class AddAssetDialogController {
             manualMonitorPane.setVisible(!isStandard);
             manualMonitorPane.setManaged(!isStandard);
             functioningButton.setDisable(!isStandard);
+
+            // Setup for the NEW dedicated SKU search
+            setupMonitorSkuSearch();
         });
 
         new AutoCompletePopup(monitorDescriptionField, () -> assetDAO.findDescriptionsLike(monitorDescriptionField.getText()))
@@ -680,32 +688,37 @@ public class AddAssetDialogController {
         }
     }
 
+    /**
+     * COMPLETELY REWRITTEN to use the new, explicit SKU selection workflow.
+     */
     private void processFunctioningMonitor() {
         String serial = monitorSerialField.getText().trim();
         String model = monitorModelField.getText().trim();
         String description = monitorDescriptionField.getText().trim();
         String printer = monitorPrinterCombo.getValue();
-        boolean isRefurb = refurbRadioButton.isSelected();
 
-        if (serial.isEmpty() || model.isEmpty() || description.isEmpty()) {
-            showAlert("Input Required", "Serial, Model, and Description are required.");
+        // Get the SKU directly from the new, dedicated field
+        String officialSku = monitorSelectedSkuField.getText().trim();
+
+        // --- NEW VALIDATION ---
+        if (serial.isEmpty() || model.isEmpty()) {
+            showAlert("Input Required", "Serial Number and Model are required.");
+            return;
+        }
+        if (officialSku.isEmpty()) {
+            showAlert("SKU Required", "You must search for and select a Label SKU to print.");
             return;
         }
         if (printer == null) {
             showAlert("Printer Required", "Please select a printer.");
             return;
         }
+        // --- END VALIDATION ---
 
-        Optional<AssetInfo> skuDetailsOpt = assetDAO.findSkuByModelAndCondition(model, isRefurb);
-        if (skuDetailsOpt.isEmpty()) {
-            String conditionText = isRefurb ? "Refurbished" : "New";
-            showAlert("SKU Not Found", "Could not find a valid " + conditionText + " SKU for the model '" + model + "'. Please check the SKU_Table.");
-            return;
-        }
-
-        AssetInfo finalSkuDetails = skuDetailsOpt.get();
-        String officialSku = finalSkuDetails.getSkuNumber();
-        String finalLabelDescription = finalSkuDetails.getDescription();
+        // Get the full "kit" description for the selected SKU for the label.
+        // Fall back to the component description if a master record isn't found.
+        String finalLabelDescription = assetDAO.findDescriptionBySkuNumber(officialSku)
+                .orElse(description);
 
         Task<Void> task = new Task<>() {
             @Override
@@ -751,6 +764,36 @@ public class AddAssetDialogController {
         new Thread(task).start();
     }
 
+    /**
+     * NEW METHOD: Sets up the search functionality for the dedicated Monitor Label SKU field.
+     */
+    private void setupMonitorSkuSearch() {
+        // Listener to update the suggestion list as the user types
+        monitorSkuSearchField.textProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal == null || newVal.trim().isEmpty()) {
+                monitorSkuListView.getItems().clear();
+                return;
+            }
+            // Use the SkuDAO to find relevant SKUs
+            List<String> suggestions = skuDAO.findSkusLike(newVal);
+            monitorSkuListView.setItems(FXCollections.observableArrayList(suggestions));
+        });
+
+        // Listener for when a user clicks a suggestion in the list
+        monitorSkuListView.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
+            if (newSelection != null) {
+                // The suggestion is formatted as "SKU - Description", so we split it.
+                String selectedSku = newSelection.split(" - ")[0];
+                Platform.runLater(() -> {
+                    monitorSelectedSkuField.setText(selectedSku); // Set the selected SKU in the read-only field
+                    monitorSkuSearchField.clear(); // Clear the search box
+                    monitorSkuListView.getItems().clear(); // Hide the list
+                });
+            }
+        });
+    }
+
+
     private void processBrokenMonitor(String serial, String model, String description, String status, String subStatus, String reason) {
         Task<Void> task = new Task<>() {
             @Override
@@ -791,10 +834,16 @@ public class AddAssetDialogController {
         Platform.runLater(() -> monitorFeedbackLabel.setText(message));
     }
 
+    /**
+     * MODIFIED to clear the new SKU fields as well.
+     */
     private void clearMonitorFields() {
         monitorSerialField.clear();
         monitorModelField.clear();
         monitorDescriptionField.clear();
+        monitorSkuSearchField.clear();
+        monitorSelectedSkuField.clear();
+        monitorSkuListView.getItems().clear();
         monitorSerialField.requestFocus();
     }
 

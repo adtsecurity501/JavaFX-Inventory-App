@@ -34,12 +34,24 @@
                     </columnConstraints>
                     <Label text="Printer:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
                     <ComboBox fx:id="monitorPrinterCombo" prefWidth="350.0" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+
                     <Label text="Serial Number:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
                     <TextField fx:id="monitorSerialField" promptText="Scan or enter Serial Number" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+
                     <Label text="Model:" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
                     <TextField fx:id="monitorModelField" promptText="Enter Model (autocompletes)" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+
                     <Label text="Description:" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
                     <TextField fx:id="monitorDescriptionField" promptText="Enter description (autocompletes)" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
+
+                    <!-- NEW: DEDICATED SKU SELECTION SECTION -->
+                    <Label text="Label SKU:" style="-fx-font-weight: bold;" GridPane.rowIndex="4" GridPane.columnIndex="0"/>
+                    <VBox spacing="5" GridPane.rowIndex="4" GridPane.columnIndex="1">
+                        <TextField fx:id="monitorSkuSearchField" promptText="Search for SKU or Kit Description..."/>
+                        <ListView fx:id="monitorSkuListView" prefHeight="100.0"/>
+                        <TextField fx:id="monitorSelectedSkuField" editable="false" promptText="Selected SKU will appear here"/>
+                    </VBox>
+                    <!-- END OF NEW SECTION -->
                 </GridPane>
                 <!-- Pane for Non-Standard, manual entry monitors -->
                 <GridPane fx:id="manualMonitorPane" hgap="10" vgap="8" visible="false" managed="false">
