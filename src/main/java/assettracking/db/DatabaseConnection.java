@@ -110,7 +110,27 @@ public class DatabaseConnection {
             }
         }
     }
-
+    /**
+     * Provides a dedicated connection for a single, long-running transaction.
+     * This is essential for preventing "database is locked" errors during bulk operations.
+     * The calling code is responsible for closing this connection in a finally block.
+     * @return A new Connection object.
+     * @throws SQLException if a connection cannot be established.
+     */
+    public static Connection getTransactionalConnection() throws SQLException {
+        loadDriver();
+        // For transactions, we always try the primary network path first.
+        try {
+            Connection connection = DriverManager.getConnection(NETWORK_DB_URL);
+            connection.setAutoCommit(false); // Start the transaction
+            return connection;
+        } catch (SQLException e) {
+            System.err.println("Failed to get transactional connection from network, trying local...");
+            Connection connection = DriverManager.getConnection(CORRECT_LOCAL_DB_URL);
+            connection.setAutoCommit(false); // Start the transaction
+            return connection;
+        }
+    }
     private static void loadDriver() throws SQLException {
         if (!driverLoaded) {
             synchronized (driverLoadLock) {

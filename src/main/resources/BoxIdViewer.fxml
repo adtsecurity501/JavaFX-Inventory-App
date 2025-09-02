@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="assettracking.controller.BoxIdViewerController">
+    <padding><Insets top="10" right="10" bottom="10" left="10" /></padding>
+    <top>
+        <HBox spacing="10" alignment="CENTER_LEFT" style="-fx-padding: 0 0 10 0;">
+            <Label text="Search Box ID:"/>
+            <TextField fx:id="searchField" promptText="Enter Box ID to filter..." HBox.hgrow="ALWAYS"/>
+        </HBox>
+    </top>
+    <center>
+        <SplitPane dividerPositions="0.4">
+            <VBox spacing="5">
+                <Label styleClass="h4" text="Box ID Summary"/>
+                <TableView fx:id="summaryTable">
+                    <columns>
+                        <TableColumn fx:id="boxIdCol" prefWidth="200.0" text="Box ID"/>
+                        <TableColumn fx:id="itemCountCol" prefWidth="100.0" text="Item Count"/>
+                    </columns>
+                    <columnResizePolicy><TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/></columnResizePolicy>
+                </TableView>
+            </VBox>
+            <VBox spacing="5">
+                <Label fx:id="detailHeaderLabel" styleClass="h4" text="Contents of Box"/>
+                <TableView fx:id="detailTable">
+                    <columns>
+                        <TableColumn fx:id="serialCol" prefWidth="200.0" text="Serial Number"/>
+                        <TableColumn fx:id="statusCol" prefWidth="150.0" text="Status"/>
+                        <TableColumn fx:id="subStatusCol" prefWidth="200.0" text="Sub-Status"/>
+                    </columns>
+                    <columnResizePolicy><TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/></columnResizePolicy>
+                </TableView>
+            </VBox>
+        </SplitPane>
+    </center>
+</BorderPane>

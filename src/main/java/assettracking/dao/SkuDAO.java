@@ -87,7 +87,6 @@ public class SkuDAO {
     }
 
     /**
-     * MODIFIED to filter out any results where the SKU number is missing or blank.
      * Finds SKUs where the SKU number or description matches the given fragment.
      * Returns a list of formatted strings "SKU - Description" for display in suggestions.
      * @param fragment The text typed by the user.
@@ -95,10 +94,9 @@ public class SkuDAO {
      */
     public List<String> findSkusLike(String fragment) {
         List<String> suggestions = new ArrayList<>();
-        // This query now explicitly excludes rows with no valid sku_number.
+        // This query is now corrected to find all items where SKU or description matches.
         String sql = "SELECT sku_number, description FROM SKU_Table " +
                 "WHERE (sku_number LIKE ? OR description LIKE ?) " +
-                "AND sku_number IS NOT NULL AND sku_number != '' " +
                 "LIMIT 15";
         try (Connection conn = DatabaseConnection.getInventoryConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -107,7 +105,21 @@ public class SkuDAO {
             stmt.setString(2, queryFragment);
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
-                    suggestions.add(rs.getString("sku_number") + " - " + rs.getString("description"));
+                    String sku = rs.getString("sku_number");
+                    String description = rs.getString("description");
+
+                    // Skip any rows that have no description.
+                    if (description == null || description.trim().isEmpty()) {
+                        continue;
+                    }
+
+                    // If a SKU exists, format it with a separator.
+                    if (sku != null && !sku.trim().isEmpty()) {
+                        suggestions.add(sku + " - " + description);
+                    } else {
+                        // If no SKU exists (e.g., a pure kit description), just add the description.
+                        suggestions.add(description);
+                    }
                 }
             }
         } catch (SQLException e) {

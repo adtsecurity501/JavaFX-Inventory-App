@@ -37,7 +37,7 @@ public class MonitorDisposalDialogController {
             if (newVal != null) {
                 subStatusCombo.getItems().addAll(StatusManager.getSubStatuses(newVal));
                 if (!subStatusCombo.getItems().isEmpty()) {
-                    subStatusCombo.getSelectionModel().selectFirst();
+                    subStatusCombo.getSelectionModel().select(0);
                 }
 
                 boolean isDisposed = "Disposed".equals(newVal);
@@ -45,7 +45,13 @@ public class MonitorDisposalDialogController {
                 boxIdLabel.setManaged(isDisposed);
                 boxIdField.setVisible(isDisposed);
                 boxIdField.setManaged(isDisposed);
-                confirmButton.getStyleClass().setAll(isDisposed ? "danger" : "success");
+
+                // --- CORRECTED LOGIC ---
+                confirmButton.getStyleClass().remove("success");
+                confirmButton.getStyleClass().remove("danger");
+                confirmButton.getStyleClass().add(isDisposed ? "danger" : "success");
+                // --- END CORRECTION ---
+
                 confirmButton.setText(isDisposed ? "Confirm Disposal" : "Confirm Status");
             }
         });

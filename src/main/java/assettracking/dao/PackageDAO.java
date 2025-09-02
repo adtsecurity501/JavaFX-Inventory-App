@@ -10,18 +10,30 @@ import java.util.List;
 
 public class PackageDAO {
 
-    public int addPackage(assettracking.data.Package pkg) {
+    /**
+     * Original method that takes a Package object.
+     */
+    public int addPackage(Package pkg) {
+        return addPackage(pkg.getTrackingNumber(), pkg.getFirstName(), pkg.getLastName(), pkg.getCity(), pkg.getState(), pkg.getZipCode(), pkg.getReceiveDate());
+    }
+
+    /**
+     * NEW OVERLOADED METHOD: Inserts a new package using raw data.
+     * This is a more robust way to handle package creation from controllers.
+     * @return The generated packageId, or -1 on failure.
+     */
+    public int addPackage(String tracking, String firstName, String lastName, String city, String state, String zip, LocalDate date) {
         String sql = "INSERT INTO Packages (tracking_number, first_name, last_name, city, state, zip_code, receive_date) VALUES (?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = DatabaseConnection.getInventoryConnection();
              PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
-            stmt.setString(1, pkg.getTrackingNumber());
-            stmt.setString(2, pkg.getFirstName());
-            stmt.setString(3, pkg.getLastName());
-            stmt.setString(4, pkg.getCity());
-            stmt.setString(5, pkg.getState());
-            stmt.setString(6, pkg.getZipCode());
-            stmt.setString(7, pkg.getReceiveDate().toString());
+            stmt.setString(1, tracking);
+            stmt.setString(2, firstName);
+            stmt.setString(3, lastName);
+            stmt.setString(4, city);
+            stmt.setString(5, state);
+            stmt.setString(6, zip);
+            stmt.setString(7, date.toString());
 
             stmt.executeUpdate();
             try (ResultSet rs = stmt.getGeneratedKeys()) {
@@ -35,8 +47,8 @@ public class PackageDAO {
         return -1;
     }
 
-    public List<assettracking.data.Package> getAllPackages() {
-        List<assettracking.data.Package> packages = new ArrayList<>();
+    public List<Package> getAllPackages() {
+        List<Package> packages = new ArrayList<>();
         String sql = "SELECT * FROM Packages";
         try (Connection conn = DatabaseConnection.getInventoryConnection();
              Statement stmt = conn.createStatement();
@@ -59,5 +71,3 @@ public class PackageDAO {
         return packages;
     }
 }
-
-

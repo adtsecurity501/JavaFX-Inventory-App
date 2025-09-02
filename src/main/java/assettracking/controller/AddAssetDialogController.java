@@ -136,15 +136,16 @@ public class AddAssetDialogController {
     }
 
     private void setupMonitorIntake() {
+        // --- THIS IS THE CRITICAL FIX ---
+        // The SKU search setup is now called immediately, ensuring it's always active.
+        setupMonitorSkuSearch();
+
         standardMonitorCheckBox.selectedProperty().addListener((obs, oldVal, isStandard) -> {
             standardMonitorPane.setVisible(isStandard);
             standardMonitorPane.setManaged(isStandard);
             manualMonitorPane.setVisible(!isStandard);
             manualMonitorPane.setManaged(!isStandard);
             functioningButton.setDisable(!isStandard);
-
-            // Setup for the NEW dedicated SKU search
-            setupMonitorSkuSearch();
         });
 
         new AutoCompletePopup(monitorDescriptionField, () -> assetDAO.findDescriptionsLike(monitorDescriptionField.getText()))
@@ -171,6 +172,20 @@ public class AddAssetDialogController {
                 .ifPresent(monitorPrinterCombo::setValue);
     }
 
+    /**
+     * Special initializer for processing a pre-populated list of assets,
+     * such as from the failed scans handler.
+     * @param pkg The new package these assets will belong to.
+     * @param entries The list of AssetEntry objects to add to the table.
+     */
+    public void initDataForBulkAdd(Package pkg, List<AssetEntry> entries) {
+        this.currentPackage = pkg;
+        loadCategories();
+
+        // Switch to bulk mode and populate the table
+        bulkAddCheckBox.setSelected(true);
+        assetEntries.setAll(entries);
+    }
     private void setupViewToggles() {
         intakeModeToggleGroup.selectedToggleProperty().addListener((obs, oldVal, newVal) -> {
             boolean isMonitorMode = newVal == monitorIntakeRadio;
@@ -219,14 +234,14 @@ public class AddAssetDialogController {
         boxIdField.setManaged(false);
 
         sellScrapStatusCombo.setItems(FXCollections.observableArrayList(StatusManager.getStatuses()));
-        sellScrapStatusCombo.getSelectionModel().selectFirst();
+        sellScrapStatusCombo.getSelectionModel().select(0); // Changed from selectFirst()
 
         sellScrapStatusCombo.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
             sellScrapSubStatusCombo.getItems().clear();
             if (newVal != null) {
                 sellScrapSubStatusCombo.getItems().addAll(StatusManager.getSubStatuses(newVal));
                 if (!sellScrapSubStatusCombo.getItems().isEmpty()) {
-                    sellScrapSubStatusCombo.getSelectionModel().selectFirst();
+                    sellScrapSubStatusCombo.getSelectionModel().select(0); // Changed from selectFirst()
                 }
 
                 boolean isDisposed = "Disposed".equals(newVal);
@@ -244,7 +259,7 @@ public class AddAssetDialogController {
 
         if (sellScrapStatusCombo.getValue() != null) {
             sellScrapSubStatusCombo.getItems().addAll(StatusManager.getSubStatuses(sellScrapStatusCombo.getValue()));
-            sellScrapSubStatusCombo.getSelectionModel().selectFirst();
+            sellScrapSubStatusCombo.getSelectionModel().select(0); // Changed from selectFirst()
         }
 
         sellScrapCheckBox.selectedProperty().addListener((obs, oldVal, newVal) -> {
@@ -782,8 +797,17 @@ public class AddAssetDialogController {
         // Listener for when a user clicks a suggestion in the list
         monitorSkuListView.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
             if (newSelection != null) {
-                // The suggestion is formatted as "SKU - Description", so we split it.
-                String selectedSku = newSelection.split(" - ")[0];
+                String selectedSku;
+                // --- NEW: Robustly handle both "SKU - Desc" and just "Desc" ---
+                if (newSelection.contains(" - ")) {
+                    selectedSku = newSelection.split(" - ")[0];
+                } else {
+                    // If there's no SKU, we cannot print, so we set it to empty.
+                    // You can change "N/A" to "" if you prefer a blank field.
+                    selectedSku = "N/A";
+                }
+                // --- END OF NEW LOGIC ---
+
                 Platform.runLater(() -> {
                     monitorSelectedSkuField.setText(selectedSku); // Set the selected SKU in the read-only field
                     monitorSkuSearchField.clear(); // Clear the search box

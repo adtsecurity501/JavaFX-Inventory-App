@@ -16,8 +16,7 @@ public class AssetDAO {
     public Optional<AssetInfo> findAssetBySerialNumber(String serialNumber) {
         AssetInfo asset = null;
 
-        String sqlAutofill = "SELECT serial_number, make, part_number, description, category, imei, everon_serial, capacity FROM Device_Autofill_Data WHERE serial_number = ?";
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
+        String sqlAutofill = "SELECT serial_number, make, part_number, description, category, imei, everon_serial, capacity FROM Device_Autofill_Data WHERE serial_number = ?";        try (Connection conn = DatabaseConnection.getInventoryConnection();
              PreparedStatement stmt = conn.prepareStatement(sqlAutofill)) {
             stmt.setString(1, serialNumber);
             try (ResultSet rs = stmt.executeQuery()) {

@@ -1,8 +1,11 @@
 package assettracking.controller;
 
 import assettracking.dao.AssetDAO;
+import assettracking.dao.PackageDAO;
 import assettracking.dao.SkuDAO;
+import assettracking.data.AssetEntry;
 import assettracking.data.AssetInfo;
+import assettracking.data.Package;
 import assettracking.db.DatabaseConnection;
 import assettracking.label.service.ZplPrinterService;
 import assettracking.manager.StageManager;
@@ -12,13 +15,17 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.HBox;
 import javafx.scene.paint.Color;
+import javafx.stage.Stage;
 
 import javax.print.PrintService;
 import javax.print.PrintServiceLookup;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -28,7 +35,6 @@ import java.util.*;
 
 public class ScanUpdateController {
 
-    // --- (All existing FXML Fields are the same) ---
     @FXML private ComboBox<String> statusCombo;
     @FXML private ComboBox<String> subStatusCombo;
     @FXML private TextField changeLogField;
@@ -47,8 +53,6 @@ public class ScanUpdateController {
     @FXML private TextField scanLocationField;
     @FXML private HBox boxIdHBox;
     @FXML private Button clearBoxIdButton;
-
-    // --- NEW FXML Field for the toggle ---
     @FXML private CheckBox printLabelsToggle;
 
     private DeviceStatusTrackingController parentController;
@@ -71,17 +75,17 @@ public class ScanUpdateController {
             subStatusCombo.getItems().clear();
             if (newVal != null) {
                 subStatusCombo.getItems().addAll(StatusManager.getSubStatuses(newVal));
+                // This block is now fully corrected:
                 if (!subStatusCombo.getItems().isEmpty()) {
-                    subStatusCombo.getSelectionModel().selectFirst();
+                    subStatusCombo.getSelectionModel().select(0);
                 }
             }
             updateUiForStatusChange();
         });
 
         subStatusCombo.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> updateUiForStatusChange());
-        disposalLocationField.textProperty().addListener((obs, oldVal, newVal) -> updateUiForStatusChange());
 
-        statusCombo.getSelectionModel().selectFirst();
+        statusCombo.getSelectionModel().select(0); // Corrected from selectFirst()
     }
 
     private void setupTableColumns() {
@@ -103,7 +107,6 @@ public class ScanUpdateController {
         String status = statusCombo.getValue();
         String subStatus = subStatusCombo.getValue();
 
-        // Logic for disposal fields
         boolean isDisposal = "Disposed".equals(status);
         boolean needsBoxId = isDisposal && !"Ready for Wipe".equals(subStatus);
         disposalLocationLabel.setVisible(isDisposal);
@@ -112,7 +115,6 @@ public class ScanUpdateController {
         boxIdHBox.setManaged(isDisposal);
         scanSerialField.setDisable(needsBoxId && disposalLocationField.getText().trim().isEmpty());
 
-        // NEW LOGIC: Logic for the print labels toggle
         boolean isReadyForDeployment = "Processed".equals(status) && "Ready for Deployment".equals(subStatus);
         printLabelsToggle.setVisible(isReadyForDeployment);
         printLabelsToggle.setManaged(isReadyForDeployment);
@@ -157,12 +159,9 @@ public class ScanUpdateController {
                 successList.add(0, new ScanResult(serial, newStatus + " / " + newSubStatus, timestamp));
                 if (parentController != null) parentController.refreshData();
 
-                // --- THIS IS THE NEW LOGIC ---
-                // If the toggle is visible and selected, print the labels. No more pop-up!
                 if (printLabelsToggle.isVisible() && printLabelsToggle.isSelected()) {
                     printDeploymentLabels(serial);
                 }
-                // --- END OF NEW LOGIC ---
 
             } else {
                 feedbackLabel.setText("❌ " + result);
@@ -336,7 +335,54 @@ public class ScanUpdateController {
 
         new Thread(bulkUpdateTask).start();
     }
+    @FXML
+    private void handleProcessFailedScans() {
+        if (failedList.isEmpty()) {
+            showAlert("No Failed Scans", "There are no failed scans to process.");
+            return;
+        }
 
+        String trackingNumber = "FAILED_SCANS_" + new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        String firstName = "SYSTEM";
+        String lastName = "GENERATED";
+        String city = "DEPOT";
+        String state = "UT";
+        String zip = "84660";
+        java.time.LocalDate date = java.time.LocalDate.now();
+
+        // 1. Call the new DAO method that takes raw values. This bypasses the constructor issue.
+        int packageId = new PackageDAO().addPackage(trackingNumber, firstName, lastName, city, state, zip, date);
+
+        if (packageId == -1) {
+            showAlert("Database Error", "Could not create a new package for the failed scans.");
+            return;
+        }
+
+        // 2. Create the Package object AFTER the database record exists, using the returned ID.
+        Package newPackage = new Package(packageId, trackingNumber, firstName, lastName, city, state, zip, date);
+
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/AddAssetDialog.fxml"));
+            Parent root = loader.load();
+            AddAssetDialogController controller = loader.getController();
+
+            List<AssetEntry> failedEntries = new ArrayList<>();
+            for (ScanResult result : failedList) {
+                failedEntries.add(new AssetEntry(result.getSerial(), "", "", "", "", "", ""));
+            }
+            controller.initDataForBulkAdd(newPackage, failedEntries);
+
+            Stage stage = StageManager.createCustomStage(scanSerialField.getScene().getWindow(), "Process Failed Scans for Package " + trackingNumber, root);
+            stage.showAndWait();
+
+            failedList.clear();
+            if (parentController != null) parentController.refreshData();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            showAlert("Error", "Could not open the 'Add Asset' window.");
+        }
+    }
     private void printDeploymentLabels(String serialNumber) {
         String sku = assetDAO.findAssetBySerialNumber(serialNumber)
                 .map(AssetInfo::getModelNumber)

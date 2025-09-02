@@ -66,6 +66,9 @@
                         <Tab text="Device Status Tracking">
                             <fx:include source="DeviceStatusTracking.fxml"/>
                         </Tab>
+                        <Tab text="Box ID Viewer">
+                            <fx:include source="BoxIdViewer.fxml"/>
+                        </Tab>
                         <Tab text="Label Printing">
                             <fx:include source="LabelPrinting.fxml"/>
                         </Tab>

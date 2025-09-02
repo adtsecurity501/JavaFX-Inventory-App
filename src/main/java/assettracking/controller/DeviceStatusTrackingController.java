@@ -80,11 +80,12 @@ public class DeviceStatusTrackingController {
             if (newVal != null) {
                 subStatusUpdateCombo.getItems().addAll(StatusManager.getSubStatuses(newVal));
                 if (!subStatusUpdateCombo.getItems().isEmpty()) {
-                    subStatusUpdateCombo.getSelectionModel().selectFirst();
+                    subStatusUpdateCombo.getSelectionModel().select(0); // Changed from selectFirst()
                 }
             }
             updateDisposalControlsVisibility();
         });
+
 
         subStatusUpdateCombo.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
             updateDisposalControlsVisibility();
@@ -254,6 +255,7 @@ public class DeviceStatusTrackingController {
                             .otherwise((ContextMenu) null)
             );
             row.itemProperty().addListener((obs, previousItem, currentItem) -> {
+                // Always remove old styles first
                 row.getStyleClass().removeAll("flagged-row", "wip-row", "disposal-row", "processed-row", "shipped-row");
                 if (currentItem != null) {
                     if (currentItem.isIsFlagged()) {
@@ -262,7 +264,7 @@ public class DeviceStatusTrackingController {
                         String status = currentItem.getStatus() != null ? currentItem.getStatus() : "";
                         switch (status) {
                             case "WIP": row.getStyleClass().add("wip-row"); break;
-                            case "Disposal/EOL": row.getStyleClass().add("disposal-row"); break;
+                            case "Disposal/EOL": case "Disposed": row.getStyleClass().add("disposal-row"); break;
                             case "Processed": row.getStyleClass().add("processed-row"); break;
                             case "Everon": case "Phone": row.getStyleClass().add("shipped-row"); break;
                         }
