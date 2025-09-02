@@ -10,18 +10,13 @@ import java.util.List;
 
 public class PackageDAO {
 
-    /**
-     * Original method that takes a Package object.
-     */
+    // A private record to bundle query details, keeping it internal to the DAO.
+    private record QueryAndParams(String sql, List<Object> params) {}
+
     public int addPackage(Package pkg) {
         return addPackage(pkg.getTrackingNumber(), pkg.getFirstName(), pkg.getLastName(), pkg.getCity(), pkg.getState(), pkg.getZipCode(), pkg.getReceiveDate());
     }
 
-    /**
-     * NEW OVERLOADED METHOD: Inserts a new package using raw data.
-     * This is a more robust way to handle package creation from controllers.
-     * @return The generated packageId, or -1 on failure.
-     */
     public int addPackage(String tracking, String firstName, String lastName, String city, String state, String zip, LocalDate date) {
         String sql = "INSERT INTO Packages (tracking_number, first_name, last_name, city, state, zip_code, receive_date) VALUES (?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = DatabaseConnection.getInventoryConnection();
@@ -38,7 +33,7 @@ public class PackageDAO {
             stmt.executeUpdate();
             try (ResultSet rs = stmt.getGeneratedKeys()) {
                 if (rs.next()) {
-                    return rs.getInt(1); // Return generated packageId
+                    return rs.getInt(1);
                 }
             }
         } catch (SQLException e) {
@@ -47,14 +42,38 @@ public class PackageDAO {
         return -1;
     }
 
-    public List<Package> getAllPackages() {
-        List<Package> packages = new ArrayList<>();
-        String sql = "SELECT * FROM Packages";
+    public int countFilteredPackages(String trackingFilter, LocalDate fromDate, LocalDate toDate) throws SQLException {
+        QueryAndParams queryAndParams = buildFilteredQuery(true, trackingFilter, fromDate, toDate);
         try (Connection conn = DatabaseConnection.getInventoryConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+             PreparedStatement stmt = conn.prepareStatement(queryAndParams.sql)) {
+            for (int i = 0; i < queryAndParams.params.size(); i++) {
+                stmt.setObject(i + 1, queryAndParams.params.get(i));
+            }
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
+        }
+        return 0;
+    }
+
+    public List<Package> getFilteredPackagesForPage(String trackingFilter, LocalDate fromDate, LocalDate toDate, int rowsPerPage, int pageIndex) throws SQLException {
+        List<Package> packageList = new ArrayList<>();
+        QueryAndParams queryAndParams = buildFilteredQuery(false, trackingFilter, fromDate, toDate);
+
+        try (Connection conn = DatabaseConnection.getInventoryConnection();
+             PreparedStatement stmt = conn.prepareStatement(queryAndParams.sql)) {
+
+            int paramIndex = 1;
+            for (Object param : queryAndParams.params) {
+                stmt.setObject(paramIndex++, param);
+            }
+            stmt.setInt(paramIndex++, rowsPerPage);
+            stmt.setInt(paramIndex, pageIndex * rowsPerPage);
+
+            ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
-                packages.add(new Package(
+                packageList.add(new Package(
                         rs.getInt("package_id"),
                         rs.getString("tracking_number"),
                         rs.getString("first_name"),
@@ -65,9 +84,45 @@ public class PackageDAO {
                         LocalDate.parse(rs.getString("receive_date"))
                 ));
             }
-        } catch (SQLException e) {
-            System.err.println("Error retrieving packages: " + e.getMessage());
         }
-        return packages;
+        return packageList;
+    }
+
+    private QueryAndParams buildFilteredQuery(boolean forCount, String trackingFilter, LocalDate fromDate, LocalDate toDate) {
+        String selectClause = forCount ? "SELECT COUNT(*) " : "SELECT * ";
+        String fromClause = "FROM Packages";
+
+        List<Object> params = new ArrayList<>();
+        StringBuilder whereClause = new StringBuilder();
+
+        if (trackingFilter != null && !trackingFilter.isEmpty()) {
+            whereClause.append(" tracking_number LIKE ?");
+            params.add("%" + trackingFilter + "%");
+        }
+
+        if (fromDate != null) {
+            if (!whereClause.isEmpty()) whereClause.append(" AND");
+            whereClause.append(" receive_date >= ?");
+            // THIS IS THE FIX: Removed .toString()
+            params.add(fromDate);
+        }
+
+        if (toDate != null) {
+            if (!whereClause.isEmpty()) whereClause.append(" AND");
+            whereClause.append(" receive_date <= ?");
+            // THIS IS THE FIX: Removed .toString()
+            params.add(toDate);
+        }
+
+        String fullQuery = selectClause + fromClause;
+        if (!whereClause.isEmpty()) {
+            fullQuery += " WHERE" + whereClause.toString();
+        }
+
+        if (!forCount) {
+            fullQuery += " ORDER BY receive_date DESC LIMIT ? OFFSET ?";
+        }
+
+        return new QueryAndParams(fullQuery, params);
     }
 }

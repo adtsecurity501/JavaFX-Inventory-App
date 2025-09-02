@@ -3,7 +3,6 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<?import javafx.scene.layout.FlowPane?>
 
 <BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="assettracking.controller.PackageManagementController">
     <top>
@@ -14,13 +13,12 @@
             <DatePicker fx:id="fromDatePicker"/>
             <Label text="To:"/>
             <DatePicker fx:id="toDatePicker"/>
-            <Button onAction="#handleFilter" text="Filter"/>
+            <Button onAction="#handleRefresh" text="Filter"/>
             <Button onAction="#handleClearFilters" text="Clear"/>
             <Button onAction="#handleRefresh" text="Refresh" styleClass="success"/>
         </FlowPane>
     </top>
     <center>
-        <!-- FIX: Added styleClass to enforce fixed row sizes -->
         <TableView fx:id="packageTable" fixedCellSize="35.0" styleClass="fixed-row-size">
             <columns>
                 <TableColumn fx:id="trackingNumberCol" prefWidth="150.0" text="Tracking Number"/>
