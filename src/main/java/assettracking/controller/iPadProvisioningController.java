@@ -4,10 +4,10 @@ import assettracking.dao.bulk.iPadProvisioningDAO;
 import assettracking.data.bulk.BulkDevice;
 import assettracking.data.bulk.RosterEntry;
 import assettracking.data.bulk.StagedDevice;
-import assettracking.ui.ExcelReader;
-import assettracking.ui.ExcelWriter;
+import assettracking.manager.DeviceImportService;
+import assettracking.manager.ProvisioningExportService;
+import assettracking.manager.RosterImportService;
 import assettracking.manager.StageManager;
-import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -21,7 +21,6 @@ import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
 import java.io.File;
-import java.net.URL;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -31,158 +30,49 @@ import java.util.Optional;
 
 public class iPadProvisioningController {
 
-    // --- All FXML Fields ---
-    @FXML
-    private Button importDeviceListButton;
-    @FXML
-    private Label deviceListStatusLabel;
-    @FXML
-    private Button importRosterButton;
-    @FXML
-    private TextField snRefFilterField;
-    @FXML
-    private TableView<RosterEntry> rosterTable;
-    @FXML
-    private TableColumn<RosterEntry, String> rosterNameCol;
-    @FXML
-    private TableColumn<RosterEntry, String> rosterSnRefCol;
-    @FXML
-    private TextField serialScanField;
-    @FXML
-    private TableView<StagedDevice> stagingTable;
-    @FXML
-    private TableColumn<StagedDevice, String> stageFirstNameCol;
-    @FXML
-    private TableColumn<StagedDevice, String> stageLastNameCol;
-    @FXML
-    private TableColumn<StagedDevice, String> stageSerialCol;
-    @FXML
-    private TableColumn<StagedDevice, String> stageImeiCol;
-    @FXML
-    private TableColumn<StagedDevice, String> stageSimCol;
-    @FXML
-    private TableColumn<StagedDevice, String> stageSnRefCol;
-    @FXML
-    private TableColumn<StagedDevice, String> stageEmailCol;
-    @FXML
-    private TableColumn<StagedDevice, String> stageCarrierCol;
-    @FXML
-    private TableColumn<StagedDevice, String> stageCarrierAccountCol;
-    @FXML
-    private Button exportButton;
-    @FXML
-    private Label statusLabel;
-    @FXML
-    private TextField dbSearchField;
-    @FXML
-    private TableView<BulkDevice> dbResultsTable;
-    @FXML
-    private TableColumn<BulkDevice, String> dbSerialCol;
-    @FXML
-    private TableColumn<BulkDevice, String> dbImeiCol;
-    @FXML
-    private TableColumn<BulkDevice, String> dbSimCol;
-    @FXML
-    private TableColumn<BulkDevice, String> dbDeviceNameCol;
-    @FXML
-    private Button stageUnassignedButton;
-    @FXML
-    private ToggleButton bulkModeToggle;
+    // --- FXML Fields ---
+    @FXML private Button importDeviceListButton, importRosterButton, exportButton, stageUnassignedButton;
+    @FXML private Label deviceListStatusLabel, statusLabel;
+    @FXML private TextField snRefFilterField, serialScanField, dbSearchField;
+    @FXML private TableView<RosterEntry> rosterTable;
+    @FXML private TableColumn<RosterEntry, String> rosterNameCol, rosterSnRefCol;
+    @FXML private TableView<StagedDevice> stagingTable;
+    @FXML private TableColumn<StagedDevice, String> stageFirstNameCol, stageLastNameCol, stageSerialCol, stageImeiCol, stageSimCol, stageSnRefCol, stageEmailCol, stageCarrierCol, stageCarrierAccountCol;
+    @FXML private TableView<BulkDevice> dbResultsTable;
+    @FXML private TableColumn<BulkDevice, String> dbSerialCol, dbImeiCol, dbSimCol, dbDeviceNameCol;
+    @FXML private ToggleButton bulkModeToggle;
 
+    // --- Services and DAO ---
+    private final DeviceImportService deviceImporter = new DeviceImportService();
+    private final RosterImportService rosterImporter = new RosterImportService();
+    private final ProvisioningExportService exportService = new ProvisioningExportService();
     private final iPadProvisioningDAO dao = new iPadProvisioningDAO();
+
+    // --- UI State and Data Lists ---
     private final ObservableList<RosterEntry> rosterList = FXCollections.observableArrayList();
-    private FilteredList<RosterEntry> filteredRosterList;
     private final ObservableList<StagedDevice> stagedDeviceList = FXCollections.observableArrayList();
     private final ObservableList<BulkDevice> dbDeviceList = FXCollections.observableArrayList();
-
+    private FilteredList<RosterEntry> filteredRosterList;
     private boolean isDeviceListLoaded = false;
     private boolean isRosterLoaded = false;
 
     @FXML
     public void initialize() {
-        setupRosterTable();
-        setupStagingTable();
-        setupDbSearchTable();
+        setupTablesAndFilters();
+        setupEventListeners();
         checkInitialDeviceState();
         updateWorkflowControls();
-
-        serialScanField.setOnAction(event -> {
-            if (bulkModeToggle.isSelected()) {
-                snRefFilterField.requestFocus();
-            } else {
-                handleStageUnassigned();
-            }
-        });
-
-        bulkModeToggle.selectedProperty().addListener((obs, oldVal, newVal) -> {
-            if (newVal) {
-                bulkModeToggle.setText("Bulk Assignment Mode: ON");
-                bulkModeToggle.getStyleClass().add("success");
-            } else {
-                bulkModeToggle.setText("Bulk Assignment Mode: OFF");
-                bulkModeToggle.getStyleClass().remove("success");
-            }
-            updateWorkflowControls();
-        });
-
-        snRefFilterField.setOnAction(event -> handleAddDeviceToStaging());
-        dbSearchField.setOnAction(event -> handleDbSearch());
     }
 
-    private void checkInitialDeviceState() {
-        Task<Integer> dbCheckTask = new Task<>() {
-            @Override
-            protected Integer call() throws Exception {
-                return dao.getDeviceCount();
-            }
-        };
-
-        dbCheckTask.setOnSucceeded(e -> {
-            int count = dbCheckTask.getValue();
-            if (count > 0) {
-                isDeviceListLoaded = true;
-                deviceListStatusLabel.setText(String.format("Device List: %d devices loaded from database.", count));
-                updateWorkflowControls();
-            }
-        });
-
-        dbCheckTask.setOnFailed(e -> {
-            deviceListStatusLabel.setText("Database connection failed.");
-            StageManager.showAlert(getStage().getScene().getWindow(), Alert.AlertType.ERROR, "Database Error", "Could not connect to check for existing devices.");
-        });
-
-        new Thread(dbCheckTask).start();
-    }
-
-    private void updateWorkflowControls() {
-        serialScanField.setDisable(!isDeviceListLoaded);
-        stageUnassignedButton.setDisable(!isDeviceListLoaded);
-        bulkModeToggle.setDisable(!isDeviceListLoaded);
-
-        boolean isAssignmentReady = isDeviceListLoaded && isRosterLoaded && bulkModeToggle.isSelected();
-        snRefFilterField.setDisable(!isAssignmentReady);
-        rosterTable.setDisable(!isAssignmentReady);
-
-        if (isDeviceListLoaded) {
-            serialScanField.requestFocus();
-        }
-    }
-
-    private void setupRosterTable() {
-        rosterNameCol.setCellValueFactory(cellData ->
-                new SimpleStringProperty(cellData.getValue().getFirstName() + " " + cellData.getValue().getLastName()));
+    private void setupTablesAndFilters() {
+        // Roster Table
+        rosterNameCol.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getFirstName() + " " + cellData.getValue().getLastName()));
         rosterSnRefCol.setCellValueFactory(new PropertyValueFactory<>("snReferenceNumber"));
-
         filteredRosterList = new FilteredList<>(rosterList, p -> true);
         rosterTable.setItems(filteredRosterList);
+        snRefFilterField.textProperty().addListener((obs, o, n) -> filteredRosterList.setPredicate(entry -> n == null || n.isEmpty() || entry.getSnReferenceNumber().toLowerCase().endsWith(n.toLowerCase())));
 
-        snRefFilterField.textProperty().addListener((obs, oldVal, newVal) -> filteredRosterList.setPredicate(rosterEntry -> {
-            if (newVal == null || newVal.isEmpty()) return true;
-            return rosterEntry.getSnReferenceNumber().toLowerCase().endsWith(newVal.toLowerCase());
-        }));
-    }
-
-    private void setupStagingTable() {
+        // Staging Table
         stageCarrierCol.setCellValueFactory(new PropertyValueFactory<>("carrier"));
         stageCarrierAccountCol.setCellValueFactory(new PropertyValueFactory<>("carrierAccountNumber"));
         stageFirstNameCol.setCellValueFactory(new PropertyValueFactory<>("firstName"));
@@ -192,31 +82,20 @@ public class iPadProvisioningController {
         stageSimCol.setCellValueFactory(new PropertyValueFactory<>("sim"));
         stageSnRefCol.setCellValueFactory(new PropertyValueFactory<>("snReferenceNumber"));
         stageEmailCol.setCellValueFactory(new PropertyValueFactory<>("employeeEmail"));
-
         stageSimCol.setCellFactory(TextFieldTableCell.forTableColumn());
-        stageSimCol.setOnEditCommit(event -> {
-            StagedDevice device = event.getRowValue();
-            updateSimCardInDb(device.getSerialNumber(), event.getNewValue());
-        });
-
         stagingTable.setItems(stagedDeviceList);
-
-        // NEW: Add a Row Factory to apply custom styling for PR devices.
-        stagingTable.setRowFactory(tv -> new TableRow<StagedDevice>() {
+        stagingTable.setRowFactory(tv -> new TableRow<>() {
             @Override
             protected void updateItem(StagedDevice item, boolean empty) {
                 super.updateItem(item, empty);
-                // Always remove the class first to handle list updates correctly.
                 getStyleClass().remove("t-mobile-override-row");
                 if (item != null && !empty && item.isWasAutoSetToTmobile()) {
-                    // Apply the CSS class if the flag is set.
                     getStyleClass().add("t-mobile-override-row");
                 }
             }
         });
-    }
 
-    private void setupDbSearchTable() {
+        // DB Search Table
         dbSerialCol.setCellValueFactory(new PropertyValueFactory<>("serialNumber"));
         dbImeiCol.setCellValueFactory(new PropertyValueFactory<>("imei"));
         dbSimCol.setCellValueFactory(new PropertyValueFactory<>("iccid"));
@@ -224,81 +103,65 @@ public class iPadProvisioningController {
         dbResultsTable.setItems(dbDeviceList);
     }
 
-    @FXML
-    private void handleDbSearch() {
-        String query = dbSearchField.getText().trim();
-        if (query.isEmpty()) {
-            dbDeviceList.clear();
-            return;
-        }
-
-        Task<List<BulkDevice>> searchTask = new Task<>() {
-            @Override
-            protected List<BulkDevice> call() throws Exception {
-                return dao.searchDevices(query);
-            }
-        };
-
-        searchTask.setOnSucceeded(e -> {
-            dbDeviceList.setAll(searchTask.getValue());
-            statusLabel.setText("Found " + dbDeviceList.size() + " devices in DB.");
+    private void setupEventListeners() {
+        serialScanField.setOnAction(event -> { if (bulkModeToggle.isSelected()) snRefFilterField.requestFocus(); else handleStageUnassigned(); });
+        bulkModeToggle.selectedProperty().addListener((obs, o, n) -> {
+            bulkModeToggle.setText("Bulk Assignment Mode: " + (n ? "ON" : "OFF"));
+            if (n) bulkModeToggle.getStyleClass().add("success"); else bulkModeToggle.getStyleClass().remove("success");
+            updateWorkflowControls();
         });
-        searchTask.setOnFailed(e -> StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "DB Search Error", "Failed to search devices: " + searchTask.getException().getMessage()));
+        stageSimCol.setOnEditCommit(event -> updateSimCardInDb(event.getRowValue().getSerialNumber(), event.getNewValue()));
+        snRefFilterField.setOnAction(event -> handleAddDeviceToStaging());
+        dbSearchField.setOnAction(event -> handleDbSearch());
+    }
 
-        new Thread(searchTask).start();
+    private void checkInitialDeviceState() {
+        Task<Integer> dbCheckTask = new Task<>() { @Override protected Integer call() throws Exception { return dao.getDeviceCount(); } };
+        dbCheckTask.setOnSucceeded(e -> {
+            if (dbCheckTask.getValue() > 0) {
+                isDeviceListLoaded = true;
+                deviceListStatusLabel.setText(String.format("Device List: %d devices in DB.", dbCheckTask.getValue()));
+                updateWorkflowControls();
+            }
+        });
+        new Thread(dbCheckTask).start();
+    }
+
+    private void updateWorkflowControls() {
+        boolean assignmentReady = isDeviceListLoaded && isRosterLoaded && bulkModeToggle.isSelected();
+        serialScanField.setDisable(!isDeviceListLoaded);
+        stageUnassignedButton.setDisable(!isDeviceListLoaded);
+        bulkModeToggle.setDisable(!isDeviceListLoaded);
+        snRefFilterField.setDisable(!assignmentReady);
+        rosterTable.setDisable(!assignmentReady);
+        exportButton.setDisable(stagedDeviceList.isEmpty());
+        if (isDeviceListLoaded) serialScanField.requestFocus();
     }
 
     @FXML
     private void handleImportDeviceList() {
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Select 'Device Information Full' Excel File");
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Excel Files", "*.xlsx"));
-        File file = fileChooser.showOpenDialog(getStage());
+        File file = showFileChooser("Select 'Device Information Full' Excel File");
         if (file == null) return;
 
-        Task<List<BulkDevice>> importTask = new Task<>() {
-            @Override
-            protected List<BulkDevice> call() throws Exception {
-                return ExcelReader.readDeviceFile(file);
-            }
-        };
-
+        Task<Integer> importTask = new Task<>() { @Override protected Integer call() throws Exception { return deviceImporter.importFromFile(file); } };
         importTask.setOnRunning(e -> statusLabel.setText("Importing device list..."));
         importTask.setOnSucceeded(e -> {
-            List<BulkDevice> devices = importTask.getValue();
-            try {
-                dao.upsertBulkDevices(devices);
-                deviceListStatusLabel.setText(String.format("Device List: %d devices loaded/updated.", devices.size()));
-                statusLabel.setText("Device list import successful!");
-                isDeviceListLoaded = true;
-                updateWorkflowControls();
-            } catch (SQLException ex) {
-                StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Database Error", "Failed to save devices: " + ex.getMessage());
-                statusLabel.setText("Import failed.");
-            }
+            int count = importTask.getValue();
+            deviceListStatusLabel.setText(String.format("Device List: %d devices loaded/updated.", count));
+            statusLabel.setText("Device list import successful!");
+            isDeviceListLoaded = true;
+            updateWorkflowControls();
         });
-        importTask.setOnFailed(e -> {
-            StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Import Error", "Failed to read device file: " + importTask.getException().getMessage());
-            statusLabel.setText("Import failed.");
-        });
+        importTask.setOnFailed(e -> StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Import Error", "Failed to process device file: " + importTask.getException().getMessage()));
         new Thread(importTask).start();
     }
 
     @FXML
     private void handleImportRoster() {
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Select 'Sales Readiness Roster' Excel File");
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Excel Files", "*.xlsx"));
-        File file = fileChooser.showOpenDialog(getStage());
+        File file = showFileChooser("Select 'Sales Readiness Roster' Excel File");
         if (file == null) return;
 
-        Task<List<RosterEntry>> importTask = new Task<>() {
-            @Override
-            protected List<RosterEntry> call() throws Exception {
-                return ExcelReader.readRosterFile(file);
-            }
-        };
-
+        Task<List<RosterEntry>> importTask = new Task<>() { @Override protected List<RosterEntry> call() throws Exception { return rosterImporter.importFromFile(file); } };
         importTask.setOnRunning(e -> statusLabel.setText("Loading roster..."));
         importTask.setOnSucceeded(e -> {
             rosterList.setAll(importTask.getValue());
@@ -313,48 +176,30 @@ public class iPadProvisioningController {
     @FXML
     private void handleAddDeviceToStaging() {
         String serial = serialScanField.getText().trim().toUpperCase();
-        if (serial.isEmpty()) {
-            StageManager.showAlert(getStage(), Alert.AlertType.WARNING, "Input Error", "Please scan a serial number first.");
-            serialScanField.requestFocus();
-            return;
-        }
+        if (serial.isEmpty()) { StageManager.showAlert(getStage(), Alert.AlertType.WARNING, "Input Error", "Please scan a serial number."); return; }
+        if (stagedDeviceList.stream().anyMatch(d -> d.getSerialNumber().equals(serial))) { StageManager.showAlert(getStage(), Alert.AlertType.WARNING, "Duplicate", "Device " + serial + " is already staged."); return; }
 
-        RosterEntry employeeToAssign = rosterTable.getItems().size() == 1 ? rosterTable.getItems().getFirst() : rosterTable.getSelectionModel().getSelectedItem();
-
-        if (employeeToAssign == null) {
-            StageManager.showAlert(getStage(), Alert.AlertType.WARNING, "Selection Error", "Please select a single employee from the table.");
-            return;
-        }
+        RosterEntry employee = rosterTable.getItems().size() == 1 ? rosterTable.getItems().getFirst() : rosterTable.getSelectionModel().getSelectedItem();
+        if (employee == null) { StageManager.showAlert(getStage(), Alert.AlertType.WARNING, "Selection Error", "Please select an employee."); return; }
 
         try {
             Optional<BulkDevice> deviceOpt = dao.findDeviceBySerial(serial);
             if (deviceOpt.isPresent()) {
-                if (stagedDeviceList.stream().anyMatch(d -> d.getSerialNumber().equals(serial))) {
-                    StageManager.showAlert(getStage(), Alert.AlertType.WARNING, "Duplicate Entry", "Device " + serial + " is already staged.");
-                } else {
-                    // Create the StagedDevice object first
-                    StagedDevice newDevice = new StagedDevice(employeeToAssign, deviceOpt.get());
-
-                    // --- NEW LOGIC BLOCK ---
-                    // Check if bulk mode is on and the employee's country is "PR"
-                    if (bulkModeToggle.isSelected() && "PR".equalsIgnoreCase(employeeToAssign.getCountry())) {
-                        newDevice.setCarrier("T-Mobile");
-                        newDevice.setCarrierAccountNumber("TMB-x285");
-                        newDevice.setWasAutoSetToTmobile(true); // Set the flag for the UI
-                    }
-                    // --- END OF NEW LOGIC ---
-
-                    stagedDeviceList.add(newDevice); // Add the (potentially modified) device to the list
-                    statusLabel.setText("Added " + serial);
-                    exportButton.setDisable(false);
+                StagedDevice newDevice = new StagedDevice(employee, deviceOpt.get());
+                if (bulkModeToggle.isSelected() && "PR".equalsIgnoreCase(employee.getCountry())) {
+                    newDevice.setCarrier("T-Mobile");
+                    newDevice.setCarrierAccountNumber("TMB-x285");
+                    newDevice.setWasAutoSetToTmobile(true);
                 }
+                stagedDeviceList.add(newDevice);
+                statusLabel.setText("Added " + serial);
+                updateWorkflowControls();
             } else {
-                StageManager.showAlert(getStage(), Alert.AlertType.WARNING, "Device Not Found", "Serial number " + serial + " was not found.");
+                StageManager.showAlert(getStage(), Alert.AlertType.WARNING, "Not Found", "Serial " + serial + " not found.");
             }
         } catch (SQLException e) {
             StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Database Error", "Could not look up serial: " + e.getMessage());
         }
-
         serialScanField.clear();
         snRefFilterField.clear();
         serialScanField.requestFocus();
@@ -363,31 +208,103 @@ public class iPadProvisioningController {
     @FXML
     private void handleStageUnassigned() {
         String serial = serialScanField.getText().trim().toUpperCase();
-        if (serial.isEmpty()) {
-            StageManager.showAlert(getStage(), Alert.AlertType.WARNING, "Input Error", "Please scan a serial number first.");
-            serialScanField.requestFocus();
-            return;
-        }
+        if (serial.isEmpty()) { StageManager.showAlert(getStage(), Alert.AlertType.WARNING, "Input Error", "Please scan a serial number."); return; }
+        if (stagedDeviceList.stream().anyMatch(d -> d.getSerialNumber().equals(serial))) { StageManager.showAlert(getStage(), Alert.AlertType.WARNING, "Duplicate", "Device " + serial + " is already staged."); return; }
 
         try {
-            Optional<BulkDevice> deviceOpt = dao.findDeviceBySerial(serial);
-            if (deviceOpt.isPresent()) {
-                if (stagedDeviceList.stream().anyMatch(d -> d.getSerialNumber().equals(serial))) {
-                    StageManager.showAlert(getStage(), Alert.AlertType.WARNING, "Duplicate Entry", "Device " + serial + " is already staged.");
-                } else {
-                    stagedDeviceList.add(new StagedDevice(deviceOpt.get()));
-                    statusLabel.setText("Added unassigned device: " + serial);
-                    exportButton.setDisable(false);
-                }
-            } else {
-                StageManager.showAlert(getStage(), Alert.AlertType.WARNING, "Device Not Found", "Serial number " + serial + " was not found in the imported device list.");
-            }
+            dao.findDeviceBySerial(serial).ifPresentOrElse(device -> {
+                stagedDeviceList.add(new StagedDevice(device));
+                statusLabel.setText("Added unassigned device: " + serial);
+                updateWorkflowControls();
+            }, () -> StageManager.showAlert(getStage(), Alert.AlertType.WARNING, "Not Found", "Serial " + serial + " not found."));
         } catch (SQLException e) {
             StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Database Error", "Could not look up serial: " + e.getMessage());
         }
-
         serialScanField.clear();
         serialScanField.requestFocus();
+    }
+
+    @FXML
+    private void handleExport() {
+        File file = showSaveDialog();
+        if (file == null) return;
+
+        Task<Void> exportTask = new Task<>() {
+            @Override
+            protected Void call() throws Exception {
+                List<StagedDevice> devicesToExport = new ArrayList<>(stagedDeviceList);
+                exportService.exportToFile(file, devicesToExport);
+                dao.saveAssignments(devicesToExport);
+                return null;
+            }
+        };
+        exportTask.setOnRunning(e -> statusLabel.setText("Exporting..."));
+        exportTask.setOnSucceeded(e -> {
+            StageManager.showAlert(getStage(), Alert.AlertType.INFORMATION, "Success", "Export complete and assignments saved.");
+            stagedDeviceList.clear();
+            updateWorkflowControls();
+            statusLabel.setText("Export complete.");
+        });
+        exportTask.setOnFailed(e -> StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Export Error", "An error occurred: " + e.getSource().getException().getMessage()));
+        new Thread(exportTask).start();
+    }
+
+    @FXML
+    private void handleDbSearch() {
+        String query = dbSearchField.getText().trim();
+        if (query.isEmpty()) {
+            dbDeviceList.clear();
+            return;
+        }
+        Task<List<BulkDevice>> searchTask = new Task<>() {
+            @Override
+            protected List<BulkDevice> call() throws Exception {
+                return dao.searchDevices(query);
+            }
+        };
+        searchTask.setOnSucceeded(e -> {
+            dbDeviceList.setAll(searchTask.getValue());
+            statusLabel.setText("Found " + dbDeviceList.size() + " devices in DB.");
+        });
+        searchTask.setOnFailed(e -> StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "DB Search Error", "Failed to search devices: " + searchTask.getException().getMessage()));
+        new Thread(searchTask).start();
+    }
+
+    @FXML
+    private void handleSetTmobile() {
+        StagedDevice selectedDevice = stagingTable.getSelectionModel().getSelectedItem();
+        if (selectedDevice == null) {
+            StageManager.showAlert(getStage(), Alert.AlertType.WARNING, "No Selection", "Please select a device in the staging table to update.");
+            return;
+        }
+        selectedDevice.setCarrier("T-Mobile");
+        selectedDevice.setCarrierAccountNumber("TMB-x285");
+        stagingTable.refresh();
+        statusLabel.setText("Set " + selectedDevice.getSerialNumber() + " to T-Mobile.");
+    }
+
+    @FXML
+    private void handleUpdateSim() {
+        StagedDevice selectedDevice = stagingTable.getSelectionModel().getSelectedItem();
+        if (selectedDevice == null) {
+            StageManager.showAlert(getStage(), Alert.AlertType.WARNING, "No Selection", "Please select a device in the staging table to update its SIM.");
+            return;
+        }
+        Optional<String> result = StageManager.showTextInputDialog(getStage(), "Update SIM Card Number", "Update SIM for device: " + selectedDevice.getSerialNumber(), "Please scan or enter the NEW SIM card (ICCID):", selectedDevice.getSim());
+        result.ifPresent(newSimRaw -> {
+            String newSim = newSimRaw.trim();
+            if (newSim.isEmpty() || newSim.equals(selectedDevice.getSim())) return;
+            selectedDevice.setSim(newSim);
+            stagingTable.refresh();
+            updateSimCardInDb(selectedDevice.getSerialNumber(), newSim);
+            statusLabel.setText("Updated SIM for " + selectedDevice.getSerialNumber());
+        });
+    }
+
+    @FXML
+    private void handleRemoveSelected() {
+        stagedDeviceList.removeAll(stagingTable.getSelectionModel().getSelectedItems());
+        updateWorkflowControls();
     }
 
     private void updateSimCardInDb(String serialNumber, String newSim) {
@@ -403,97 +320,18 @@ public class iPadProvisioningController {
         new Thread(updateTask).start();
     }
 
-    @FXML
-    private void handleSetTmobile() {
-        StagedDevice selectedDevice = stagingTable.getSelectionModel().getSelectedItem();
-        if (selectedDevice == null) {
-            StageManager.showAlert(getStage(), Alert.AlertType.WARNING, "No Selection", "Please select a device in the staging table to update.");
-            return;
-        }
-
-        selectedDevice.setCarrier("T-Mobile");
-        selectedDevice.setCarrierAccountNumber("TMB-x285");
-        stagingTable.refresh();
-        statusLabel.setText("Set " + selectedDevice.getSerialNumber() + " to T-Mobile.");
+    private File showFileChooser(String title) {
+        FileChooser fc = new FileChooser();
+        fc.setTitle(title);
+        fc.getExtensionFilters().add(new FileChooser.ExtensionFilter("Excel Files", "*.xlsx"));
+        return fc.showOpenDialog(getStage());
     }
 
-    @FXML
-    private void handleUpdateSim() {
-        StagedDevice selectedDevice = stagingTable.getSelectionModel().getSelectedItem();
-        if (selectedDevice == null) {
-            StageManager.showAlert(getStage(), Alert.AlertType.WARNING, "No Selection", "Please select a device in the staging table to update its SIM.");
-            return;
-        }
-
-        Optional<String> result = StageManager.showTextInputDialog(
-                getStage(),
-                "Update SIM Card Number",
-                "Update SIM for device: " + selectedDevice.getSerialNumber(),
-                "Please scan or enter the NEW SIM card (ICCID):",
-                selectedDevice.getSim()
-        );
-
-        result.ifPresent(newSimRaw -> {
-            String newSim = newSimRaw.trim();
-            if (newSim.isEmpty() || newSim.equals(selectedDevice.getSim())) return;
-
-            selectedDevice.setSim(newSim);
-            stagingTable.refresh();
-
-            updateSimCardInDb(selectedDevice.getSerialNumber(), newSim);
-
-            statusLabel.setText("Updated SIM for " + selectedDevice.getSerialNumber());
-        });
-    }
-
-
-    @FXML
-    private void handleRemoveSelected() {
-        stagedDeviceList.removeAll(stagingTable.getSelectionModel().getSelectedItems());
-        if (stagedDeviceList.isEmpty()) exportButton.setDisable(true);
-    }
-
-    @FXML
-    private void handleExport() {
-        FileChooser fileChooser = new FileChooser();
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("M-d-yyyy");
-        String currentDate = LocalDate.now().format(formatter);
-        fileChooser.setInitialFileName(String.format("ADT - vMOX Bulk Order %s.xlsx", currentDate));
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Excel Files", "*.xlsx"));
-        File file = fileChooser.showSaveDialog(getStage());
-        if (file == null) return;
-
-        URL resourceUrl = getClass().getResource("/template/Device_Submission_Template.xlsx");
-        if (resourceUrl == null) {
-            StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Template Not Found", "The required Excel template 'Device_Submission_Template.xlsx' could not be found in the application resources.");
-            return;
-        }
-        File templateFile = new File(resourceUrl.getFile());
-
-        Task<Void> exportTask = new Task<>() {
-            @Override
-            protected Void call() throws Exception {
-                ExcelWriter.writeTemplate(templateFile, file, new ArrayList<>(stagedDeviceList));
-                dao.saveAssignments(new ArrayList<>(stagedDeviceList));
-                return null;
-            }
-        };
-
-        exportTask.setOnRunning(e -> statusLabel.setText("Exporting..."));
-        exportTask.setOnSucceeded(e -> {
-            StageManager.showAlert(getStage(), Alert.AlertType.INFORMATION, "Success", "Export complete and assignments saved.");
-            stagedDeviceList.clear();
-            exportButton.setDisable(true);
-            statusLabel.setText("Export complete.");
-        });
-        exportTask.setOnFailed(e -> {
-            StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Export Error", "An error occurred during export: " + e.getSource().getException().getMessage());
-        });
-        new Thread(exportTask).start();
-    }
-
-    private void showAlert(Alert.AlertType alertType, String title, String content) {
-        StageManager.showAlert(getStage(), alertType, title, content);
+    private File showSaveDialog() {
+        FileChooser fc = new FileChooser();
+        fc.setInitialFileName(String.format("ADT - vMOX Bulk Order %s.xlsx", LocalDate.now().format(DateTimeFormatter.ofPattern("M-d-yyyy"))));
+        fc.getExtensionFilters().add(new FileChooser.ExtensionFilter("Excel Files", "*.xlsx"));
+        return fc.showSaveDialog(getStage());
     }
 
     private Stage getStage() {

@@ -19,7 +19,8 @@
         <RadioButton fx:id="days7Radio" text="Last 7 Days" selected="true" toggleGroup="$dateRangeToggleGroup"/>
         <RadioButton fx:id="days30Radio" text="Last 30 Days" toggleGroup="$dateRangeToggleGroup"/>
         <Region HBox.hgrow="ALWAYS" />
-        <Button text="Refresh" onAction="#refreshAllCharts" styleClass="success"/>
+        <!-- THIS IS THE CORRECTED LINE -->
+        <Button text="Refresh" onAction="#refreshAllData" styleClass="success"/>
         <Button fx:id="importFlagsButton" text="Import Flags..." onAction="#handleImportFlags"/>
         <Button onAction="#handleManageMelRules" text="Update MEL Rules..."/>
     </HBox>
@@ -35,7 +36,6 @@
                 <VBox spacing="5" style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 4;">
                     <Label fx:id="timeRangeTitleLabel" styleClass="h4"/>
                     <Separator/>
-                    <!-- ========== METRICS TABLE UPDATED FOR 4 COLUMNS ========== -->
                     <GridPane hgap="15" vgap="10">
                         <columnConstraints>
                             <ColumnConstraints hgrow="ALWAYS"/>
@@ -73,13 +73,11 @@
                         <Label fx:id="totalProcessedLabel" styleClass="kpi-metric, text-success" GridPane.rowIndex="6" GridPane.columnIndex="2"/>
                     </GridPane>
                 </VBox>
-                <!-- Breakdown Chart -->
                 <VBox spacing="5" VBox.vgrow="ALWAYS" style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 4;">
                     <Label fx:id="breakdownTitleLabel" styleClass="h4"/>
                     <PieChart fx:id="deploymentBreakdownChart" animated="true" VBox.vgrow="ALWAYS"/>
                 </VBox>
 
-                <!-- Intake Volume Chart -->
                 <VBox spacing="5" VBox.vgrow="ALWAYS" style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 4;">
                     <Label text="Intake Volume by Day" styleClass="h4"/>
                     <BarChart fx:id="weeklyIntakeChart" animated="true" VBox.vgrow="ALWAYS">
@@ -88,12 +86,10 @@
                     </BarChart>
                 </VBox>
 
-                <!-- NEW: Granular Data Section -->
                 <VBox spacing="5" VBox.vgrow="ALWAYS" style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 4;">
                     <Label fx:id="topModelsTitleLabel" styleClass="h4"/>
                     <TableView fx:id="topModelsTable" prefHeight="250.0">
                         <columns>
-                            <!-- THIS LINE IS MODIFIED -->
                             <TableColumn fx:id="modelNumberCol" prefWidth="400.0" text="Model / SKU"/>
                             <TableColumn fx:id="modelCountCol" prefWidth="100.0" text="Count"/>
                         </columns>
@@ -106,9 +102,8 @@
 
         <ScrollPane fx:id="rightScrollPane" fitToWidth="true" GridPane.columnIndex="1" VBox.vgrow="ALWAYS" style="-fx-background-color: transparent;">
             <VBox spacing="15">
-                <!-- Overall Health Section -->
                 <VBox spacing="5" style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 4;">
-                    <Label fx:id="healthTitleLabel" styleClass="h4"/> <!-- MODIFIED: Added fx:id -->
+                    <Label fx:id="healthTitleLabel" styleClass="h4"/>
                     <Separator/>
                     <GridPane hgap="15" vgap="15">
                         <columnConstraints>
@@ -126,7 +121,6 @@
                             <Label text="Avg. Turnaround (30d)" styleClass="kpi-title"/>
                             <Label fx:id="avgTurnaroundLabel" styleClass="kpi-metric, text-info" />
                         </VBox>
-                        <!-- NEW KPI -->
                         <VBox alignment="CENTER" spacing="5" GridPane.columnIndex="0" GridPane.rowIndex="1">
                             <Label text="Awaiting Disposal" styleClass="kpi-title"/>
                             <Label fx:id="awaitingDisposalLabel" styleClass="kpi-metric, text-danger">
@@ -137,9 +131,8 @@
                         </VBox>
                     </GridPane>
                 </VBox>
-                <!-- Pacing Section -->
                 <VBox spacing="5" style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 4;">
-                    <Label fx:id="pacingTitleLabel" styleClass="h4"/> <!-- MODIFIED: Added fx:id -->
+                    <Label fx:id="pacingTitleLabel" styleClass="h4"/>
                     <Separator/>
                     <GridPane hgap="15" vgap="15">
                         <columnConstraints>

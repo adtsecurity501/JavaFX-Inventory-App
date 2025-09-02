@@ -1,4 +1,4 @@
-package assettracking.ui;
+package assettracking.manager;
 
 import javafx.animation.AnimationTimer;
 import javafx.animation.PauseTransition;

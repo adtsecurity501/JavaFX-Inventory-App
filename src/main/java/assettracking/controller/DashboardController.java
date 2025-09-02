@@ -2,9 +2,9 @@ package assettracking.controller;
 
 import assettracking.dao.AppSettingsDAO;
 import assettracking.data.TopModelStat;
-import assettracking.db.DatabaseConnection;
+import assettracking.manager.DashboardDataService;
 import assettracking.manager.StageManager;
-import assettracking.ui.ConfettiManager;
+import assettracking.manager.ConfettiManager;
 import assettracking.ui.FlaggedDeviceImporter;
 import assettracking.ui.MelRulesImporter;
 import javafx.animation.ScaleTransition;
@@ -13,6 +13,7 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.scene.chart.BarChart;
 import javafx.scene.chart.PieChart;
@@ -24,119 +25,63 @@ import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.util.List;
+import java.util.Map;
 
 public class DashboardController {
 
-    @FXML
-    private BarChart<String, Number> weeklyIntakeChart;
-    @FXML
-    private PieChart inventoryPieChart;
-    @FXML
-    private PieChart deploymentBreakdownChart;
-    @FXML
-    private Label laptopsIntakenLabel, laptopsProcessedLabel, tabletsIntakenLabel, desktopsIntakenLabel, monitorsIntakenLabel;
-    @FXML
-    private Label tabletsProcessedLabel, desktopsProcessedLabel, monitorsProcessedLabel;
-    @FXML
-    private Label totalProcessedLabel;
-    @FXML
-    private Label laptopsDisposedLabel, tabletsDisposedLabel, desktopsDisposedLabel, monitorsDisposedLabel;
-    @FXML
-    private Label activeTriageLabel;
-    @FXML
-    private Label awaitingDisposalLabel;
-    @FXML
-    private Label avgTurnaroundLabel;
-    @FXML
-    private Label boxesAssembledLabel;
-    @FXML
-    private Label labelsCreatedLabel;
-    @FXML
-    private Label deviceGoalPacingLabel;
-    @FXML
-    private Label monitorGoalPacingLabel;
-    @FXML
-    private ToggleGroup dateRangeToggleGroup;
-    @FXML
-    private RadioButton todayRadio;
-    @FXML
-    private RadioButton days7Radio;
-    @FXML
-    private RadioButton days30Radio;
-    @FXML
-    private Button importFlagsButton;
-    @FXML
-    private TextField deviceGoalField;
-    @FXML
-    private TextField monitorGoalField;
-    @FXML
-    private Label timeRangeTitleLabel;
-    @FXML
-    private Label breakdownTitleLabel;
-    @FXML
-    private Label inventoryOverviewTitleLabel;
-    @FXML
-    private GridPane mainGridPane;
-    @FXML
-    private ColumnConstraints leftColumn;
-    @FXML
-    private ColumnConstraints rightColumn;
-    @FXML
-    private ScrollPane rightScrollPane;
-    @FXML
-    private Label healthTitleLabel;
-    @FXML
-    private Label pacingTitleLabel;
-    @FXML
-    private Label topModelsTitleLabel;
-    @FXML
-    private TableView<TopModelStat> topModelsTable;
-    @FXML
-    private TableColumn<TopModelStat, String> modelNumberCol;
-    @FXML
-    private TableColumn<TopModelStat, Integer> modelCountCol;
+    // --- FXML Fields (UI Components) ---
+    @FXML private BarChart<String, Number> weeklyIntakeChart;
+    @FXML private PieChart inventoryPieChart, deploymentBreakdownChart;
+    @FXML private Label laptopsIntakenLabel, laptopsProcessedLabel, tabletsIntakenLabel, desktopsIntakenLabel, monitorsIntakenLabel;
+    @FXML private Label tabletsProcessedLabel, desktopsProcessedLabel, monitorsProcessedLabel, totalProcessedLabel;
+    @FXML private Label laptopsDisposedLabel, tabletsDisposedLabel, desktopsDisposedLabel, monitorsDisposedLabel;
+    @FXML private Label activeTriageLabel, awaitingDisposalLabel, avgTurnaroundLabel, boxesAssembledLabel, labelsCreatedLabel;
+    @FXML private Label deviceGoalPacingLabel, monitorGoalPacingLabel, timeRangeTitleLabel, breakdownTitleLabel;
+    @FXML private Label inventoryOverviewTitleLabel, healthTitleLabel, pacingTitleLabel, topModelsTitleLabel;
+    @FXML private ToggleGroup dateRangeToggleGroup;
+    @FXML private RadioButton todayRadio, days7Radio, days30Radio;
+    @FXML private Button importFlagsButton;
+    @FXML private TextField deviceGoalField, monitorGoalField;
+    @FXML private GridPane mainGridPane;
+    @FXML private ColumnConstraints leftColumn, rightColumn;
+    @FXML private ScrollPane rightScrollPane;
+    @FXML private TableView<TopModelStat> topModelsTable;
+    @FXML private TableColumn<TopModelStat, String> modelNumberCol;
+    @FXML private TableColumn<TopModelStat, Integer> modelCountCol;
 
-    private final ObservableList<TopModelStat> topModelsList = FXCollections.observableArrayList();
+    // --- Services and DAO ---
+    private final DashboardDataService dataService = new DashboardDataService();
     private final AppSettingsDAO appSettingsDAO = new AppSettingsDAO();
 
+    // --- State and UI Helpers ---
+    private final ObservableList<TopModelStat> topModelsList = FXCollections.observableArrayList();
     private double weeklyDeviceGoal = 100.0;
     private double weeklyMonitorGoal = 50.0;
     private ConfettiManager confettiManager;
     private boolean goalMetCelebrated = false;
-    private final String LATEST_RECEIPT_SUBQUERY = "SELECT serial_number, MAX(receipt_id) as max_receipt_id FROM Receipt_Events GROUP BY serial_number";
 
     @FXML
     public void initialize() {
-        setupFilters();
         setupTopModelsTable();
         loadGoals();
-        if (deviceGoalField != null) deviceGoalField.setText(String.valueOf((int) weeklyDeviceGoal));
-        if (monitorGoalField != null) monitorGoalField.setText(String.valueOf((int) weeklyMonitorGoal));
-
-        mainGridPane.widthProperty().addListener((obs, oldVal, newVal) -> {
-            boolean isSingleColumn = newVal.doubleValue() < 800;
-            if (isSingleColumn) {
-                GridPane.setRowIndex(rightScrollPane, 1);
-                GridPane.setColumnIndex(rightScrollPane, 0);
-                leftColumn.setPercentWidth(100);
-                rightColumn.setPercentWidth(0);
-            } else {
-                GridPane.setRowIndex(rightScrollPane, 0);
-                GridPane.setColumnIndex(rightScrollPane, 1);
-                leftColumn.setPercentWidth(60);
-                rightColumn.setPercentWidth(40);
-            }
-        });
-
-        refreshAllCharts();
+        setupUIListeners();
+        refreshAllData();
     }
 
     public void init(StackPane rootPane) {
         this.confettiManager = new ConfettiManager(rootPane);
+    }
+
+    private void setupUIListeners() {
+        dateRangeToggleGroup.selectedToggleProperty().addListener((obs, oldVal, newVal) -> refreshAllData());
+        mainGridPane.widthProperty().addListener((obs, oldVal, newVal) -> {
+            boolean isSingleColumn = newVal.doubleValue() < 800;
+            GridPane.setRowIndex(rightScrollPane, isSingleColumn ? 1 : 0);
+            GridPane.setColumnIndex(rightScrollPane, isSingleColumn ? 0 : 1);
+            leftColumn.setPercentWidth(isSingleColumn ? 100 : 60);
+            rightColumn.setPercentWidth(isSingleColumn ? 0 : 40);
+        });
     }
 
     private void setupTopModelsTable() {
@@ -145,49 +90,130 @@ public class DashboardController {
         topModelsTable.setItems(topModelsList);
     }
 
-    @FXML
-    private void refreshAllCharts() {
-        Platform.runLater(() -> {
-            updateDynamicTitles();
-            loadKpiStats();
-            loadDynamicCharts();
-            loadStaticCharts();
-            loadTopModelsData();
+    @FXML private void refreshAllData() {
+        updateDynamicTitles();
+        loadGranularMetrics();
+        loadStaticKpis();
+        loadDynamicCharts();
+        loadTopModelsData();
+    }
+
+    private void loadGranularMetrics() {
+        Task<Map<String, Integer>> task = new Task<>() {
+            @Override
+            protected Map<String, Integer> call() throws Exception {
+                return dataService.getGranularMetrics(getDateFilterClause("p.receive_date"), getDateFilterClause("ds.last_update"));
+            }
+        };
+
+        task.setOnSucceeded(e -> {
+            Map<String, Integer> metrics = task.getValue();
+            animateLabelUpdate(laptopsIntakenLabel, metrics.getOrDefault("laptopsIntaken", 0).toString());
+            animateLabelUpdate(laptopsProcessedLabel, metrics.getOrDefault("laptopsProcessed", 0).toString());
+            animateLabelUpdate(laptopsDisposedLabel, metrics.getOrDefault("laptopsDisposed", 0).toString());
+            animateLabelUpdate(tabletsIntakenLabel, metrics.getOrDefault("tabletsIntaken", 0).toString());
+            animateLabelUpdate(tabletsProcessedLabel, metrics.getOrDefault("tabletsProcessed", 0).toString());
+            animateLabelUpdate(tabletsDisposedLabel, metrics.getOrDefault("tabletsDisposed", 0).toString());
+            animateLabelUpdate(desktopsIntakenLabel, metrics.getOrDefault("desktopsIntaken", 0).toString());
+            animateLabelUpdate(desktopsProcessedLabel, metrics.getOrDefault("desktopsProcessed", 0).toString());
+            animateLabelUpdate(desktopsDisposedLabel, metrics.getOrDefault("desktopsDisposed", 0).toString());
+            animateLabelUpdate(monitorsIntakenLabel, metrics.getOrDefault("monitorsIntaken", 0).toString());
+            animateLabelUpdate(monitorsProcessedLabel, metrics.getOrDefault("monitorsProcessed", 0).toString());
+            animateLabelUpdate(monitorsDisposedLabel, metrics.getOrDefault("monitorsDisposed", 0).toString());
+
+            int totalProcessed = metrics.values().stream().filter(v -> v > 0).mapToInt(Integer::intValue).sum(); // Simplified, needs refinement based on metric names
+            int totalDevicesProcessed = metrics.getOrDefault("laptopsProcessed", 0) + metrics.getOrDefault("tabletsProcessed", 0) + metrics.getOrDefault("desktopsProcessed", 0);
+            int totalMonitorsProcessed = metrics.getOrDefault("monitorsProcessed", 0);
+
+            animateLabelUpdate(totalProcessedLabel, String.valueOf(totalDevicesProcessed + totalMonitorsProcessed));
+            updatePacing(totalDevicesProcessed, totalMonitorsProcessed);
+
+            if (days7Radio.isSelected() && confettiManager != null && !goalMetCelebrated && (totalDevicesProcessed >= weeklyDeviceGoal || totalMonitorsProcessed >= weeklyMonitorGoal)) {
+                confettiManager.start();
+                goalMetCelebrated = true;
+            }
         });
+
+        task.setOnFailed(e -> StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Dashboard Error", "Could not load performance metrics."));
+        new Thread(task).start();
+    }
+
+    private void loadStaticKpis() {
+        Task<Map<String, String>> task = new Task<>() {
+            @Override
+            protected Map<String, String> call() throws Exception {
+                return dataService.getStaticKpis();
+            }
+        };
+
+        task.setOnSucceeded(e -> {
+            Map<String, String> kpis = task.getValue();
+            animateLabelUpdate(activeTriageLabel, kpis.getOrDefault("activeTriage", "0"));
+            animateLabelUpdate(awaitingDisposalLabel, kpis.getOrDefault("awaitingDisposal", "0"));
+            animateLabelUpdate(avgTurnaroundLabel, kpis.getOrDefault("avgTurnaround", "0.0 Days"));
+            int boxes = Integer.parseInt(kpis.getOrDefault("boxesAssembled", "0"));
+            animateLabelUpdate(boxesAssembledLabel, String.valueOf(boxes));
+            animateLabelUpdate(labelsCreatedLabel, String.valueOf(boxes * 2));
+        });
+
+        task.setOnFailed(e -> StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Dashboard Error", "Could not load static KPIs."));
+        new Thread(task).start();
     }
 
     private void loadTopModelsData() {
-        topModelsList.clear();
-        String dateFilter = getDateFilterClause("ds.last_update");
-        String sql = """
-                    SELECT
-                        re.model_number,
-                        COUNT(re.receipt_id) as model_count
-                    FROM
-                        Device_Status ds
-                    JOIN
-                        Receipt_Events re ON ds.receipt_id = re.receipt_id
-                    WHERE
-                        ds.status = 'Processed' AND %s
-                    GROUP BY
-                        re.model_number
-                    HAVING
-                        re.model_number IS NOT NULL AND re.model_number != ''
-                    ORDER BY
-                        model_count DESC
-                    LIMIT 10
-                """.formatted(dateFilter);
-
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
-            while (rs.next()) {
-                topModelsList.add(new TopModelStat(rs.getString("model_number"), rs.getInt("model_count")));
+        Task<List<TopModelStat>> task = new Task<>() {
+            @Override
+            protected List<TopModelStat> call() throws Exception {
+                return dataService.getTopModels(getDateFilterClause("ds.last_update"));
             }
-        } catch (SQLException e) {
-            System.err.println("Database Error loading Top Models: " + e.getMessage());
-            StageManager.showAlert(topModelsTable.getScene().getWindow(), Alert.AlertType.ERROR, "Database Error", "Could not load Top Processed Models data.");
+        };
+        task.setOnSucceeded(e -> topModelsList.setAll(task.getValue()));
+        task.setOnFailed(e -> StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Database Error", "Could not load Top Processed Models data."));
+        new Thread(task).start();
+    }
+
+    private void loadDynamicCharts() {
+        // Inventory Overview (Static Data)
+        Task<List<PieChart.Data>> inventoryTask = new Task<>() {
+            @Override protected List<PieChart.Data> call() throws Exception { return dataService.getInventoryOverviewData(); }
+        };
+        inventoryTask.setOnSucceeded(e -> setPieChartData(inventoryPieChart, FXCollections.observableArrayList(inventoryTask.getValue())));
+        new Thread(inventoryTask).start();
+
+        // Processed Breakdown (Dynamic Data)
+        Task<List<PieChart.Data>> breakdownTask = new Task<>() {
+            @Override protected List<PieChart.Data> call() throws Exception { return dataService.getProcessedBreakdownData(getDateFilterClause("ds.last_update")); }
+        };
+        breakdownTask.setOnSucceeded(e -> setPieChartData(deploymentBreakdownChart, FXCollections.observableArrayList(breakdownTask.getValue())));
+        new Thread(breakdownTask).start();
+
+        // Intake Volume (Dynamic Data)
+        Task<XYChart.Series<String, Number>> intakeTask = new Task<>() {
+            @Override protected XYChart.Series<String, Number> call() throws Exception { return dataService.getIntakeVolumeData(getDateFilterClause("p.receive_date")); }
+        };
+        intakeTask.setOnSucceeded(e -> weeklyIntakeChart.getData().setAll(intakeTask.getValue()));
+        new Thread(intakeTask).start();
+    }
+
+    private void updatePacing(int deviceCount, int monitorCount) {
+        if (weeklyDeviceGoal > 0) {
+            animateLabelUpdate(deviceGoalPacingLabel, String.format("%.1f%%", (deviceCount / weeklyDeviceGoal) * 100));
+        } else {
+            deviceGoalPacingLabel.setText("N/A");
         }
+        if (weeklyMonitorGoal > 0) {
+            animateLabelUpdate(monitorGoalPacingLabel, String.format("%.1f%%", (monitorCount / weeklyMonitorGoal) * 100));
+        } else {
+            monitorGoalPacingLabel.setText("N/A");
+        }
+    }
+
+    // --- Helper and UI Methods ---
+
+    private String getDateFilterClause(String columnName) {
+        if (todayRadio.isSelected()) return " date(" + columnName + ") = date('now')";
+        if (days7Radio.isSelected()) return " date(" + columnName + ") >= date('now', '-7 days')";
+        return " date(" + columnName + ") >= date('now', '-30 days')";
     }
 
     private void updateDynamicTitles() {
@@ -205,241 +231,49 @@ public class DashboardController {
             pacingTitleLabel.setText("Monthly Pacing (Refurbished Only)");
             timeSuffix = "(Last 30 Days)";
         }
-
         healthTitleLabel.setText("Overall Health " + timeSuffix);
         breakdownTitleLabel.setText("Processed Breakdown " + timeSuffix);
         topModelsTitleLabel.setText("Top Processed Models " + timeSuffix);
         inventoryOverviewTitleLabel.setText("Asset Status Overview (All Time)");
     }
 
-    private void loadStaticKpis() {
-        String triageSql = "SELECT COUNT(*) as count FROM Device_Status ds JOIN (" + LATEST_RECEIPT_SUBQUERY + ") l ON ds.receipt_id = l.max_receipt_id JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id WHERE ds.status IN ('Intake', 'Triage & Repair') AND re.category NOT LIKE '%Monitor%'";
-        String awaitingDisposalSql = "SELECT COUNT(*) as count FROM Device_Status ds JOIN (" + LATEST_RECEIPT_SUBQUERY + ") l ON ds.receipt_id = l.max_receipt_id WHERE ds.status = 'Disposed' AND ds.sub_status IN ('Can-Am, Pending Pickup', 'Ingram, Pending Pickup', 'Ready for Wipe')";
-        String turnaroundSql = "SELECT AVG(JULIANDAY(ds.last_update) - JULIANDAY(p.receive_date)) as avg_days FROM Device_Status ds JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id JOIN Packages p ON re.package_id = p.package_id WHERE ds.status = 'Processed' AND ds.sub_status = 'Ready for Deployment' AND ds.last_update >= date('now', '-30 days')";
-
-        try (Connection conn = DatabaseConnection.getInventoryConnection()) {
-            try (PreparedStatement stmt = conn.prepareStatement(triageSql); ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) animateLabelUpdate(activeTriageLabel, String.valueOf(rs.getInt("count")));
-            }
-            try (PreparedStatement stmt = conn.prepareStatement(awaitingDisposalSql); ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) animateLabelUpdate(awaitingDisposalLabel, String.valueOf(rs.getInt("count")));
-            }
-            try (PreparedStatement stmt = conn.prepareStatement(turnaroundSql); ResultSet rs = stmt.executeQuery()) {
-                if (rs.next())
-                    animateLabelUpdate(avgTurnaroundLabel, String.format("%.1f Days", rs.getDouble("avg_days")));
-            }
-        } catch (SQLException e) {
-            System.err.println("Database Error loading static KPIs: " + e.getMessage());
+    private void setPieChartData(PieChart chart, ObservableList<PieChart.Data> data) {
+        double total = data.stream().mapToDouble(PieChart.Data::getPieValue).sum();
+        if (total == 0) {
+            data.clear();
+            PieChart.Data noDataSlice = new PieChart.Data("No Data", 1);
+            data.add(noDataSlice);
+            chart.setData(data);
+            Platform.runLater(() -> { if (noDataSlice.getNode() != null) noDataSlice.getNode().setVisible(false); });
+            return;
         }
-    }
-
-    private void setupFilters() {
-        dateRangeToggleGroup.selectedToggleProperty().addListener((obs, oldVal, newVal) -> refreshAllCharts());
-    }
-
-    private void loadKpiStats() {
-        loadGranularMetrics();
-        loadDailyAndPacingMetrics();
-        loadStaticKpis();
-    }
-
-    private String getDateFilterClause(String columnName) {
-        if (todayRadio.isSelected()) return " date(" + columnName + ") = date('now')";
-        if (days7Radio.isSelected()) return " date(" + columnName + ") >= date('now', '-7 days')";
-        if (days30Radio.isSelected()) return " date(" + columnName + ") >= date('now', '-30 days')";
-        return " date(" + columnName + ") >= date('now', '-7 days')";
+        data.forEach(d -> {
+            String originalName = d.getName();
+            if (originalName != null && !originalName.contains("%")) {
+                double percentage = (d.getPieValue() / total) * 100;
+                d.setName(String.format("%s\n%d (%.1f%%)", originalName, (int) d.getPieValue(), percentage));
+            }
+        });
+        chart.setData(data);
     }
 
     private void animateLabelUpdate(Label label, String newValue) {
-        if (label == null || label.getText().equals(newValue)) {
-            return;
-        }
+        if (label == null || label.getText().equals(newValue)) return;
         label.setText(newValue);
         ScaleTransition st = new ScaleTransition(Duration.millis(150), label);
-        st.setFromX(1);
-        st.setFromY(1);
-        st.setToX(1.3);
-        st.setToY(1.3);
-        st.setCycleCount(2);
-        st.setAutoReverse(true);
-        st.play();
+        st.setFromX(1); st.setFromY(1); st.setToX(1.3); st.setToY(1.3);
+        st.setCycleCount(2); st.setAutoReverse(true); st.play();
     }
 
-    private void loadGranularMetrics() {
-        String dateClause = getDateFilterClause("ds.last_update");
-        String intakeDateClause = getDateFilterClause("p.receive_date");
-        String consolidatedSql = """
-                    SELECT
-                        re.category,
-                        SUM(CASE WHEN %s THEN 1 ELSE 0 END) as IntakenCount,
-                        SUM(CASE WHEN ds.status = 'Processed' AND %s THEN 1 ELSE 0 END) as ProcessedCount,
-                        SUM(CASE WHEN ds.status = 'Disposed' AND %s THEN 1 ELSE 0 END) as DisposedCount
-                    FROM Receipt_Events re
-                    LEFT JOIN Packages p ON re.package_id = p.package_id
-                    LEFT JOIN Device_Status ds ON re.receipt_id = ds.receipt_id
-                    WHERE
-                        re.category LIKE '%%Laptop%%' OR
-                        re.category LIKE '%%Tablet%%' OR
-                        re.category LIKE '%%Desktop%%' OR
-                        re.category LIKE '%%Monitor%%'
-                    GROUP BY re.category
-                """.formatted(intakeDateClause, dateClause, dateClause);
-
-        int laptopsIntaken = 0, tabletsIntaken = 0, desktopsIntaken = 0, monitorsIntaken = 0;
-        int laptopsProcessed = 0, tabletsProcessed = 0, desktopsProcessed = 0, monitorsProcessed = 0;
-        int laptopsDisposed = 0, tabletsDisposed = 0, desktopsDisposed = 0, monitorsDisposed = 0;
-
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(consolidatedSql);
-             ResultSet rs = stmt.executeQuery()) {
-
-            while (rs.next()) {
-                String category = rs.getString("category");
-                if (category == null) continue;
-                if (category.contains("Laptop")) {
-                    laptopsIntaken += rs.getInt("IntakenCount");
-                    laptopsProcessed += rs.getInt("ProcessedCount");
-                    laptopsDisposed += rs.getInt("DisposedCount");
-                } else if (category.contains("Tablet")) {
-                    tabletsIntaken += rs.getInt("IntakenCount");
-                    tabletsProcessed += rs.getInt("ProcessedCount");
-                    tabletsDisposed += rs.getInt("DisposedCount");
-                } else if (category.contains("Desktop")) {
-                    desktopsIntaken += rs.getInt("IntakenCount");
-                    desktopsProcessed += rs.getInt("ProcessedCount");
-                    desktopsDisposed += rs.getInt("DisposedCount");
-                } else if (category.contains("Monitor")) {
-                    monitorsIntaken += rs.getInt("IntakenCount");
-                    monitorsProcessed += rs.getInt("ProcessedCount");
-                    monitorsDisposed += rs.getInt("DisposedCount");
-                }
-            }
-            animateLabelUpdate(laptopsIntakenLabel, String.valueOf(laptopsIntaken));
-            animateLabelUpdate(tabletsIntakenLabel, String.valueOf(tabletsIntaken));
-            animateLabelUpdate(desktopsIntakenLabel, String.valueOf(desktopsIntaken));
-            animateLabelUpdate(monitorsIntakenLabel, String.valueOf(monitorsIntaken));
-            animateLabelUpdate(laptopsProcessedLabel, String.valueOf(laptopsProcessed));
-            animateLabelUpdate(tabletsProcessedLabel, String.valueOf(tabletsProcessed));
-            animateLabelUpdate(desktopsProcessedLabel, String.valueOf(desktopsProcessed));
-            animateLabelUpdate(monitorsProcessedLabel, String.valueOf(monitorsProcessed));
-            animateLabelUpdate(laptopsDisposedLabel, String.valueOf(laptopsDisposed));
-            animateLabelUpdate(tabletsDisposedLabel, String.valueOf(tabletsDisposed));
-            animateLabelUpdate(desktopsDisposedLabel, String.valueOf(desktopsDisposed));
-            animateLabelUpdate(monitorsDisposedLabel, String.valueOf(monitorsDisposed));
-            int totalDevicesProcessed = laptopsProcessed + tabletsProcessed + desktopsProcessed + monitorsProcessed;
-            animateLabelUpdate(totalProcessedLabel, String.valueOf(totalDevicesProcessed));
-            if (days7Radio.isSelected() && confettiManager != null && !goalMetCelebrated && (totalDevicesProcessed >= weeklyDeviceGoal || monitorsProcessed >= weeklyMonitorGoal)) {
-                confettiManager.start();
-                goalMetCelebrated = true;
-            }
-        } catch (SQLException e) {
-            System.err.println("Database Error loading granular metrics: " + e.getMessage());
-            StageManager.showAlert(totalProcessedLabel.getScene().getWindow(), Alert.AlertType.ERROR, "Dashboard Error", "Could not load performance metrics.");
-        }
+    @FXML private void handleImportFlags() {
+        new FlaggedDeviceImporter().importFromFile(getStage(), this::refreshAllData);
     }
 
-    private void loadDailyAndPacingMetrics() {
-        String dailySql = "SELECT COUNT(DISTINCT re.serial_number) as count FROM Device_Status ds JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id WHERE ds.status = 'Processed' AND ds.sub_status = 'Ready for Deployment' AND date(ds.last_update) = date('now') AND EXISTS (SELECT 1 FROM Device_Status h_ds JOIN Receipt_Events h_re ON h_ds.receipt_id = h_re.receipt_id WHERE h_re.serial_number = re.serial_number AND h_ds.status IN ('Intake', 'Triage & Repair'))";
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(dailySql);
-             ResultSet rs = stmt.executeQuery()) {
-            if (rs.next()) {
-                int count = rs.getInt("count");
-                animateLabelUpdate(boxesAssembledLabel, String.valueOf(count));
-                animateLabelUpdate(labelsCreatedLabel, String.valueOf(count * 2));
-            }
-        } catch (SQLException e) {
-            System.err.println("Database Error loading daily metrics: " + e.getMessage());
-        }
-        int totalDeviceIntake = 0;
-        int totalMonitorIntake = 0;
-        try {
-            totalDeviceIntake = Integer.parseInt(laptopsIntakenLabel.getText()) + Integer.parseInt(tabletsIntakenLabel.getText()) + Integer.parseInt(desktopsIntakenLabel.getText());
-        } catch (NumberFormatException ignored) {
-        }
-        try {
-            totalMonitorIntake = Integer.parseInt(monitorsIntakenLabel.getText());
-        } catch (NumberFormatException ignored) {
-        }
-        if (weeklyDeviceGoal > 0) {
-            animateLabelUpdate(deviceGoalPacingLabel, String.format("%.1f%%", (totalDeviceIntake / weeklyDeviceGoal) * 100));
-        } else {
-            deviceGoalPacingLabel.setText("N/A");
-        }
-        if (weeklyMonitorGoal > 0) {
-            animateLabelUpdate(monitorGoalPacingLabel, String.format("%.1f%%", (totalMonitorIntake / weeklyMonitorGoal) * 100));
-        } else {
-            monitorGoalPacingLabel.setText("N/A");
-        }
+    @FXML private void handleManageMelRules() {
+        new MelRulesImporter().importFromFile(getStage());
     }
 
-    private void loadDynamicCharts() {
-        String dateFilter = getDateFilterClause("ds.last_update");
-        String breakdownSql = "SELECT re.category, COUNT(*) as count FROM Device_Status ds JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id JOIN (" + LATEST_RECEIPT_SUBQUERY + ") latest_re ON ds.receipt_id = latest_re.max_receipt_id WHERE ds.status = 'Processed' AND " + dateFilter + " GROUP BY re.category ORDER BY count DESC";
-        String intakeSql = "SELECT strftime('%Y-%m-%d', p.receive_date) as day, COUNT(re.receipt_id) as device_count FROM Receipt_Events re JOIN Packages p ON re.package_id = p.package_id WHERE " + getDateFilterClause("p.receive_date") + " GROUP BY day ORDER BY day ASC;";
-        ObservableList<PieChart.Data> breakdownData = FXCollections.observableArrayList();
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(breakdownSql);
-             ResultSet rs = stmt.executeQuery()) {
-            while (rs.next()) {
-                breakdownData.add(new PieChart.Data(rs.getString("category"), rs.getInt("count")));
-            }
-        } catch (SQLException e) {
-            System.err.println("Database Error loading breakdown chart: " + e.getMessage());
-        }
-        deploymentBreakdownChart.setData(breakdownData);
-        setPieChartLabels(deploymentBreakdownChart, breakdownData);
-        XYChart.Series<String, Number> series = new XYChart.Series<>(); // This line is correct.
-        series.setName("Devices Received");
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(intakeSql);
-             ResultSet rs = stmt.executeQuery()) {
-            while (rs.next()) {
-                series.getData().add(new XYChart.Data<>(rs.getString("day"), rs.getInt("device_count")));
-            }
-        } catch (SQLException e) {
-            System.err.println("Database Error loading intake chart: " + e.getMessage());
-        }
-        weeklyIntakeChart.getData().setAll(series);
-    }
-
-    private void loadStaticCharts() {
-        String sql = "SELECT CASE ds.status WHEN 'Flag!' THEN 'Flagged for Review' ELSE ds.status END as status_display, COUNT(*) as status_count FROM Device_Status ds JOIN (" + LATEST_RECEIPT_SUBQUERY + ") latest_re ON ds.receipt_id = latest_re.max_receipt_id GROUP BY status_display;";
-        ObservableList<PieChart.Data> pieChartData = FXCollections.observableArrayList();
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
-            while (rs.next()) {
-                pieChartData.add(new PieChart.Data(rs.getString("status_display"), rs.getInt("status_count")));
-            }
-        } catch (SQLException e) {
-            System.err.println("Database Error loading static charts: " + e.getMessage());
-        }
-        inventoryPieChart.setData(pieChartData);
-        setPieChartLabels(inventoryPieChart, pieChartData);
-    }
-
-    @FXML
-    private void handleImportFlags() {
-        FlaggedDeviceImporter importer = new FlaggedDeviceImporter();
-        importer.importFromFile((Stage) importFlagsButton.getScene().getWindow(), this::refreshAllCharts);
-    }
-
-    private void loadGoals() {
-        String deviceGoalStr = appSettingsDAO.getSetting("device_goal").orElse("100.0");
-        this.weeklyDeviceGoal = Double.parseDouble(deviceGoalStr);
-        if (deviceGoalField != null) {
-            deviceGoalField.setText(String.valueOf((int) this.weeklyDeviceGoal));
-        }
-        String monitorGoalStr = appSettingsDAO.getSetting("monitor_goal").orElse("50.0");
-        this.weeklyMonitorGoal = Double.parseDouble(monitorGoalStr);
-        if (monitorGoalField != null) {
-            monitorGoalField.setText(String.valueOf((int) this.weeklyMonitorGoal));
-        }
-    }
-
-    @FXML
-    private void handleApplyGoals() {
+    @FXML private void handleApplyGoals() {
         try {
             weeklyDeviceGoal = Double.parseDouble(deviceGoalField.getText());
             appSettingsDAO.saveSetting("device_goal", String.valueOf(weeklyDeviceGoal));
@@ -453,36 +287,17 @@ public class DashboardController {
             monitorGoalField.setText(String.valueOf((int) weeklyMonitorGoal));
         }
         goalMetCelebrated = false;
-        refreshAllCharts();
+        refreshAllData();
     }
 
-    @FXML
-    private void handleManageMelRules() {
-        MelRulesImporter importer = new MelRulesImporter();
-        importer.importFromFile((Stage) importFlagsButton.getScene().getWindow());
+    private void loadGoals() {
+        this.weeklyDeviceGoal = Double.parseDouble(appSettingsDAO.getSetting("device_goal").orElse("100.0"));
+        this.weeklyMonitorGoal = Double.parseDouble(appSettingsDAO.getSetting("monitor_goal").orElse("50.0"));
+        deviceGoalField.setText(String.valueOf((int) this.weeklyDeviceGoal));
+        monitorGoalField.setText(String.valueOf((int) this.weeklyMonitorGoal));
     }
 
-    private void setPieChartLabels(PieChart chart, ObservableList<PieChart.Data> data) {
-        chart.setLabelsVisible(true);
-        chart.setLegendVisible(false);
-        double total = data.stream().mapToDouble(PieChart.Data::getPieValue).sum();
-        if (total == 0) {
-            data.clear();
-            PieChart.Data noDataSlice = new PieChart.Data("No Data", 1);
-            data.add(noDataSlice);
-            Platform.runLater(() -> {
-                if (noDataSlice.getNode() != null) {
-                    noDataSlice.getNode().setVisible(false);
-                }
-            });
-            return;
-        }
-        data.forEach(d -> {
-            String originalName = d.getName();
-            if (originalName != null && !originalName.contains("%")) {
-                double percentage = (d.getPieValue() / total) * 100;
-                d.setName(String.format("%s\n%d (%.1f%%)", originalName, (int) d.getPieValue(), percentage));
-            }
-        });
+    private Stage getStage() {
+        return (Stage) mainGridPane.getScene().getWindow();
     }
 }

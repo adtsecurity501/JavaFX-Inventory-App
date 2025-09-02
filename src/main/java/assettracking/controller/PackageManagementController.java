@@ -28,19 +28,32 @@ import java.util.List;
 public class PackageManagementController {
 
     // --- FXML Fields ---
-    @FXML private Pagination pagination;
-    @FXML private TextField searchField;
-    @FXML private DatePicker fromDatePicker;
-    @FXML private DatePicker toDatePicker;
-    @FXML private ComboBox<Integer> rowsPerPageCombo;
-    @FXML private TableView<Package> packageTable;
-    @FXML private TableColumn<Package, String> trackingNumberCol;
-    @FXML private TableColumn<Package, LocalDate> receiveDateCol;
-    @FXML private TableColumn<Package, String> firstNameCol;
-    @FXML private TableColumn<Package, String> lastNameCol;
-    @FXML private TableColumn<Package, String> cityCol;
-    @FXML private TableColumn<Package, String> stateCol;
-    @FXML private TableColumn<Package, String> zipCodeCol;
+    @FXML
+    private Pagination pagination;
+    @FXML
+    private TextField searchField;
+    @FXML
+    private DatePicker fromDatePicker;
+    @FXML
+    private DatePicker toDatePicker;
+    @FXML
+    private ComboBox<Integer> rowsPerPageCombo;
+    @FXML
+    private TableView<Package> packageTable;
+    @FXML
+    private TableColumn<Package, String> trackingNumberCol;
+    @FXML
+    private TableColumn<Package, LocalDate> receiveDateCol;
+    @FXML
+    private TableColumn<Package, String> firstNameCol;
+    @FXML
+    private TableColumn<Package, String> lastNameCol;
+    @FXML
+    private TableColumn<Package, String> cityCol;
+    @FXML
+    private TableColumn<Package, String> stateCol;
+    @FXML
+    private TableColumn<Package, String> zipCodeCol;
 
     private PackageDAO packageDAO;
     private final ObservableList<Package> packageList = FXCollections.observableArrayList();
@@ -119,6 +132,7 @@ public class PackageManagementController {
     /**
      * NEW REFACTORED METHOD: Contains the logic to open the detail window for a given package.
      * This can be called by both the button and the double-click event.
+     *
      * @param selectedPackage The package to open.
      */
     private void openPackageDetail(Package selectedPackage) {
@@ -239,7 +253,7 @@ public class PackageManagementController {
 
         String fullQuery = selectClause + fromClause;
         if (!whereClause.isEmpty()) {
-            fullQuery += " WHERE" + whereClause.toString();
+            fullQuery += " WHERE" + whereClause;
         }
 
         if (!forCount) {
@@ -249,7 +263,8 @@ public class PackageManagementController {
         return new QueryAndParams(fullQuery, params);
     }
 
-    private record QueryAndParams(String sql, List<Object> params) {}
+    private record QueryAndParams(String sql, List<Object> params) {
+    }
 
     @FXML
     private void handleFilter() {
