@@ -10,12 +10,9 @@ import java.sql.Statement;
 
 public class DatabaseConnection {
 
-    // A single, static instance of the connection pool (DataSource).
     private static final HikariDataSource dataSource;
 
-    // This static block runs only ONCE when the application starts.
     static {
-        // Ensure the SQLite driver is loaded before we do anything else.
         try {
             Class.forName("org.sqlite.JDBC");
             System.out.println("SQLite JDBC Driver loaded successfully.");
@@ -30,45 +27,35 @@ public class DatabaseConnection {
         HikariConfig config = new HikariConfig();
         config.setJdbcUrl(dbUrl);
 
-        // Performance-tuned settings specifically for SQLite
         config.addDataSourceProperty("cache_size", "20000");
         config.addDataSourceProperty("page_size", "4096");
         config.addDataSourceProperty("synchronous", "NORMAL");
-        config.addDataSourceProperty("journal_mode", "WAL"); // Write-Ahead Logging is best for performance
+        config.addDataSourceProperty("journal_mode", "WAL");
 
-        // Connection Pool settings
-        config.setMaximumPoolSize(10); // More than enough for a desktop app.
-        config.setMinimumIdle(2);      // Keep at least 2 connections ready.
-        config.setConnectionTimeout(30000); // 30 seconds to wait for a connection.
-        config.setIdleTimeout(600000);      // Connections can be idle for 10 minutes.
-        config.setMaxLifetime(1800000);     // Connections live for at most 30 minutes.
+        config.setMaximumPoolSize(10);
+        config.setMinimumIdle(2);
+        config.setConnectionTimeout(30000);
+        config.setIdleTimeout(600000);
+        config.setMaxLifetime(1800000);
 
         dataSource = new HikariDataSource(config);
         System.out.println("HikariCP Connection Pool Initialized.");
     }
 
-    /**
-     * Borrows a high-speed connection from the pool.
-     * The `try-with-resources` statement will automatically return the connection to the pool.
-     * @return A pooled database connection.
-     * @throws SQLException if a connection cannot be obtained from the pool.
-     */
     public static Connection getInventoryConnection() throws SQLException {
         return dataSource.getConnection();
     }
 
-    /**
-     * Determines the best available database URL, preferring the network location.
-     * This is called only once at application startup.
-     */
     private static String getBestAvailableDbUrl() {
         String networkPath = getNetworkDbPath();
         String localPath = getLocalDbPath();
 
-        // Try to connect to the network path first
+        // --- FIX for "Variable 'conn' is never used" warning ---
+        // This is the correct way to check for connectivity without the IDE warning.
+        // The try-with-resources statement handles opening and closing the connection.
+        // noinspection EmptyTryBlock
         try (Connection conn = java.sql.DriverManager.getConnection("jdbc:sqlite:" + networkPath)) {
-            System.out.println("Network database is accessible. Using network path.");
-            return "jdbc:sqlite:" + networkPath;
+            // We don't need to do anything inside; successfully opening the connection is the test.
         } catch (SQLException e) {
             System.err.println("Network database not accessible, falling back to local. Reason: " + e.getMessage());
             File localDbFile = new File(localPath);
@@ -78,9 +65,10 @@ public class DatabaseConnection {
             }
             return "jdbc:sqlite:" + localPath;
         }
-    }
 
-    // --- Helper methods for paths and initialization ---
+        System.out.println("Network database is accessible. Using network path.");
+        return "jdbc:sqlite:" + networkPath;
+    }
 
     private static String getNetworkDbPath() {
         String dbFileName = "inventorybackup.db";
@@ -88,7 +76,6 @@ public class DatabaseConnection {
         if (os.contains("win")) {
             return "\\\\UTSPRJ2C2333\\Server\\" + dbFileName;
         } else {
-            // Adjust this path if you ever run on macOS/Linux
             return "/Volumes/Server/" + dbFileName;
         }
     }
@@ -100,7 +87,14 @@ public class DatabaseConnection {
     }
 
     private static void initializeNewDatabase(File dbFile) {
-        dbFile.getParentFile().mkdirs();
+        // --- FIX for "'File.mkdirs()' is ignored" warning ---
+        // We now check if the directory creation was successful.
+        boolean dirsCreated = dbFile.getParentFile().mkdirs();
+        if (!dirsCreated && !dbFile.getParentFile().exists()) {
+            System.err.println("FATAL: Could not create application directory: " + dbFile.getParentFile());
+            return;
+        }
+
         try (Connection conn = java.sql.DriverManager.getConnection("jdbc:sqlite:" + dbFile.getAbsolutePath());
              Statement stmt = conn.createStatement()) {
 
@@ -109,16 +103,12 @@ public class DatabaseConnection {
             System.out.println("Successfully created and initialized new local database.");
 
         } catch (SQLException e) {
-            System.err.println("FATAL: Could not create or initialize the local fallback database.");
-            e.printStackTrace();
-            // In a real-world scenario, you might want to show an error dialog and exit.
+            // --- FIX for "'printStackTrace()' should be replaced" warning ---
+            // Using System.err is a more standard way to log critical errors.
+            System.err.println("FATAL: Could not create or initialize the local fallback database. Error: " + e.getMessage());
         }
     }
 
-    /**
-     * Contains the complete DDL to create a fully functional database from scratch,
-     * including all tables, indexes, and triggers.
-     */
     private static void createFullSchema(Statement stmt) throws SQLException {
         stmt.execute("PRAGMA foreign_keys = ON;");
 
@@ -140,19 +130,18 @@ public class DatabaseConnection {
         stmt.executeUpdate("CREATE TABLE IF NOT EXISTS SKU_Table (sku_number TEXT, model_number TEXT, category TEXT, manufac TEXT, description TEXT);");
         stmt.executeUpdate("CREATE TABLE IF NOT EXISTS ZipCodeData (zip_code TEXT PRIMARY KEY, zip_type TEXT, primary_city TEXT, state_code TEXT, country_code TEXT);");
 
-        // --- INDEXES (Crucial for Performance) ---
+        // --- INDEXES ---
         stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_disposition_receipt ON Disposition_Info (receipt_id);");
         stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_package_tracking ON Packages(tracking_number);");
         stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_receipt_event_package ON Receipt_Events (package_id);");
         stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_receipt_event_serial ON Receipt_Events (serial_number);");
         stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_status_receipt ON Device_Status (receipt_id);");
         stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_zipcodedata_state_city ON ZipCodeData (state_code, primary_city);");
-        // --- Performance Indexes Recommended Previously ---
         stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_device_status_status ON Device_Status (status);");
         stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_device_status_last_update ON Device_Status (last_update);");
         stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_device_status_status_update ON Device_Status (status, last_update);");
 
-        // --- TRIGGERS (Crucial for Application Logic) ---
+        // --- TRIGGERS ---
         stmt.executeUpdate("""
             CREATE TRIGGER IF NOT EXISTS Flag_Device_New
             AFTER INSERT ON Disposition_Info FOR EACH ROW

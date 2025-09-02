@@ -24,6 +24,7 @@
               <mainClass>assettracking.MainApp</mainClass>
               <options>
                 <option>--enable-native-access=javafx.graphics,ALL-UNNAMED</option>
+                <option>--add-opens=java.base/sun.misc=ALL-UNNAMED</option>
               </options>
             </configuration>
           </execution>
