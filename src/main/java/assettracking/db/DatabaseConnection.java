@@ -1,183 +1,137 @@
 package assettracking.db;
 
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+
 import java.io.File;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.Arrays;
-import java.util.List;
 
 public class DatabaseConnection {
 
-    private static final String CORRECT_DB_FILE_NAME = "inventorybackup.db";
-    private static final String APP_DIR_PATH = getAppDataDirectory();
+    // A single, static instance of the connection pool (DataSource).
+    private static final HikariDataSource dataSource;
+
+    // This static block runs only ONCE when the application starts.
+    static {
+        // Ensure the SQLite driver is loaded before we do anything else.
+        try {
+            Class.forName("org.sqlite.JDBC");
+            System.out.println("SQLite JDBC Driver loaded successfully.");
+        } catch (ClassNotFoundException e) {
+            System.err.println("FATAL: SQLite JDBC Driver not found. The application cannot run.");
+            throw new RuntimeException("Failed to load SQLite driver", e);
+        }
+
+        String dbUrl = getBestAvailableDbUrl();
+        System.out.println("HikariCP Pool Initializing with DB URL: " + dbUrl);
+
+        HikariConfig config = new HikariConfig();
+        config.setJdbcUrl(dbUrl);
+
+        // Performance-tuned settings specifically for SQLite
+        config.addDataSourceProperty("cache_size", "20000");
+        config.addDataSourceProperty("page_size", "4096");
+        config.addDataSourceProperty("synchronous", "NORMAL");
+        config.addDataSourceProperty("journal_mode", "WAL"); // Write-Ahead Logging is best for performance
+
+        // Connection Pool settings
+        config.setMaximumPoolSize(10); // More than enough for a desktop app.
+        config.setMinimumIdle(2);      // Keep at least 2 connections ready.
+        config.setConnectionTimeout(30000); // 30 seconds to wait for a connection.
+        config.setIdleTimeout(600000);      // Connections can be idle for 10 minutes.
+        config.setMaxLifetime(1800000);     // Connections live for at most 30 minutes.
+
+        dataSource = new HikariDataSource(config);
+        System.out.println("HikariCP Connection Pool Initialized.");
+    }
+
+    /**
+     * Borrows a high-speed connection from the pool.
+     * The `try-with-resources` statement will automatically return the connection to the pool.
+     * @return A pooled database connection.
+     * @throws SQLException if a connection cannot be obtained from the pool.
+     */
+    public static Connection getInventoryConnection() throws SQLException {
+        return dataSource.getConnection();
+    }
+
+    /**
+     * Determines the best available database URL, preferring the network location.
+     * This is called only once at application startup.
+     */
+    private static String getBestAvailableDbUrl() {
+        String networkPath = getNetworkDbPath();
+        String localPath = getLocalDbPath();
+
+        // Try to connect to the network path first
+        try (Connection conn = java.sql.DriverManager.getConnection("jdbc:sqlite:" + networkPath)) {
+            System.out.println("Network database is accessible. Using network path.");
+            return "jdbc:sqlite:" + networkPath;
+        } catch (SQLException e) {
+            System.err.println("Network database not accessible, falling back to local. Reason: " + e.getMessage());
+            File localDbFile = new File(localPath);
+            if (!localDbFile.exists()) {
+                System.out.println("Local database not found. Initializing new database at: " + localPath);
+                initializeNewDatabase(localDbFile);
+            }
+            return "jdbc:sqlite:" + localPath;
+        }
+    }
+
+    // --- Helper methods for paths and initialization ---
 
     private static String getNetworkDbPath() {
+        String dbFileName = "inventorybackup.db";
         String os = System.getProperty("os.name").toLowerCase();
         if (os.contains("win")) {
-            // Windows UNC Path
-            return "\\\\UTSPRJ2C2333\\Server\\" + CORRECT_DB_FILE_NAME;
+            return "\\\\UTSPRJ2C2333\\Server\\" + dbFileName;
         } else {
-            // macOS/Linux Mount Path
-            return "/Volumes/Server/" + CORRECT_DB_FILE_NAME;
+            // Adjust this path if you ever run on macOS/Linux
+            return "/Volumes/Server/" + dbFileName;
         }
     }
 
-    private static String getAppDataDirectory() {
-        String appName = "AssetTracking";
-        String os = System.getProperty("os.name").toLowerCase();
-        if (os.contains("mac")) {
-            return System.getProperty("user.home") + "/Library/Application Support/" + appName;
-        } else if (os.contains("win")) {
-            return System.getenv("APPDATA") + File.separator + appName;
-        } else {
-            return System.getProperty("user.home") + File.separator + "." + appName;
-        }
+    private static String getLocalDbPath() {
+        String dbFileName = "inventorybackup.db";
+        String appDir = System.getenv("APPDATA") + File.separator + "AssetTracking";
+        return appDir + File.separator + dbFileName;
     }
 
-    // --- PREFERRED DATABASES ---
-    private static final String CORRECT_LOCAL_DB_URL = "jdbc:sqlite:" + APP_DIR_PATH + File.separator + CORRECT_DB_FILE_NAME;
-    private static final String NETWORK_DB_URL = "jdbc:sqlite:" + getNetworkDbPath();
+    private static void initializeNewDatabase(File dbFile) {
+        dbFile.getParentFile().mkdirs();
+        try (Connection conn = java.sql.DriverManager.getConnection("jdbc:sqlite:" + dbFile.getAbsolutePath());
+             Statement stmt = conn.createStatement()) {
 
-    // --- FALLBACK DATABASE (Only used if the preferred databases cannot be reached) ---
-    private static final String FALLBACK_DB_FILE_NAME = "inventory.db";
-    private static final String FALLBACK_LOCAL_DB_PATH = APP_DIR_PATH + File.separator + FALLBACK_DB_FILE_NAME;
-    private static final String FALLBACK_LOCAL_DB_URL = "jdbc:sqlite:" + FALLBACK_LOCAL_DB_PATH;
+            System.out.println("Creating full database schema...");
+            createFullSchema(stmt);
+            System.out.println("Successfully created and initialized new local database.");
 
-
-    // List of databases to try connecting to, in order of priority.
-    private static final List<String> DATABASE_URLS_TO_TRY = Arrays.asList(
-            NETWORK_DB_URL, // Attempt network first
-            CORRECT_LOCAL_DB_URL
-    );
-
-    private static volatile boolean driverLoaded = false;
-    private static final Object driverLoadLock = new Object();
-
-    static {
-        try {
-            loadDriver();
         } catch (SQLException e) {
-            System.err.println("FATAL: Failed to load SQLite driver during static initialization: " + e.getMessage());
+            System.err.println("FATAL: Could not create or initialize the local fallback database.");
+            e.printStackTrace();
+            // In a real-world scenario, you might want to show an error dialog and exit.
         }
     }
 
-    public static Connection getInventoryConnection() throws SQLException {
-        loadDriver(); // Ensure driver is loaded
-
-        // 1. Try to connect to the preferred databases first.
-        for (String url : DATABASE_URLS_TO_TRY) {
-            try {
-                System.out.println("Attempting to connect to preferred database: " + url);
-                Connection connection = DriverManager.getConnection(url);
-                System.out.println("Successfully connected to: " + url);
-                return connection; // Success! Return the connection.
-            } catch (SQLException e) {
-                System.err.println("Failed to connect to " + url + ": " + e.getMessage());
-                // Ignore and try the next one.
-            }
-        }
-
-        // 2. If all preferred connections fail, fall back to creating a new local database.
-        System.err.println("Could not connect to any preferred databases. Falling back to local database creation.");
-        initializeAndConnectToFallback();
-
-        // 3. Try connecting to the newly created fallback database one last time.
-        try {
-            System.out.println("Attempting to connect to newly created fallback database: " + FALLBACK_LOCAL_DB_URL);
-            return DriverManager.getConnection(FALLBACK_LOCAL_DB_URL);
-        } catch (SQLException finalException) {
-            System.err.println("FATAL: Could not even connect to the fallback database.");
-            throw finalException;
-        }
-    }
-
-    private static void initializeAndConnectToFallback() {
-        File dbFile = new File(FALLBACK_LOCAL_DB_PATH);
-        if (!dbFile.exists()) {
-            System.out.println("Fallback database file not found. Creating new database at: " + FALLBACK_LOCAL_DB_PATH);
-            try {
-                dbFile.getParentFile().mkdirs();
-                try (Connection conn = DriverManager.getConnection(FALLBACK_LOCAL_DB_URL);
-                     Statement stmt = conn.createStatement()) {
-                    createTables(stmt); // Use the complete schema creation method
-                    System.out.println("Fallback database and tables created successfully.");
-                }
-            } catch (SQLException e) {
-                System.err.println("FATAL: Could not create or initialize the fallback database.");
-                e.printStackTrace();
-            }
-        }
-    }
     /**
-     * Provides a dedicated connection for a single, long-running transaction.
-     * This is essential for preventing "database is locked" errors during bulk operations.
-     * The calling code is responsible for closing this connection in a finally block.
-     * @return A new Connection object.
-     * @throws SQLException if a connection cannot be established.
+     * Contains the complete DDL to create a fully functional database from scratch,
+     * including all tables, indexes, and triggers.
      */
-    public static Connection getTransactionalConnection() throws SQLException {
-        loadDriver();
-        // For transactions, we always try the primary network path first.
-        try {
-            Connection connection = DriverManager.getConnection(NETWORK_DB_URL);
-            connection.setAutoCommit(false); // Start the transaction
-            return connection;
-        } catch (SQLException e) {
-            System.err.println("Failed to get transactional connection from network, trying local...");
-            Connection connection = DriverManager.getConnection(CORRECT_LOCAL_DB_URL);
-            connection.setAutoCommit(false); // Start the transaction
-            return connection;
-        }
-    }
-    private static void loadDriver() throws SQLException {
-        if (!driverLoaded) {
-            synchronized (driverLoadLock) {
-                if (!driverLoaded) {
-                    try {
-                        Class.forName("org.sqlite.JDBC");
-                        driverLoaded = true;
-                        System.out.println("SQLite JDBC Driver loaded successfully.");
-                    } catch (ClassNotFoundException e) {
-                        System.err.println("SQLite JDBC Driver not found.");
-                        throw new SQLException("SQLite JDBC Driver not found", e);
-                    }
-                }
-            }
-        }
-    }
+    private static void createFullSchema(Statement stmt) throws SQLException {
+        stmt.execute("PRAGMA foreign_keys = ON;");
 
-    private static void createTables(Statement stmt) throws SQLException {
-        // This is the full, correct schema for creating a new database from scratch.
-        stmt.execute("PRAGMA foreign_keys = OFF;");
-        stmt.executeUpdate("""
-                CREATE TABLE IF NOT EXISTS Bulk_Devices (
-                    SerialNumber TEXT PRIMARY KEY NOT NULL,
-                    IMEI TEXT UNIQUE,
-                    ICCID TEXT, -- This is your SIM card number
-                    Capacity TEXT,
-                    DeviceName TEXT, -- e.g., "iPad"
-                    LastImportDate TEXT NOT NULL
-                );""");
-        stmt.executeUpdate("""
-                CREATE TABLE IF NOT EXISTS Device_Assignments (
-                    AssignmentID INTEGER PRIMARY KEY AUTOINCREMENT,
-                    SerialNumber TEXT NOT NULL,
-                    EmployeeEmail TEXT,
-                    EmployeeFirstName TEXT,
-                    EmployeeLastName TEXT,
-                    SNReferenceNumber TEXT,
-                    AssignmentDate TEXT NOT NULL,
-                    DepotOrderNumber TEXT,
-                    Exported BOOLEAN NOT NULL DEFAULT 0,
-                    FOREIGN KEY (SerialNumber) REFERENCES Bulk_Devices (SerialNumber)
-                );""");
+        // --- TABLES ---
+        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS AppSettings (setting_key TEXT PRIMARY KEY NOT NULL, setting_value TEXT);");
+        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS Bulk_Devices (SerialNumber TEXT PRIMARY KEY NOT NULL, IMEI TEXT UNIQUE, ICCID TEXT, Capacity TEXT, DeviceName TEXT, LastImportDate TEXT NOT NULL);");
+        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS Device_Assignments (AssignmentID INTEGER PRIMARY KEY AUTOINCREMENT, SerialNumber TEXT NOT NULL, EmployeeEmail TEXT, EmployeeFirstName TEXT, EmployeeLastName TEXT, SNReferenceNumber TEXT, AssignmentDate TEXT NOT NULL, DepotOrderNumber TEXT, Exported BOOLEAN NOT NULL DEFAULT 0, FOREIGN KEY (SerialNumber) REFERENCES Bulk_Devices (SerialNumber));");
+        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS Device_Autofill_Data (serial_number TEXT PRIMARY KEY, imei TEXT, category TEXT, make TEXT, description TEXT, part_number TEXT, capacity TEXT, everon_serial BOOLEAN);");
         stmt.executeUpdate("CREATE TABLE IF NOT EXISTS Device_Status (status_id INTEGER PRIMARY KEY, receipt_id INTEGER NOT NULL REFERENCES Receipt_Events (receipt_id), sheet_id INTEGER REFERENCES Sheets, status TEXT, sub_status TEXT, receive_date DATE, last_update DATETIME, change_log TEXT);");
         stmt.executeUpdate("CREATE TABLE IF NOT EXISTS Disposition_Info (disposition_id INTEGER PRIMARY KEY, receipt_id INTEGER NOT NULL REFERENCES Receipt_Events (receipt_id), is_everon BOOLEAN DEFAULT (0), is_end_of_life BOOLEAN DEFAULT (0), is_under_capacity BOOLEAN DEFAULT (0), is_phone BOOLEAN DEFAULT (0), other_disqualification TEXT DEFAULT NULL, final_auto_disp TEXT);");
         stmt.executeUpdate("CREATE TABLE IF NOT EXISTS EOLDevice (model_name TEXT, part_numbers TEXT);");
         stmt.executeUpdate("CREATE TABLE IF NOT EXISTS Flag_Devices (serial_number TEXT PRIMARY KEY, status TEXT, sub_status TEXT, flag_reason TEXT);");
-        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS Mel_Rules (model_number TEXT, description TEXT, action TEXT, special_notes TEXT, manufac TEXT);");
+        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS Mel_Rules (model_number TEXT, description TEXT, action TEXT, special_notes TEXT, manufac TEXT, redeploy_threshold TEXT);");
         stmt.executeUpdate("CREATE TABLE IF NOT EXISTS Packages (package_id INTEGER PRIMARY KEY, tracking_number VARCHAR (50) NOT NULL UNIQUE, first_name VARCHAR (50), last_name VARCHAR (50), city VARCHAR (100), state VARCHAR (2), zip_code VARCHAR (10), receive_date DATE NOT NULL);");
         stmt.executeUpdate("CREATE TABLE IF NOT EXISTS Physical_Assets (asset_id INTEGER PRIMARY KEY AUTOINCREMENT, serial_number TEXT NOT NULL UNIQUE, imei TEXT UNIQUE, category VARCHAR (250), make TEXT, description TEXT, part_number TEXT, capacity TEXT, everon_serial BOOLEAN NOT NULL DEFAULT 0);");
         stmt.executeUpdate("CREATE TABLE IF NOT EXISTS Receipt_Events (receipt_id INTEGER PRIMARY KEY AUTOINCREMENT, serial_number TEXT NOT NULL REFERENCES Physical_Assets (serial_number), package_id INTEGER NOT NULL REFERENCES Packages (package_id), IMEI NUMERIC, category VARCHAR (50), make VARCHAR (50), model_number VARCHAR (50), description TEXT);");
@@ -185,6 +139,41 @@ public class DatabaseConnection {
         stmt.executeUpdate("CREATE TABLE IF NOT EXISTS Sheets (sheet_id INTEGER PRIMARY KEY, sheet_name VARCHAR (100) NOT NULL UNIQUE);");
         stmt.executeUpdate("CREATE TABLE IF NOT EXISTS SKU_Table (sku_number TEXT, model_number TEXT, category TEXT, manufac TEXT, description TEXT);");
         stmt.executeUpdate("CREATE TABLE IF NOT EXISTS ZipCodeData (zip_code TEXT PRIMARY KEY, zip_type TEXT, primary_city TEXT, state_code TEXT, country_code TEXT);");
-        System.out.println("All tables created (if they did not exist).");
+
+        // --- INDEXES (Crucial for Performance) ---
+        stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_disposition_receipt ON Disposition_Info (receipt_id);");
+        stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_package_tracking ON Packages(tracking_number);");
+        stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_receipt_event_package ON Receipt_Events (package_id);");
+        stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_receipt_event_serial ON Receipt_Events (serial_number);");
+        stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_status_receipt ON Device_Status (receipt_id);");
+        stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_zipcodedata_state_city ON ZipCodeData (state_code, primary_city);");
+        // --- Performance Indexes Recommended Previously ---
+        stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_device_status_status ON Device_Status (status);");
+        stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_device_status_last_update ON Device_Status (last_update);");
+        stmt.executeUpdate("CREATE INDEX IF NOT EXISTS idx_device_status_status_update ON Device_Status (status, last_update);");
+
+        // --- TRIGGERS (Crucial for Application Logic) ---
+        stmt.executeUpdate("""
+            CREATE TRIGGER IF NOT EXISTS Flag_Device_New
+            AFTER INSERT ON Disposition_Info FOR EACH ROW
+            BEGIN
+                UPDATE Device_Status
+                   SET status = (SELECT fd.status FROM Flag_Devices fd JOIN Receipt_Events re ON re.serial_number = fd.serial_number WHERE re.receipt_id = NEW.receipt_id),
+                       sub_status = (SELECT fd.sub_status FROM Flag_Devices fd JOIN Receipt_Events re ON re.serial_number = fd.serial_number WHERE re.receipt_id = NEW.receipt_id),
+                       last_update = datetime('now')
+                 WHERE receipt_id = NEW.receipt_id AND
+                       EXISTS (SELECT 1 FROM Receipt_Events re JOIN Flag_Devices fd ON fd.serial_number = re.serial_number WHERE re.receipt_id = NEW.receipt_id);
+            END;
+        """);
+        stmt.executeUpdate("""
+            CREATE TRIGGER IF NOT EXISTS update_status_time_new
+            AFTER UPDATE ON Device_Status FOR EACH ROW
+            WHEN NEW.status IS NOT OLD.status OR NEW.sub_status IS NOT OLD.sub_status
+            BEGIN
+                UPDATE Device_Status
+                   SET last_update = datetime('now')
+                 WHERE receipt_id = NEW.receipt_id;
+            END;
+        """);
     }
 }
