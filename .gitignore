@@ -59,7 +59,6 @@ replay_pid*
 !/AssetTrackingInstaller.wixpdb
 !/AssetTrackingInstaller.msi
 !/jre_components.wixobj
-!/all_code.txt
 /jre/legal/com.azul.crs.client/ADDITIONAL_LICENSE_INFO
 /jre/legal/com.azul.tooling/ADDITIONAL_LICENSE_INFO
 /jre/legal/java.base/ADDITIONAL_LICENSE_INFO

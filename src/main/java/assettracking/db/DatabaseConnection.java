@@ -51,11 +51,9 @@ public class DatabaseConnection {
         String networkPath = getNetworkDbPath();
         String localPath = getLocalDbPath();
 
-        try {
-            // --- FIX: This is a cleaner way to test the connection that avoids IDE warnings ---
-            Connection conn = DriverManager.getConnection("jdbc:sqlite:" + networkPath);
-            conn.close(); // We just needed to see if it would connect, so we close it immediately.
-
+        // This try-with-resources block tests the network connection.
+        // The 'ignored' variable silences the "variable is never used" warning.
+        try (Connection ignored = DriverManager.getConnection("jdbc:sqlite:" + networkPath)) {
             System.out.println("Network database is accessible. Using network path.");
             return "jdbc:sqlite:" + networkPath;
         } catch (SQLException e) {
@@ -68,6 +66,8 @@ public class DatabaseConnection {
             return "jdbc:sqlite:" + localPath;
         }
     }
+
+    // ... (rest of the file is identical and correct) ...
 
     private static String getNetworkDbPath() {
         String dbFileName = "inventorybackup.db";

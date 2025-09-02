@@ -18,7 +18,6 @@ import javafx.scene.chart.BarChart;
 import javafx.scene.chart.PieChart;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.*;
-import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.StackPane;
@@ -29,80 +28,43 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
 
 public class DashboardController {
 
-    // --- (All FXML Fields are unchanged) ---
-    @FXML
-    private BarChart<String, Number> weeklyIntakeChart;
-    @FXML
-    private PieChart inventoryPieChart;
-    @FXML
-    private PieChart deploymentBreakdownChart;
-    @FXML
-    private Label laptopsIntakenLabel, laptopsProcessedLabel, tabletsIntakenLabel, desktopsIntakenLabel, monitorsIntakenLabel;
-    @FXML
-    private Label tabletsProcessedLabel, desktopsProcessedLabel, monitorsProcessedLabel;
-    @FXML
-    private Label totalProcessedLabel;
-    @FXML
-    private Label laptopsDisposedLabel, tabletsDisposedLabel, desktopsDisposedLabel, monitorsDisposedLabel;
-    @FXML
-    private Label activeTriageLabel;
-    @FXML
-    private Label awaitingDisposalLabel;
-    @FXML
-    private Label avgTurnaroundLabel;
-    @FXML
-    private Label boxesAssembledLabel;
-    @FXML
-    private Label labelsCreatedLabel;
-    @FXML
-    private Label deviceGoalPacingLabel;
-    @FXML
-    private Label monitorGoalPacingLabel;
-    @FXML
-    private ToggleGroup dateRangeToggleGroup;
-    @FXML
-    private RadioButton todayRadio;
-    @FXML
-    private RadioButton days7Radio;
-    @FXML
-    private RadioButton days30Radio;
-    @FXML
-    private Button importFlagsButton;
-    @FXML
-    private TextField deviceGoalField;
-    @FXML
-    private TextField monitorGoalField;
-    @FXML
-    private Label timeRangeTitleLabel;
-    @FXML
-    private Label breakdownTitleLabel;
-    @FXML
-    private Label inventoryOverviewTitleLabel;
-    @FXML
-    private GridPane mainGridPane;
-    @FXML
-    private ColumnConstraints leftColumn;
-    @FXML
-    private ColumnConstraints rightColumn;
-    @FXML
-    private ScrollPane rightScrollPane;
-    @FXML
-    private Label healthTitleLabel;
-    @FXML
-    private Label pacingTitleLabel;
-    @FXML
-    private Label topModelsTitleLabel;
-    @FXML
-    private TableView<TopModelStat> topModelsTable;
-    @FXML
-    private TableColumn<TopModelStat, String> modelNumberCol;
-    @FXML
-    private TableColumn<TopModelStat, Integer> modelCountCol;
+    @FXML private BarChart<String, Number> weeklyIntakeChart;
+    @FXML private PieChart inventoryPieChart;
+    @FXML private PieChart deploymentBreakdownChart;
+    @FXML private Label laptopsIntakenLabel, laptopsProcessedLabel, tabletsIntakenLabel, desktopsIntakenLabel, monitorsIntakenLabel;
+    @FXML private Label tabletsProcessedLabel, desktopsProcessedLabel, monitorsProcessedLabel;
+    @FXML private Label totalProcessedLabel;
+    @FXML private Label laptopsDisposedLabel, tabletsDisposedLabel, desktopsDisposedLabel, monitorsDisposedLabel;
+    @FXML private Label activeTriageLabel;
+    @FXML private Label awaitingDisposalLabel;
+    @FXML private Label avgTurnaroundLabel;
+    @FXML private Label boxesAssembledLabel;
+    @FXML private Label labelsCreatedLabel;
+    @FXML private Label deviceGoalPacingLabel;
+    @FXML private Label monitorGoalPacingLabel;
+    @FXML private ToggleGroup dateRangeToggleGroup;
+    @FXML private RadioButton todayRadio;
+    @FXML private RadioButton days7Radio;
+    @FXML private RadioButton days30Radio;
+    @FXML private Button importFlagsButton;
+    @FXML private TextField deviceGoalField;
+    @FXML private TextField monitorGoalField;
+    @FXML private Label timeRangeTitleLabel;
+    @FXML private Label breakdownTitleLabel;
+    @FXML private Label inventoryOverviewTitleLabel;
+    @FXML private GridPane mainGridPane;
+    @FXML private ColumnConstraints leftColumn;
+    @FXML private ColumnConstraints rightColumn;
+    @FXML private ScrollPane rightScrollPane;
+    @FXML private Label healthTitleLabel;
+    @FXML private Label pacingTitleLabel;
+    @FXML private Label topModelsTitleLabel;
+    @FXML private TableView<TopModelStat> topModelsTable;
+    @FXML private TableColumn<TopModelStat, String> modelNumberCol;
+    @FXML private TableColumn<TopModelStat, Integer> modelCountCol;
 
     private final ObservableList<TopModelStat> topModelsList = FXCollections.observableArrayList();
     private final AppSettingsDAO appSettingsDAO = new AppSettingsDAO();
@@ -111,8 +73,7 @@ public class DashboardController {
     private double weeklyMonitorGoal = 50.0;
     private ConfettiManager confettiManager;
     private boolean goalMetCelebrated = false;
-    private final String LATEST_RECEIPT_SUBQUERY =
-            "SELECT serial_number, MAX(receipt_id) as max_receipt_id FROM Receipt_Events GROUP BY serial_number";
+    private final String LATEST_RECEIPT_SUBQUERY = "SELECT serial_number, MAX(receipt_id) as max_receipt_id FROM Receipt_Events GROUP BY serial_number";
 
     @FXML
     public void initialize() {
@@ -140,15 +101,13 @@ public class DashboardController {
         refreshAllCharts();
     }
 
-    /**
-     * FINAL CORRECTED METHOD: This now uses lambda expressions that correctly call the
-     * accessor methods of the 'TopModelStat' record (e.g., .modelNumber() and .count()).
-     * This is the definitive fix for the "Cannot read from unreadable property" error.
-     */
+    public void init(StackPane rootPane) {
+        this.confettiManager = new ConfettiManager(rootPane);
+    }
+
     private void setupTopModelsTable() {
         modelNumberCol.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().modelNumber()));
         modelCountCol.setCellValueFactory(cellData -> new SimpleObjectProperty<>(cellData.getValue().count()));
-
         topModelsTable.setItems(topModelsList);
     }
 
@@ -167,23 +126,23 @@ public class DashboardController {
         topModelsList.clear();
         String dateFilter = getDateFilterClause("ds.last_update");
         String sql = """
-                    SELECT
-                        re.model_number,
-                        COUNT(re.receipt_id) as model_count
-                    FROM
-                        Device_Status ds
-                    JOIN
-                        Receipt_Events re ON ds.receipt_id = re.receipt_id
-                    WHERE
-                        ds.status = 'Processed' AND %s
-                    GROUP BY
-                        re.model_number
-                    HAVING
-                        re.model_number IS NOT NULL AND re.model_number != ''
-                    ORDER BY
-                        model_count DESC
-                    LIMIT 10
-                """.formatted(dateFilter);
+            SELECT
+                re.model_number,
+                COUNT(re.receipt_id) as model_count
+            FROM
+                Device_Status ds
+            JOIN
+                Receipt_Events re ON ds.receipt_id = re.receipt_id
+            WHERE
+                ds.status = 'Processed' AND %s
+            GROUP BY
+                re.model_number
+            HAVING
+                re.model_number IS NOT NULL AND re.model_number != ''
+            ORDER BY
+                model_count DESC
+            LIMIT 10
+        """.formatted(dateFilter);
 
         try (Connection conn = DatabaseConnection.getInventoryConnection();
              PreparedStatement stmt = conn.prepareStatement(sql);
@@ -192,7 +151,7 @@ public class DashboardController {
                 topModelsList.add(new TopModelStat(rs.getString("model_number"), rs.getInt("model_count")));
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Database Error loading Top Models: " + e.getMessage());
             StageManager.showAlert(topModelsTable.getScene().getWindow(), Alert.AlertType.ERROR, "Database Error", "Could not load Top Processed Models data.");
         }
     }
@@ -221,11 +180,7 @@ public class DashboardController {
 
     private void loadStaticKpis() {
         String triageSql = "SELECT COUNT(*) as count FROM Device_Status ds JOIN (" + LATEST_RECEIPT_SUBQUERY + ") l ON ds.receipt_id = l.max_receipt_id JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id WHERE ds.status IN ('Intake', 'Triage & Repair') AND re.category NOT LIKE '%Monitor%'";
-
-        String awaitingDisposalSql = "SELECT COUNT(*) as count FROM Device_Status ds " +
-                "JOIN (" + LATEST_RECEIPT_SUBQUERY + ") l ON ds.receipt_id = l.max_receipt_id " +
-                "WHERE ds.status = 'Disposed' AND ds.sub_status IN ('Can-Am, Pending Pickup', 'Ingram, Pending Pickup', 'Ready for Wipe')";
-
+        String awaitingDisposalSql = "SELECT COUNT(*) as count FROM Device_Status ds JOIN (" + LATEST_RECEIPT_SUBQUERY + ") l ON ds.receipt_id = l.max_receipt_id WHERE ds.status = 'Disposed' AND ds.sub_status IN ('Can-Am, Pending Pickup', 'Ingram, Pending Pickup', 'Ready for Wipe')";
         String turnaroundSql = "SELECT AVG(JULIANDAY(ds.last_update) - JULIANDAY(p.receive_date)) as avg_days FROM Device_Status ds JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id JOIN Packages p ON re.package_id = p.package_id WHERE ds.status = 'Processed' AND ds.sub_status = 'Ready for Deployment' AND ds.last_update >= date('now', '-30 days')";
 
         try (Connection conn = DatabaseConnection.getInventoryConnection()) {
@@ -236,18 +191,11 @@ public class DashboardController {
                 if (rs.next()) animateLabelUpdate(awaitingDisposalLabel, String.valueOf(rs.getInt("count")));
             }
             try (PreparedStatement stmt = conn.prepareStatement(turnaroundSql); ResultSet rs = stmt.executeQuery()) {
-                if (rs.next())
-                    animateLabelUpdate(avgTurnaroundLabel, String.format("%.1f Days", rs.getDouble("avg_days")));
+                if (rs.next()) animateLabelUpdate(avgTurnaroundLabel, String.format("%.1f Days", rs.getDouble("avg_days")));
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Database Error loading static KPIs: " + e.getMessage());
         }
-    }
-
-    // --- NO CHANGES TO ANY OTHER METHODS IN THIS FILE ---
-
-    public void init(StackPane rootPane) {
-        this.confettiManager = new ConfettiManager(rootPane);
     }
 
     private void setupFilters() {
@@ -265,17 +213,6 @@ public class DashboardController {
         if (days7Radio.isSelected()) return " date(" + columnName + ") >= date('now', '-7 days')";
         if (days30Radio.isSelected()) return " date(" + columnName + ") >= date('now', '-30 days')";
         return " date(" + columnName + ") >= date('now', '-7 days')";
-    }
-
-    private int getCount(Connection conn, String baseSql, String categoryClause) throws SQLException {
-        String finalSql = baseSql + " AND " + categoryClause;
-        try (PreparedStatement stmt = conn.prepareStatement(finalSql)) {
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next()) {
-                return rs.getInt("count");
-            }
-        }
-        return 0;
     }
 
     private void animateLabelUpdate(Label label, String newValue) {
@@ -296,30 +233,23 @@ public class DashboardController {
     private void loadGranularMetrics() {
         String dateClause = getDateFilterClause("ds.last_update");
         String intakeDateClause = getDateFilterClause("p.receive_date");
-
-        // This single query replaces 12 separate database calls.
         String consolidatedSql = """
-        SELECT
-            re.category,
-            SUM(CASE WHEN %s THEN 1 ELSE 0 END) as IntakenCount,
-            SUM(CASE WHEN ds.status = 'Processed' AND %s THEN 1 ELSE 0 END) as ProcessedCount,
-            SUM(CASE WHEN ds.status = 'Disposed' AND %s THEN 1 ELSE 0 END) as DisposedCount
-        FROM
-            Receipt_Events re
-        LEFT JOIN
-            Packages p ON re.package_id = p.package_id
-        LEFT JOIN
-            Device_Status ds ON re.receipt_id = ds.receipt_id
-        WHERE
-            re.category LIKE '%%Laptop%%' OR
-            re.category LIKE '%%Tablet%%' OR
-            re.category LIKE '%%Desktop%%' OR
-            re.category LIKE '%%Monitor%%'
-        GROUP BY
-            re.category
-    """.formatted(intakeDateClause, dateClause, dateClause);
+            SELECT
+                re.category,
+                SUM(CASE WHEN %s THEN 1 ELSE 0 END) as IntakenCount,
+                SUM(CASE WHEN ds.status = 'Processed' AND %s THEN 1 ELSE 0 END) as ProcessedCount,
+                SUM(CASE WHEN ds.status = 'Disposed' AND %s THEN 1 ELSE 0 END) as DisposedCount
+            FROM Receipt_Events re
+            LEFT JOIN Packages p ON re.package_id = p.package_id
+            LEFT JOIN Device_Status ds ON re.receipt_id = ds.receipt_id
+            WHERE
+                re.category LIKE '%%Laptop%%' OR
+                re.category LIKE '%%Tablet%%' OR
+                re.category LIKE '%%Desktop%%' OR
+                re.category LIKE '%%Monitor%%'
+            GROUP BY re.category
+        """.formatted(intakeDateClause, dateClause, dateClause);
 
-        // Default all counts to 0
         int laptopsIntaken = 0, tabletsIntaken = 0, desktopsIntaken = 0, monitorsIntaken = 0;
         int laptopsProcessed = 0, tabletsProcessed = 0, desktopsProcessed = 0, monitorsProcessed = 0;
         int laptopsDisposed = 0, tabletsDisposed = 0, desktopsDisposed = 0, monitorsDisposed = 0;
@@ -331,7 +261,6 @@ public class DashboardController {
             while (rs.next()) {
                 String category = rs.getString("category");
                 if (category == null) continue;
-
                 if (category.contains("Laptop")) {
                     laptopsIntaken += rs.getInt("IntakenCount");
                     laptopsProcessed += rs.getInt("ProcessedCount");
@@ -350,57 +279,51 @@ public class DashboardController {
                     monitorsDisposed += rs.getInt("DisposedCount");
                 }
             }
-
-            // Update all labels with the results from the single query
             animateLabelUpdate(laptopsIntakenLabel, String.valueOf(laptopsIntaken));
             animateLabelUpdate(tabletsIntakenLabel, String.valueOf(tabletsIntaken));
             animateLabelUpdate(desktopsIntakenLabel, String.valueOf(desktopsIntaken));
             animateLabelUpdate(monitorsIntakenLabel, String.valueOf(monitorsIntaken));
-
             animateLabelUpdate(laptopsProcessedLabel, String.valueOf(laptopsProcessed));
             animateLabelUpdate(tabletsProcessedLabel, String.valueOf(tabletsProcessed));
             animateLabelUpdate(desktopsProcessedLabel, String.valueOf(desktopsProcessed));
             animateLabelUpdate(monitorsProcessedLabel, String.valueOf(monitorsProcessed));
-
             animateLabelUpdate(laptopsDisposedLabel, String.valueOf(laptopsDisposed));
             animateLabelUpdate(tabletsDisposedLabel, String.valueOf(tabletsDisposed));
             animateLabelUpdate(desktopsDisposedLabel, String.valueOf(desktopsDisposed));
             animateLabelUpdate(monitorsDisposedLabel, String.valueOf(monitorsDisposed));
-
             int totalDevicesProcessed = laptopsProcessed + tabletsProcessed + desktopsProcessed + monitorsProcessed;
             animateLabelUpdate(totalProcessedLabel, String.valueOf(totalDevicesProcessed));
-
             if (days7Radio.isSelected() && confettiManager != null && !goalMetCelebrated && (totalDevicesProcessed >= weeklyDeviceGoal || monitorsProcessed >= weeklyMonitorGoal)) {
                 confettiManager.start();
                 goalMetCelebrated = true;
             }
-
         } catch (SQLException e) {
-            e.printStackTrace();
-            // Optionally show an alert to the user
+            System.err.println("Database Error loading granular metrics: " + e.getMessage());
             StageManager.showAlert(totalProcessedLabel.getScene().getWindow(), Alert.AlertType.ERROR, "Dashboard Error", "Could not load performance metrics.");
         }
     }
 
     private void loadDailyAndPacingMetrics() {
-        String dailySql = "SELECT COUNT(DISTINCT re.serial_number) as count " + "FROM Device_Status ds " + "JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id " + "WHERE ds.status = 'Processed' AND ds.sub_status = 'Ready for Deployment' " + "AND date(ds.last_update) = date('now') " + "AND EXISTS (SELECT 1 FROM Device_Status h_ds JOIN Receipt_Events h_re ON h_ds.receipt_id = h_re.receipt_id WHERE h_re.serial_number = re.serial_number AND h_ds.status IN ('Intake', 'Triage & Repair'))";
-        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(dailySql); ResultSet rs = stmt.executeQuery()) {
+        String dailySql = "SELECT COUNT(DISTINCT re.serial_number) as count FROM Device_Status ds JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id WHERE ds.status = 'Processed' AND ds.sub_status = 'Ready for Deployment' AND date(ds.last_update) = date('now') AND EXISTS (SELECT 1 FROM Device_Status h_ds JOIN Receipt_Events h_re ON h_ds.receipt_id = h_re.receipt_id WHERE h_re.serial_number = re.serial_number AND h_ds.status IN ('Intake', 'Triage & Repair'))";
+        try (Connection conn = DatabaseConnection.getInventoryConnection();
+             PreparedStatement stmt = conn.prepareStatement(dailySql);
+             ResultSet rs = stmt.executeQuery()) {
             if (rs.next()) {
                 int count = rs.getInt("count");
                 animateLabelUpdate(boxesAssembledLabel, String.valueOf(count));
                 animateLabelUpdate(labelsCreatedLabel, String.valueOf(count * 2));
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Database Error loading daily metrics: " + e.getMessage());
         }
         int totalDeviceIntake = 0;
         int totalMonitorIntake = 0;
         try {
             totalDeviceIntake = Integer.parseInt(laptopsIntakenLabel.getText()) + Integer.parseInt(tabletsIntakenLabel.getText()) + Integer.parseInt(desktopsIntakenLabel.getText());
-        } catch (NumberFormatException e) { /* Default to 0 */ }
+        } catch (NumberFormatException ignored) {}
         try {
             totalMonitorIntake = Integer.parseInt(monitorsIntakenLabel.getText());
-        } catch (NumberFormatException e) { /* Default to 0 */ }
+        } catch (NumberFormatException ignored) {}
         if (weeklyDeviceGoal > 0) {
             animateLabelUpdate(deviceGoalPacingLabel, String.format("%.1f%%", (totalDeviceIntake / weeklyDeviceGoal) * 100));
         } else {
@@ -415,39 +338,45 @@ public class DashboardController {
 
     private void loadDynamicCharts() {
         String dateFilter = getDateFilterClause("ds.last_update");
-        String breakdownSql = "SELECT re.category, COUNT(*) as count " + "FROM Device_Status ds " + "JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id " + "JOIN (" + LATEST_RECEIPT_SUBQUERY + ") latest_re ON ds.receipt_id = latest_re.max_receipt_id " + "WHERE ds.status = 'Processed' AND " + dateFilter + " GROUP BY re.category ORDER BY count DESC";
-        String intakeSql = "SELECT strftime('%Y-%m-%d', p.receive_date) as day, COUNT(re.receipt_id) as device_count " + "FROM Receipt_Events re JOIN Packages p ON re.package_id = p.package_id " + "WHERE " + getDateFilterClause("p.receive_date") + " GROUP BY day ORDER BY day ASC;";
+        String breakdownSql = "SELECT re.category, COUNT(*) as count FROM Device_Status ds JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id JOIN (" + LATEST_RECEIPT_SUBQUERY + ") latest_re ON ds.receipt_id = latest_re.max_receipt_id WHERE ds.status = 'Processed' AND " + dateFilter + " GROUP BY re.category ORDER BY count DESC";
+        String intakeSql = "SELECT strftime('%Y-%m-%d', p.receive_date) as day, COUNT(re.receipt_id) as device_count FROM Receipt_Events re JOIN Packages p ON re.package_id = p.package_id WHERE " + getDateFilterClause("p.receive_date") + " GROUP BY day ORDER BY day ASC;";
         ObservableList<PieChart.Data> breakdownData = FXCollections.observableArrayList();
-        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(breakdownSql); ResultSet rs = stmt.executeQuery()) {
+        try (Connection conn = DatabaseConnection.getInventoryConnection();
+             PreparedStatement stmt = conn.prepareStatement(breakdownSql);
+             ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
                 breakdownData.add(new PieChart.Data(rs.getString("category"), rs.getInt("count")));
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Database Error loading breakdown chart: " + e.getMessage());
         }
         deploymentBreakdownChart.setData(breakdownData);
         setPieChartLabels(deploymentBreakdownChart, breakdownData);
-        XYChart.Series<String, Number> series = new XYChart.Series<>();
+        XYChart.Series<String, Number> series = new XYChart.Series<>(); // This line is correct.
         series.setName("Devices Received");
-        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(intakeSql); ResultSet rs = stmt.executeQuery()) {
+        try (Connection conn = DatabaseConnection.getInventoryConnection();
+             PreparedStatement stmt = conn.prepareStatement(intakeSql);
+             ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
                 series.getData().add(new XYChart.Data<>(rs.getString("day"), rs.getInt("device_count")));
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Database Error loading intake chart: " + e.getMessage());
         }
         weeklyIntakeChart.getData().setAll(series);
     }
 
     private void loadStaticCharts() {
-        String sql = "SELECT CASE ds.status WHEN 'Flag!' THEN 'Flagged for Review' ELSE ds.status END as status_display, COUNT(*) as status_count " + "FROM Device_Status ds " + "JOIN (" + LATEST_RECEIPT_SUBQUERY + ") latest_re ON ds.receipt_id = latest_re.max_receipt_id " + "GROUP BY status_display;";
+        String sql = "SELECT CASE ds.status WHEN 'Flag!' THEN 'Flagged for Review' ELSE ds.status END as status_display, COUNT(*) as status_count FROM Device_Status ds JOIN (" + LATEST_RECEIPT_SUBQUERY + ") latest_re ON ds.receipt_id = latest_re.max_receipt_id GROUP BY status_display;";
         ObservableList<PieChart.Data> pieChartData = FXCollections.observableArrayList();
-        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql); ResultSet rs = stmt.executeQuery()) {
+        try (Connection conn = DatabaseConnection.getInventoryConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
                 pieChartData.add(new PieChart.Data(rs.getString("status_display"), rs.getInt("status_count")));
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Database Error loading static charts: " + e.getMessage());
         }
         inventoryPieChart.setData(pieChartData);
         setPieChartLabels(inventoryPieChart, pieChartData);
@@ -459,19 +388,12 @@ public class DashboardController {
         importer.importFromFile((Stage) importFlagsButton.getScene().getWindow(), this::refreshAllCharts);
     }
 
-    /**
-     * NEW METHOD: Loads goal values from the database when the dashboard starts.
-     * If no values are found, it uses the default hardcoded values.
-     */
     private void loadGoals() {
-        // Load device goal, default to 100 if not found
         String deviceGoalStr = appSettingsDAO.getSetting("device_goal").orElse("100.0");
         this.weeklyDeviceGoal = Double.parseDouble(deviceGoalStr);
         if (deviceGoalField != null) {
             deviceGoalField.setText(String.valueOf((int)this.weeklyDeviceGoal));
         }
-
-        // Load monitor goal, default to 50 if not found
         String monitorGoalStr = appSettingsDAO.getSetting("monitor_goal").orElse("50.0");
         this.weeklyMonitorGoal = Double.parseDouble(monitorGoalStr);
         if (monitorGoalField != null) {
@@ -479,27 +401,23 @@ public class DashboardController {
         }
     }
 
-    /**
-     * MODIFIED METHOD: Now saves the goals to the database when the "Apply" button is clicked.
-     */
     @FXML
     private void handleApplyGoals() {
         try {
             weeklyDeviceGoal = Double.parseDouble(deviceGoalField.getText());
-            appSettingsDAO.saveSetting("device_goal", String.valueOf(weeklyDeviceGoal)); // SAVE TO DB
+            appSettingsDAO.saveSetting("device_goal", String.valueOf(weeklyDeviceGoal));
         } catch (NumberFormatException e) {
             deviceGoalField.setText(String.valueOf((int)weeklyDeviceGoal));
         }
         try {
             weeklyMonitorGoal = Double.parseDouble(monitorGoalField.getText());
-            appSettingsDAO.saveSetting("monitor_goal", String.valueOf(weeklyMonitorGoal)); // SAVE TO DB
+            appSettingsDAO.saveSetting("monitor_goal", String.valueOf(weeklyMonitorGoal));
         } catch (NumberFormatException e) {
             monitorGoalField.setText(String.valueOf((int)weeklyMonitorGoal));
         }
         goalMetCelebrated = false;
         refreshAllCharts();
     }
-
 
     @FXML
     private void handleManageMelRules() {
