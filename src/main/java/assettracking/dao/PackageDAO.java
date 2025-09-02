@@ -28,7 +28,8 @@ public class PackageDAO {
             stmt.setString(4, city);
             stmt.setString(5, state);
             stmt.setString(6, zip);
-            stmt.setString(7, date.toString());
+            // THIS IS THE CORRECTED LINE: Using setObject for the date
+            stmt.setObject(7, date);
 
             stmt.executeUpdate();
             try (ResultSet rs = stmt.getGeneratedKeys()) {
@@ -103,14 +104,12 @@ public class PackageDAO {
         if (fromDate != null) {
             if (!whereClause.isEmpty()) whereClause.append(" AND");
             whereClause.append(" receive_date >= ?");
-            // THIS IS THE FIX: Removed .toString()
             params.add(fromDate);
         }
 
         if (toDate != null) {
             if (!whereClause.isEmpty()) whereClause.append(" AND");
             whereClause.append(" receive_date <= ?");
-            // THIS IS THE FIX: Removed .toString()
             params.add(toDate);
         }
 

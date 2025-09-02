@@ -51,8 +51,6 @@ public class DatabaseConnection {
         String networkPath = getNetworkDbPath();
         String localPath = getLocalDbPath();
 
-        // This try-with-resources block tests the network connection.
-        // The 'ignored' variable silences the "variable is never used" warning.
         try (Connection ignored = DriverManager.getConnection("jdbc:sqlite:" + networkPath)) {
             System.out.println("Network database is accessible. Using network path.");
             return "jdbc:sqlite:" + networkPath;
@@ -66,8 +64,6 @@ public class DatabaseConnection {
             return "jdbc:sqlite:" + localPath;
         }
     }
-
-    // ... (rest of the file is identical and correct) ...
 
     private static String getNetworkDbPath() {
         String dbFileName = "inventorybackup.db";
@@ -112,8 +108,15 @@ public class DatabaseConnection {
         stmt.executeUpdate("CREATE TABLE IF NOT EXISTS Bulk_Devices (SerialNumber TEXT PRIMARY KEY NOT NULL, IMEI TEXT UNIQUE, ICCID TEXT, Capacity TEXT, DeviceName TEXT, LastImportDate TEXT NOT NULL);");
         stmt.executeUpdate("CREATE TABLE IF NOT EXISTS Device_Assignments (AssignmentID INTEGER PRIMARY KEY AUTOINCREMENT, SerialNumber TEXT NOT NULL, EmployeeEmail TEXT, EmployeeFirstName TEXT, EmployeeLastName TEXT, SNReferenceNumber TEXT, AssignmentDate TEXT NOT NULL, DepotOrderNumber TEXT, Exported BOOLEAN NOT NULL DEFAULT 0, FOREIGN KEY (SerialNumber) REFERENCES Bulk_Devices (SerialNumber));");
         stmt.executeUpdate("CREATE TABLE IF NOT EXISTS Device_Autofill_Data (serial_number TEXT PRIMARY KEY, imei TEXT, category TEXT, make TEXT, description TEXT, part_number TEXT, capacity TEXT, everon_serial BOOLEAN);");
-        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS Device_Status (status_id INTEGER PRIMARY KEY, receipt_id INTEGER NOT NULL REFERENCES Receipt_Events (receipt_id), sheet_id INTEGER REFERENCES Sheets, status TEXT, sub_status TEXT, receive_date DATE, last_update DATETIME, change_log TEXT);");
-        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS Disposition_Info (disposition_id INTEGER PRIMARY KEY, receipt_id INTEGER NOT NULL REFERENCES Receipt_Events (receipt_id), is_everon BOOLEAN DEFAULT (0), is_end_of_life BOOLEAN DEFAULT (0), is_under_capacity BOOLEAN DEFAULT (0), is_phone BOOLEAN DEFAULT (0), other_disqualification TEXT DEFAULT NULL, final_auto_disp TEXT);");
+
+        // --- THIS IS THE FIRST FIX ---
+        // Added UNIQUE constraint to receipt_id
+        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS Device_Status (status_id INTEGER PRIMARY KEY, receipt_id INTEGER NOT NULL UNIQUE REFERENCES Receipt_Events (receipt_id), sheet_id INTEGER REFERENCES Sheets, status TEXT, sub_status TEXT, receive_date DATE, last_update DATETIME, change_log TEXT);");
+
+        // --- THIS IS THE SECOND FIX ---
+        // Added UNIQUE constraint to receipt_id
+        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS Disposition_Info (disposition_id INTEGER PRIMARY KEY, receipt_id INTEGER NOT NULL UNIQUE REFERENCES Receipt_Events (receipt_id), is_everon BOOLEAN DEFAULT (0), is_end_of_life BOOLEAN DEFAULT (0), is_under_capacity BOOLEAN DEFAULT (0), is_phone BOOLEAN DEFAULT (0), other_disqualification TEXT DEFAULT NULL, final_auto_disp TEXT);");
+
         stmt.executeUpdate("CREATE TABLE IF NOT EXISTS EOLDevice (model_name TEXT, part_numbers TEXT);");
         stmt.executeUpdate("CREATE TABLE IF NOT EXISTS Flag_Devices (serial_number TEXT PRIMARY KEY, status TEXT, sub_status TEXT, flag_reason TEXT);");
         stmt.executeUpdate("CREATE TABLE IF NOT EXISTS Mel_Rules (model_number TEXT, description TEXT, action TEXT, special_notes TEXT, manufac TEXT, redeploy_threshold TEXT);");
