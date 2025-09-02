@@ -6,7 +6,7 @@ import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.geometry.Side;
 import javafx.scene.control.ContextMenu;
-import javafx.scene.control.CustomMenuItem; // ### FIX: Added missing import ###
+import javafx.scene.control.CustomMenuItem;
 import javafx.scene.control.ListView;
 import javafx.scene.control.TextField;
 import javafx.stage.WindowEvent;
@@ -22,16 +22,26 @@ public class AutoCompletePopup {
     private final ListView<String> suggestionList;
     private Consumer<String> onSuggestionSelected;
 
+    // This flag will be controlled EXTERNALLY by the controller
+    private boolean isSuppressed = false;
+
     public AutoCompletePopup(TextField textField, Supplier<List<String>> suggestionProvider) {
         this.textField = textField;
         this.suggestionProvider = suggestionProvider;
         this.suggestionList = new ListView<>();
-
-        // ### FIX: Correct way to put a ListView in a ContextMenu ###
         CustomMenuItem customMenuItem = new CustomMenuItem(suggestionList, false);
         this.contextMenu = new ContextMenu(customMenuItem);
 
         setupListeners();
+    }
+
+    // --- THIS IS THE NEW PUBLIC METHOD ---
+    /**
+     * Allows an external class (like a controller) to temporarily disable the suggestion listener.
+     * @param suppress true to ignore text changes, false to resume normal behavior.
+     */
+    public void suppressListener(boolean suppress) {
+        this.isSuppressed = suppress;
     }
 
     public AutoCompletePopup setOnSuggestionSelected(Consumer<String> onSuggestionSelected) {
@@ -41,6 +51,11 @@ public class AutoCompletePopup {
 
     private void setupListeners() {
         textField.textProperty().addListener((obs, oldVal, newVal) -> {
+            // If the listener is suppressed, do nothing.
+            if (isSuppressed) {
+                return;
+            }
+
             if (newVal == null || newVal.length() < 2) {
                 contextMenu.hide();
             } else {
@@ -61,7 +76,6 @@ public class AutoCompletePopup {
             }
         });
 
-        // ### FIX: Replaced textField.end() with the correct method ###
         contextMenu.addEventFilter(WindowEvent.WINDOW_HIDDEN, event -> textField.positionCaret(textField.getLength()));
     }
 
@@ -75,7 +89,7 @@ public class AutoCompletePopup {
 
         task.setOnSucceeded(e -> Platform.runLater(() -> {
             ObservableList<String> suggestions = FXCollections.observableArrayList(task.getValue());
-            if (suggestions.isEmpty()) {
+            if (suggestions.isEmpty() || isSuppressed) { // Also check suppression here
                 contextMenu.hide();
             } else {
                 suggestionList.setItems(suggestions);
