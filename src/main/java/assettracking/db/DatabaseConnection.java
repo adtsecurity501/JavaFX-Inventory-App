@@ -5,6 +5,7 @@ import com.zaxxer.hikari.HikariDataSource;
 
 import java.io.File;
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
 
@@ -50,12 +51,13 @@ public class DatabaseConnection {
         String networkPath = getNetworkDbPath();
         String localPath = getLocalDbPath();
 
-        // --- FIX for "Variable 'conn' is never used" warning ---
-        // This is the correct way to check for connectivity without the IDE warning.
-        // The try-with-resources statement handles opening and closing the connection.
-        // noinspection EmptyTryBlock
-        try (Connection conn = java.sql.DriverManager.getConnection("jdbc:sqlite:" + networkPath)) {
-            // We don't need to do anything inside; successfully opening the connection is the test.
+        try {
+            // --- FIX: This is a cleaner way to test the connection that avoids IDE warnings ---
+            Connection conn = DriverManager.getConnection("jdbc:sqlite:" + networkPath);
+            conn.close(); // We just needed to see if it would connect, so we close it immediately.
+
+            System.out.println("Network database is accessible. Using network path.");
+            return "jdbc:sqlite:" + networkPath;
         } catch (SQLException e) {
             System.err.println("Network database not accessible, falling back to local. Reason: " + e.getMessage());
             File localDbFile = new File(localPath);
@@ -65,9 +67,6 @@ public class DatabaseConnection {
             }
             return "jdbc:sqlite:" + localPath;
         }
-
-        System.out.println("Network database is accessible. Using network path.");
-        return "jdbc:sqlite:" + networkPath;
     }
 
     private static String getNetworkDbPath() {
@@ -87,15 +86,13 @@ public class DatabaseConnection {
     }
 
     private static void initializeNewDatabase(File dbFile) {
-        // --- FIX for "'File.mkdirs()' is ignored" warning ---
-        // We now check if the directory creation was successful.
         boolean dirsCreated = dbFile.getParentFile().mkdirs();
         if (!dirsCreated && !dbFile.getParentFile().exists()) {
             System.err.println("FATAL: Could not create application directory: " + dbFile.getParentFile());
             return;
         }
 
-        try (Connection conn = java.sql.DriverManager.getConnection("jdbc:sqlite:" + dbFile.getAbsolutePath());
+        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + dbFile.getAbsolutePath());
              Statement stmt = conn.createStatement()) {
 
             System.out.println("Creating full database schema...");
@@ -103,8 +100,6 @@ public class DatabaseConnection {
             System.out.println("Successfully created and initialized new local database.");
 
         } catch (SQLException e) {
-            // --- FIX for "'printStackTrace()' should be replaced" warning ---
-            // Using System.err is a more standard way to log critical errors.
             System.err.println("FATAL: Could not create or initialize the local fallback database. Error: " + e.getMessage());
         }
     }
