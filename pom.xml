@@ -131,6 +131,11 @@
             <artifactId>flatlaf</artifactId>
             <version>3.4.1</version>
         </dependency>
+        <dependency>
+            <groupId>com.zaxxer</groupId>
+            <artifactId>HikariCP</artifactId>
+            <version>5.1.0</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -157,6 +162,7 @@
                             <mainClass>assettracking.MainApp</mainClass>
                             <options>
                                 <option>--enable-native-access=javafx.graphics,ALL-UNNAMED</option>
+                                <option>--add-opens=java.base/sun.misc=ALL-UNNAMED</option>
                             </options>
                         </configuration>
                     </execution>

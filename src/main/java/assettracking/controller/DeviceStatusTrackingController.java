@@ -18,6 +18,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 public class DeviceStatusTrackingController {
@@ -51,6 +53,8 @@ public class DeviceStatusTrackingController {
 
     private DeviceStatusManager deviceStatusManager;
     private DeviceStatusActions deviceStatusActions;
+    private static List<String> cachedCategories = null;
+
 
     @FXML
     public void initialize() {
@@ -160,7 +164,7 @@ public class DeviceStatusTrackingController {
         deviceStatusManager.updateDeviceStatus(selectedDevices, newStatus, newSubStatus, note);
         boxIdField.clear();
 
-        // --- THIS IS THE NEW LINE ---
+        // --- ADD THIS LINE ---
         // Refreshes the table to show the change immediately.
         refreshData();
     }
@@ -208,13 +212,23 @@ public class DeviceStatusTrackingController {
     }
 
     private void loadFilterCategories() {
+        // If we have already loaded the categories, use the cache and do nothing else.
+        if (cachedCategories != null) {
+            categoryFilterCombo.getItems().addAll(cachedCategories);
+            return;
+        }
+
+        // If the cache is empty, query the database.
+        cachedCategories = new ArrayList<>();
         String sql = "SELECT DISTINCT category FROM Receipt_Events WHERE category IS NOT NULL AND category != '' ORDER BY category";
         try (Connection conn = DatabaseConnection.getInventoryConnection();
              PreparedStatement stmt = conn.prepareStatement(sql);
              ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
-                categoryFilterCombo.getItems().add(rs.getString("category"));
+                cachedCategories.add(rs.getString("category"));
             }
+            // Now that the cache is populated, add the items to the dropdown.
+            categoryFilterCombo.getItems().addAll(cachedCategories);
         } catch (SQLException e) {
             StageManager.showAlert(statusTable.getScene().getWindow(), Alert.AlertType.ERROR, "Database Error", "Failed to load categories for filtering.");
         }

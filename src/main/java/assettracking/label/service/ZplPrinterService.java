@@ -1,12 +1,19 @@
 package assettracking.label.service;
 
+import assettracking.label.model.template.LabelTemplate;
+import assettracking.label.service.template.TemplateService;
+import assettracking.label.service.template.ZplGeneratorService;
+
 import javax.print.*;
 import javax.print.attribute.AttributeSet;
 import javax.print.attribute.HashAttributeSet;
 import javax.print.attribute.standard.PrinterName;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
+import java.util.Map;
 
 public class ZplPrinterService {
 
@@ -74,33 +81,30 @@ public class ZplPrinterService {
     }
 
     public static String getAssetTagZpl(String serial, String imei) {
-        if (imei != null && !imei.isBlank()) {
-            return String.format("""
-                ^XA
-                ^PW508^LL0203
-                ^FT14,29^AAN,18,10^FH\\^FDProperty of ADT, LLC^FS
-                ^FT318,24^AAN,18,10^FH\\^FDHelp Desk: ^FS
-                ^FT318,43^AAN,18,10^FH\\^FD1-877-238-4357^FS
-                ^FT14,64^AAN,27,15^FH\\^FDS/N:^FS
-                ^FT81,64^AAN,27,15^FH\\^FD%s^FS
-                ^BY2,3,41^FT15,117^BCN,,N,N^FD>:%s^FS
-                ^FT14,146^AAN,27,15^FH\\^FDIMEI:^FS
-                ^FT101,146^AAN,27,15^FH\\^FD%s^FS
-                ^BY2,3,41^FT15,198^BCN,,N,N^FD%s^FS
-                ^PQ1,0,1,Y^XZ
-                """, serial, serial, imei, imei);
-        } else {
-            return String.format("""
-                ^XA
-                ^PW508^LL0203
-                ^FT14,29^AAN,18,10^FH\\^FDProperty of ADT, LLC^FS
-                ^FT318,24^AAN,18,10^FH\\^FDHelp Desk: ^FS
-                ^FT318,43^AAN,18,10^FH\\^FD1-877-238-4357^FS
-                ^FT14,60^AAN,27,15^FH\\^FDS/N:^FS
-                ^FT81,60^AAN,27,15^FH\\^FD%s^FS
-                ^BY2,3,41^FT15,113^BCN,,N,N^FD>:%s^FS
-                ^PQ1,0,1,Y^XZ
-                """, serial, serial);
+        // This now uses your powerful, unused templating engine.
+        // It will look for 'Standard_Asset_Tag.json' or 'Asset_Tag_with_IMEI.json'
+        // in a folder named 'ADT_Label_Templates' in the user's home directory.
+        try {
+            TemplateService templateService = new TemplateService();
+            ZplGeneratorService generator = new ZplGeneratorService();
+
+            LabelTemplate template;
+            Map<String, String> data = new HashMap<>();
+            data.put("serial", serial != null ? serial : "");
+
+            if (imei != null && !imei.isBlank()) {
+                template = templateService.loadTemplate("Asset_Tag_with_IMEI.json");
+                data.put("imei", imei);
+            } else {
+                template = templateService.loadTemplate("Standard_Asset_Tag.json");
+            }
+
+            return generator.generate(template, data);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            // Return a ZPL command that prints an error message on the label itself
+            return "^XA^FO50,50^A0N,40,40^FDError: Template Not Found^FS^XZ";
         }
     }
 

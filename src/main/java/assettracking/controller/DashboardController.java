@@ -296,34 +296,89 @@ public class DashboardController {
     private void loadGranularMetrics() {
         String dateClause = getDateFilterClause("ds.last_update");
         String intakeDateClause = getDateFilterClause("p.receive_date");
-        String intakeBaseSql = "SELECT COUNT(*) as count FROM Receipt_Events re JOIN Packages p ON re.package_id = p.package_id WHERE " + intakeDateClause;
-        String processedBaseSql = "SELECT COUNT(*) as count FROM Device_Status ds JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id JOIN (" + LATEST_RECEIPT_SUBQUERY + ") l ON l.max_receipt_id = re.receipt_id WHERE ds.status = 'Processed' AND " + dateClause;
-        String disposedBaseSql = "SELECT COUNT(*) as count FROM Device_Status ds JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id JOIN (" + LATEST_RECEIPT_SUBQUERY + ") l ON l.max_receipt_id = re.receipt_id WHERE ds.status = 'Disposed' AND " + dateClause;
-        try (Connection conn = DatabaseConnection.getInventoryConnection()) {
-            animateLabelUpdate(laptopsIntakenLabel, String.valueOf(getCount(conn, intakeBaseSql, "re.category LIKE '%Laptop%'")));
-            animateLabelUpdate(tabletsIntakenLabel, String.valueOf(getCount(conn, intakeBaseSql, "re.category LIKE '%Tablet%'")));
-            animateLabelUpdate(desktopsIntakenLabel, String.valueOf(getCount(conn, intakeBaseSql, "re.category LIKE '%Desktop%'")));
-            animateLabelUpdate(monitorsIntakenLabel, String.valueOf(getCount(conn, intakeBaseSql, "re.category LIKE '%Monitor%'")));
-            int laptopsProcessed = getCount(conn, processedBaseSql, "re.category LIKE '%Laptop%'");
-            int tabletsProcessed = getCount(conn, processedBaseSql, "re.category LIKE '%Tablet%'");
-            int desktopsProcessed = getCount(conn, processedBaseSql, "re.category LIKE '%Desktop%'");
-            int monitorsProcessed = getCount(conn, processedBaseSql, "re.category LIKE '%Monitor%'");
+
+        // This single query replaces 12 separate database calls.
+        String consolidatedSql = """
+        SELECT
+            re.category,
+            SUM(CASE WHEN %s THEN 1 ELSE 0 END) as IntakenCount,
+            SUM(CASE WHEN ds.status = 'Processed' AND %s THEN 1 ELSE 0 END) as ProcessedCount,
+            SUM(CASE WHEN ds.status = 'Disposed' AND %s THEN 1 ELSE 0 END) as DisposedCount
+        FROM
+            Receipt_Events re
+        LEFT JOIN
+            Packages p ON re.package_id = p.package_id
+        LEFT JOIN
+            Device_Status ds ON re.receipt_id = ds.receipt_id
+        WHERE
+            re.category LIKE '%%Laptop%%' OR
+            re.category LIKE '%%Tablet%%' OR
+            re.category LIKE '%%Desktop%%' OR
+            re.category LIKE '%%Monitor%%'
+        GROUP BY
+            re.category
+    """.formatted(intakeDateClause, dateClause, dateClause);
+
+        // Default all counts to 0
+        int laptopsIntaken = 0, tabletsIntaken = 0, desktopsIntaken = 0, monitorsIntaken = 0;
+        int laptopsProcessed = 0, tabletsProcessed = 0, desktopsProcessed = 0, monitorsProcessed = 0;
+        int laptopsDisposed = 0, tabletsDisposed = 0, desktopsDisposed = 0, monitorsDisposed = 0;
+
+        try (Connection conn = DatabaseConnection.getInventoryConnection();
+             PreparedStatement stmt = conn.prepareStatement(consolidatedSql);
+             ResultSet rs = stmt.executeQuery()) {
+
+            while (rs.next()) {
+                String category = rs.getString("category");
+                if (category == null) continue;
+
+                if (category.contains("Laptop")) {
+                    laptopsIntaken += rs.getInt("IntakenCount");
+                    laptopsProcessed += rs.getInt("ProcessedCount");
+                    laptopsDisposed += rs.getInt("DisposedCount");
+                } else if (category.contains("Tablet")) {
+                    tabletsIntaken += rs.getInt("IntakenCount");
+                    tabletsProcessed += rs.getInt("ProcessedCount");
+                    tabletsDisposed += rs.getInt("DisposedCount");
+                } else if (category.contains("Desktop")) {
+                    desktopsIntaken += rs.getInt("IntakenCount");
+                    desktopsProcessed += rs.getInt("ProcessedCount");
+                    desktopsDisposed += rs.getInt("DisposedCount");
+                } else if (category.contains("Monitor")) {
+                    monitorsIntaken += rs.getInt("IntakenCount");
+                    monitorsProcessed += rs.getInt("ProcessedCount");
+                    monitorsDisposed += rs.getInt("DisposedCount");
+                }
+            }
+
+            // Update all labels with the results from the single query
+            animateLabelUpdate(laptopsIntakenLabel, String.valueOf(laptopsIntaken));
+            animateLabelUpdate(tabletsIntakenLabel, String.valueOf(tabletsIntaken));
+            animateLabelUpdate(desktopsIntakenLabel, String.valueOf(desktopsIntaken));
+            animateLabelUpdate(monitorsIntakenLabel, String.valueOf(monitorsIntaken));
+
             animateLabelUpdate(laptopsProcessedLabel, String.valueOf(laptopsProcessed));
             animateLabelUpdate(tabletsProcessedLabel, String.valueOf(tabletsProcessed));
             animateLabelUpdate(desktopsProcessedLabel, String.valueOf(desktopsProcessed));
             animateLabelUpdate(monitorsProcessedLabel, String.valueOf(monitorsProcessed));
-            animateLabelUpdate(laptopsDisposedLabel, String.valueOf(getCount(conn, disposedBaseSql, "re.category LIKE '%Laptop%'")));
-            animateLabelUpdate(tabletsDisposedLabel, String.valueOf(getCount(conn, disposedBaseSql, "re.category LIKE '%Tablet%'")));
-            animateLabelUpdate(desktopsDisposedLabel, String.valueOf(getCount(conn, disposedBaseSql, "re.category LIKE '%Desktop%'")));
-            animateLabelUpdate(monitorsDisposedLabel, String.valueOf(getCount(conn, disposedBaseSql, "re.category LIKE '%Monitor%'")));
+
+            animateLabelUpdate(laptopsDisposedLabel, String.valueOf(laptopsDisposed));
+            animateLabelUpdate(tabletsDisposedLabel, String.valueOf(tabletsDisposed));
+            animateLabelUpdate(desktopsDisposedLabel, String.valueOf(desktopsDisposed));
+            animateLabelUpdate(monitorsDisposedLabel, String.valueOf(monitorsDisposed));
+
             int totalDevicesProcessed = laptopsProcessed + tabletsProcessed + desktopsProcessed + monitorsProcessed;
             animateLabelUpdate(totalProcessedLabel, String.valueOf(totalDevicesProcessed));
+
             if (days7Radio.isSelected() && confettiManager != null && !goalMetCelebrated && (totalDevicesProcessed >= weeklyDeviceGoal || monitorsProcessed >= weeklyMonitorGoal)) {
                 confettiManager.start();
                 goalMetCelebrated = true;
             }
+
         } catch (SQLException e) {
             e.printStackTrace();
+            // Optionally show an alert to the user
+            StageManager.showAlert(totalProcessedLabel.getScene().getWindow(), Alert.AlertType.ERROR, "Dashboard Error", "Could not load performance metrics.");
         }
     }
 

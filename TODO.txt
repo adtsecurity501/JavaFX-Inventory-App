@@ -1,13 +1,8 @@
 Priority 1:
-- inlclude monitors in the WIP backlog on dashboard
 - add way to import information into the device_autofill_data table.
-- when I update the status on the device status stracking page It shoiuld auto refresh when I cluck the update button, I want to make the application quick and efficient across the board, what can I do to increase speeds and reduce the amount of calls that it makes to the DB
 - fix the way the program handles priting the labels on scan updates ready to deploy. Currently when I scan a serail it prints out the labesls but the text shoes Descreiiption not found.
-- fix bug with printing the correct sku and tieing the model of a monitor to the correct sku from the monitor intake window. 
-- Visual bug for when dispossing fromm monitor intake, when I click Broken / Dispose  on the window that appears the Confirm Disposal textxs is there but there is no button , the button for confirm disposal is missing.
-- Add a way to add all the faiuiled / uncrecognized scans to a package and add a new flow for how to add a descriptioion and stuff to each one.
-- autofill for sku on monitor intake is not wortking 
- 
+
+
 
 
 
@@ -20,6 +15,7 @@ Priority 2:
 - Dig into WIP backlog, what is that?
 - update statuses and substatuses across whole app so it's consistent
 - update categories and statuses in database
+- inlclude monitors in the WIP backlog on dashboard
 
 At End:
 - rename the database and change paths everwhere
@@ -113,6 +109,17 @@ DONE:
 - Visual bug where not all the lines of the same status are colored on device status tracking
 - Add in a way to view BOXID information, count , devices, etc.../.
 - verify where boxid is being stored
+- Add a way to add all the faiuiled / uncrecognized scans to a package and add a new flow for how to add a descriptioion and stuff to each one.
+- autofill for sku on monitor intake is not wortking 
+- Visual bug for when dispossing fromm monitor intake, when I click Broken / Dispose  on the window that appears the Confirm Disposal textxs is there but there is no button , the button for confirm disposal is missing. 
+- when I update the status on the device status stracking page It shoiuld auto refresh when I cluck the update button, I want to make the application quick and efficient across the board, what can I do to increase speeds and reduce the amount of calls that it makes to the DB
+
+
+
+
+
+
+
 
 
 ALL DA CATEGORIES:

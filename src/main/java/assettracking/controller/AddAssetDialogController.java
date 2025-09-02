@@ -105,6 +105,7 @@ public class AddAssetDialogController {
     private final ReceiptEventDAO receiptEventDAO = new ReceiptEventDAO();
     private final ZplPrinterService printerService = new ZplPrinterService();
     private final SkuDAO skuDAO = new SkuDAO();
+    private static Set<String> cachedCategories = null;
 
     public void initData(Package pkg, PackageDetailController parent) {
         this.currentPackage = pkg;
@@ -125,13 +126,26 @@ public class AddAssetDialogController {
     }
 
     private void loadCategories() {
-        Task<List<String>> loadCategoriesTask = new Task<>() {
+        // If cache exists, use it and exit early.
+        if (cachedCategories != null) {
+            categoryBox.setItems(FXCollections.observableArrayList(cachedCategories));
+            return;
+        }
+
+        // If cache is null, query the DB and populate the cache.
+        Task<Set<String>> loadCategoriesTask = new Task<>() {
             @Override
-            protected List<String> call() {
-                return new ArrayList<>(assetDAO.getAllDistinctCategories());
+            protected Set<String> call() {
+                // Using a TreeSet automatically keeps the list sorted alphabetically.
+                return new TreeSet<>(assetDAO.getAllDistinctCategories());
             }
         };
-        loadCategoriesTask.setOnSucceeded(e -> categoryBox.setItems(FXCollections.observableArrayList(loadCategoriesTask.getValue())));
+
+        loadCategoriesTask.setOnSucceeded(e -> {
+            cachedCategories = loadCategoriesTask.getValue();
+            categoryBox.setItems(FXCollections.observableArrayList(cachedCategories));
+        });
+
         new Thread(loadCategoriesTask).start();
     }
 
