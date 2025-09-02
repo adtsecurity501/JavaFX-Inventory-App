@@ -3,6 +3,7 @@ package assettracking.controller.handler;
 import assettracking.controller.AddAssetDialogController;
 import assettracking.controller.MonitorDisposalDialogController;
 import assettracking.data.AssetInfo;
+import assettracking.label.service.ZplPrinterService; // Make sure this import is present
 import assettracking.manager.IntakeService;
 import assettracking.manager.StageManager;
 import javafx.concurrent.Task;
@@ -13,11 +14,6 @@ import javafx.stage.Stage;
 
 import java.io.IOException;
 
-/**
- * Manages all UI logic and event handling for the "Monitor Intake" panel.
- * This handler now delegates all database persistence logic to the IntakeService
- * and uses the public API of the AddAssetDialogController to interact with the UI.
- */
 public class MonitorIntakeHandler {
 
     private final AddAssetDialogController controller;
@@ -108,8 +104,16 @@ public class MonitorIntakeHandler {
                 intakeService.processFromTextArea(new String[]{serial}, details, false, "Processed", "Ready for Deployment", null, null);
 
                 controller.updateMonitorFeedback("Printing labels for " + serial + "...");
-                boolean s1 = controller.getPrinterService().sendZplToPrinter(printer, controller.getPrinterService().getAdtLabelZpl(sku, labelDesc));
-                boolean s2 = controller.getPrinterService().sendZplToPrinter(printer, controller.getPrinterService().getSerialLabelZpl(sku, serial));
+
+                // --- THIS IS THE FIX ---
+                // Call the static methods directly from the ZplPrinterService class.
+                String skuLabelZpl = ZplPrinterService.getAdtLabelZpl(sku, labelDesc);
+                String serialLabelZpl = ZplPrinterService.getSerialLabelZpl(sku, serial);
+
+                boolean s1 = controller.getPrinterService().sendZplToPrinter(printer, skuLabelZpl);
+                boolean s2 = controller.getPrinterService().sendZplToPrinter(printer, serialLabelZpl);
+                // --- END OF FIX ---
+
                 if (!s1 || !s2) throw new Exception("Failed to print one or both labels.");
                 return null;
             }

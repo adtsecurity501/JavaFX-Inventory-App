@@ -1,8 +1,8 @@
 Priority 1:
 - add way to import information into the device_autofill_data table.
 - fix the way the program handles priting the labels on scan updates ready to deploy. Currently when I scan a serail it prints out the labesls but the text shoes Descreiiption not found.
-
-
+- add tools to box id viewere tab
+- when an error appears or a window apperas sometimes it dissapears minimized super small to the left bottom corner.
 
 
 
@@ -113,7 +113,7 @@ DONE:
 - autofill for sku on monitor intake is not wortking 
 - Visual bug for when dispossing fromm monitor intake, when I click Broken / Dispose  on the window that appears the Confirm Disposal textxs is there but there is no button , the button for confirm disposal is missing. 
 - when I update the status on the device status stracking page It shoiuld auto refresh when I cluck the update button, I want to make the application quick and efficient across the board, what can I do to increase speeds and reduce the amount of calls that it makes to the DB
-
+- when I click on an autofill suggestion it works correctly it autofills the information but then I have to click each field because the new info causes the fields to display the autofill info again.
 
 
 
