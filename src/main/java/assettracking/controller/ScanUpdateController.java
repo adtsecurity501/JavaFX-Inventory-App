@@ -35,25 +35,44 @@ import java.util.*;
 
 public class ScanUpdateController {
 
-    @FXML private ComboBox<String> statusCombo;
-    @FXML private ComboBox<String> subStatusCombo;
-    @FXML private TextField changeLogField;
-    @FXML private TextField scanSerialField;
-    @FXML private Label feedbackLabel;
-    @FXML private Label disposalLocationLabel;
-    @FXML private TextField disposalLocationField;
-    @FXML private TableView<ScanResult> successTable;
-    @FXML private TableColumn<ScanResult, String> successSerialCol;
-    @FXML private TableColumn<ScanResult, String> successStatusCol;
-    @FXML private TableColumn<ScanResult, String> successTimestampCol;
-    @FXML private TableView<ScanResult> failedTable;
-    @FXML private TableColumn<ScanResult, String> failedSerialCol;
-    @FXML private TableColumn<ScanResult, String> failedReasonCol;
-    @FXML private TableColumn<ScanResult, String> failedTimestampCol;
-    @FXML private TextField scanLocationField;
-    @FXML private HBox boxIdHBox;
-    @FXML private Button clearBoxIdButton;
-    @FXML private CheckBox printLabelsToggle;
+    @FXML
+    private ComboBox<String> statusCombo;
+    @FXML
+    private ComboBox<String> subStatusCombo;
+    @FXML
+    private TextField changeLogField;
+    @FXML
+    private TextField scanSerialField;
+    @FXML
+    private Label feedbackLabel;
+    @FXML
+    private Label disposalLocationLabel;
+    @FXML
+    private TextField disposalLocationField;
+    @FXML
+    private TableView<ScanResult> successTable;
+    @FXML
+    private TableColumn<ScanResult, String> successSerialCol;
+    @FXML
+    private TableColumn<ScanResult, String> successStatusCol;
+    @FXML
+    private TableColumn<ScanResult, String> successTimestampCol;
+    @FXML
+    private TableView<ScanResult> failedTable;
+    @FXML
+    private TableColumn<ScanResult, String> failedSerialCol;
+    @FXML
+    private TableColumn<ScanResult, String> failedReasonCol;
+    @FXML
+    private TableColumn<ScanResult, String> failedTimestampCol;
+    @FXML
+    private TextField scanLocationField;
+    @FXML
+    private HBox boxIdHBox;
+    @FXML
+    private Button clearBoxIdButton;
+    @FXML
+    private CheckBox printLabelsToggle;
 
     private DeviceStatusTrackingController parentController;
     private final ObservableList<ScanResult> successList = FXCollections.observableArrayList();
@@ -243,14 +262,14 @@ public class ScanUpdateController {
             protected List<Integer> call() throws Exception {
                 List<Integer> receiptIds = new ArrayList<>();
                 String findSql = """
-                    SELECT ds.receipt_id FROM Device_Status ds
-                    JOIN (
-                        SELECT serial_number, MAX(receipt_id) as max_receipt_id
-                        FROM Receipt_Events
-                        GROUP BY serial_number
-                    ) latest_re ON ds.receipt_id = latest_re.max_receipt_id
-                    WHERE ds.change_log LIKE ?
-                """;
+                            SELECT ds.receipt_id FROM Device_Status ds
+                            JOIN (
+                                SELECT serial_number, MAX(receipt_id) as max_receipt_id
+                                FROM Receipt_Events
+                                GROUP BY serial_number
+                            ) latest_re ON ds.receipt_id = latest_re.max_receipt_id
+                            WHERE ds.change_log LIKE ?
+                        """;
                 try (Connection conn = DatabaseConnection.getInventoryConnection();
                      PreparedStatement stmt = conn.prepareStatement(findSql)) {
                     stmt.setString(1, "Box ID: " + location + "%");
@@ -335,6 +354,7 @@ public class ScanUpdateController {
 
         new Thread(bulkUpdateTask).start();
     }
+
     @FXML
     private void handleProcessFailedScans() {
         if (failedList.isEmpty()) {
@@ -383,6 +403,7 @@ public class ScanUpdateController {
             showAlert("Error", "Could not open the 'Add Asset' window.");
         }
     }
+
     private void printDeploymentLabels(String serialNumber) {
         String sku = assetDAO.findAssetBySerialNumber(serialNumber)
                 .map(AssetInfo::getModelNumber)
@@ -437,8 +458,17 @@ public class ScanUpdateController {
             this.status = new SimpleStringProperty(status);
             this.timestamp = new SimpleStringProperty(timestamp);
         }
-        public String getSerial() { return serial.get(); }
-        public String getStatus() { return status.get(); }
-        public String getTimestamp() { return timestamp.get(); }
+
+        public String getSerial() {
+            return serial.get();
+        }
+
+        public String getStatus() {
+            return status.get();
+        }
+
+        public String getTimestamp() {
+            return timestamp.get();
+        }
     }
 }

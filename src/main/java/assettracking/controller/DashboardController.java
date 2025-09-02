@@ -31,40 +31,74 @@ import java.sql.SQLException;
 
 public class DashboardController {
 
-    @FXML private BarChart<String, Number> weeklyIntakeChart;
-    @FXML private PieChart inventoryPieChart;
-    @FXML private PieChart deploymentBreakdownChart;
-    @FXML private Label laptopsIntakenLabel, laptopsProcessedLabel, tabletsIntakenLabel, desktopsIntakenLabel, monitorsIntakenLabel;
-    @FXML private Label tabletsProcessedLabel, desktopsProcessedLabel, monitorsProcessedLabel;
-    @FXML private Label totalProcessedLabel;
-    @FXML private Label laptopsDisposedLabel, tabletsDisposedLabel, desktopsDisposedLabel, monitorsDisposedLabel;
-    @FXML private Label activeTriageLabel;
-    @FXML private Label awaitingDisposalLabel;
-    @FXML private Label avgTurnaroundLabel;
-    @FXML private Label boxesAssembledLabel;
-    @FXML private Label labelsCreatedLabel;
-    @FXML private Label deviceGoalPacingLabel;
-    @FXML private Label monitorGoalPacingLabel;
-    @FXML private ToggleGroup dateRangeToggleGroup;
-    @FXML private RadioButton todayRadio;
-    @FXML private RadioButton days7Radio;
-    @FXML private RadioButton days30Radio;
-    @FXML private Button importFlagsButton;
-    @FXML private TextField deviceGoalField;
-    @FXML private TextField monitorGoalField;
-    @FXML private Label timeRangeTitleLabel;
-    @FXML private Label breakdownTitleLabel;
-    @FXML private Label inventoryOverviewTitleLabel;
-    @FXML private GridPane mainGridPane;
-    @FXML private ColumnConstraints leftColumn;
-    @FXML private ColumnConstraints rightColumn;
-    @FXML private ScrollPane rightScrollPane;
-    @FXML private Label healthTitleLabel;
-    @FXML private Label pacingTitleLabel;
-    @FXML private Label topModelsTitleLabel;
-    @FXML private TableView<TopModelStat> topModelsTable;
-    @FXML private TableColumn<TopModelStat, String> modelNumberCol;
-    @FXML private TableColumn<TopModelStat, Integer> modelCountCol;
+    @FXML
+    private BarChart<String, Number> weeklyIntakeChart;
+    @FXML
+    private PieChart inventoryPieChart;
+    @FXML
+    private PieChart deploymentBreakdownChart;
+    @FXML
+    private Label laptopsIntakenLabel, laptopsProcessedLabel, tabletsIntakenLabel, desktopsIntakenLabel, monitorsIntakenLabel;
+    @FXML
+    private Label tabletsProcessedLabel, desktopsProcessedLabel, monitorsProcessedLabel;
+    @FXML
+    private Label totalProcessedLabel;
+    @FXML
+    private Label laptopsDisposedLabel, tabletsDisposedLabel, desktopsDisposedLabel, monitorsDisposedLabel;
+    @FXML
+    private Label activeTriageLabel;
+    @FXML
+    private Label awaitingDisposalLabel;
+    @FXML
+    private Label avgTurnaroundLabel;
+    @FXML
+    private Label boxesAssembledLabel;
+    @FXML
+    private Label labelsCreatedLabel;
+    @FXML
+    private Label deviceGoalPacingLabel;
+    @FXML
+    private Label monitorGoalPacingLabel;
+    @FXML
+    private ToggleGroup dateRangeToggleGroup;
+    @FXML
+    private RadioButton todayRadio;
+    @FXML
+    private RadioButton days7Radio;
+    @FXML
+    private RadioButton days30Radio;
+    @FXML
+    private Button importFlagsButton;
+    @FXML
+    private TextField deviceGoalField;
+    @FXML
+    private TextField monitorGoalField;
+    @FXML
+    private Label timeRangeTitleLabel;
+    @FXML
+    private Label breakdownTitleLabel;
+    @FXML
+    private Label inventoryOverviewTitleLabel;
+    @FXML
+    private GridPane mainGridPane;
+    @FXML
+    private ColumnConstraints leftColumn;
+    @FXML
+    private ColumnConstraints rightColumn;
+    @FXML
+    private ScrollPane rightScrollPane;
+    @FXML
+    private Label healthTitleLabel;
+    @FXML
+    private Label pacingTitleLabel;
+    @FXML
+    private Label topModelsTitleLabel;
+    @FXML
+    private TableView<TopModelStat> topModelsTable;
+    @FXML
+    private TableColumn<TopModelStat, String> modelNumberCol;
+    @FXML
+    private TableColumn<TopModelStat, Integer> modelCountCol;
 
     private final ObservableList<TopModelStat> topModelsList = FXCollections.observableArrayList();
     private final AppSettingsDAO appSettingsDAO = new AppSettingsDAO();
@@ -126,23 +160,23 @@ public class DashboardController {
         topModelsList.clear();
         String dateFilter = getDateFilterClause("ds.last_update");
         String sql = """
-            SELECT
-                re.model_number,
-                COUNT(re.receipt_id) as model_count
-            FROM
-                Device_Status ds
-            JOIN
-                Receipt_Events re ON ds.receipt_id = re.receipt_id
-            WHERE
-                ds.status = 'Processed' AND %s
-            GROUP BY
-                re.model_number
-            HAVING
-                re.model_number IS NOT NULL AND re.model_number != ''
-            ORDER BY
-                model_count DESC
-            LIMIT 10
-        """.formatted(dateFilter);
+                    SELECT
+                        re.model_number,
+                        COUNT(re.receipt_id) as model_count
+                    FROM
+                        Device_Status ds
+                    JOIN
+                        Receipt_Events re ON ds.receipt_id = re.receipt_id
+                    WHERE
+                        ds.status = 'Processed' AND %s
+                    GROUP BY
+                        re.model_number
+                    HAVING
+                        re.model_number IS NOT NULL AND re.model_number != ''
+                    ORDER BY
+                        model_count DESC
+                    LIMIT 10
+                """.formatted(dateFilter);
 
         try (Connection conn = DatabaseConnection.getInventoryConnection();
              PreparedStatement stmt = conn.prepareStatement(sql);
@@ -191,7 +225,8 @@ public class DashboardController {
                 if (rs.next()) animateLabelUpdate(awaitingDisposalLabel, String.valueOf(rs.getInt("count")));
             }
             try (PreparedStatement stmt = conn.prepareStatement(turnaroundSql); ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) animateLabelUpdate(avgTurnaroundLabel, String.format("%.1f Days", rs.getDouble("avg_days")));
+                if (rs.next())
+                    animateLabelUpdate(avgTurnaroundLabel, String.format("%.1f Days", rs.getDouble("avg_days")));
             }
         } catch (SQLException e) {
             System.err.println("Database Error loading static KPIs: " + e.getMessage());
@@ -234,21 +269,21 @@ public class DashboardController {
         String dateClause = getDateFilterClause("ds.last_update");
         String intakeDateClause = getDateFilterClause("p.receive_date");
         String consolidatedSql = """
-            SELECT
-                re.category,
-                SUM(CASE WHEN %s THEN 1 ELSE 0 END) as IntakenCount,
-                SUM(CASE WHEN ds.status = 'Processed' AND %s THEN 1 ELSE 0 END) as ProcessedCount,
-                SUM(CASE WHEN ds.status = 'Disposed' AND %s THEN 1 ELSE 0 END) as DisposedCount
-            FROM Receipt_Events re
-            LEFT JOIN Packages p ON re.package_id = p.package_id
-            LEFT JOIN Device_Status ds ON re.receipt_id = ds.receipt_id
-            WHERE
-                re.category LIKE '%%Laptop%%' OR
-                re.category LIKE '%%Tablet%%' OR
-                re.category LIKE '%%Desktop%%' OR
-                re.category LIKE '%%Monitor%%'
-            GROUP BY re.category
-        """.formatted(intakeDateClause, dateClause, dateClause);
+                    SELECT
+                        re.category,
+                        SUM(CASE WHEN %s THEN 1 ELSE 0 END) as IntakenCount,
+                        SUM(CASE WHEN ds.status = 'Processed' AND %s THEN 1 ELSE 0 END) as ProcessedCount,
+                        SUM(CASE WHEN ds.status = 'Disposed' AND %s THEN 1 ELSE 0 END) as DisposedCount
+                    FROM Receipt_Events re
+                    LEFT JOIN Packages p ON re.package_id = p.package_id
+                    LEFT JOIN Device_Status ds ON re.receipt_id = ds.receipt_id
+                    WHERE
+                        re.category LIKE '%%Laptop%%' OR
+                        re.category LIKE '%%Tablet%%' OR
+                        re.category LIKE '%%Desktop%%' OR
+                        re.category LIKE '%%Monitor%%'
+                    GROUP BY re.category
+                """.formatted(intakeDateClause, dateClause, dateClause);
 
         int laptopsIntaken = 0, tabletsIntaken = 0, desktopsIntaken = 0, monitorsIntaken = 0;
         int laptopsProcessed = 0, tabletsProcessed = 0, desktopsProcessed = 0, monitorsProcessed = 0;
@@ -320,10 +355,12 @@ public class DashboardController {
         int totalMonitorIntake = 0;
         try {
             totalDeviceIntake = Integer.parseInt(laptopsIntakenLabel.getText()) + Integer.parseInt(tabletsIntakenLabel.getText()) + Integer.parseInt(desktopsIntakenLabel.getText());
-        } catch (NumberFormatException ignored) {}
+        } catch (NumberFormatException ignored) {
+        }
         try {
             totalMonitorIntake = Integer.parseInt(monitorsIntakenLabel.getText());
-        } catch (NumberFormatException ignored) {}
+        } catch (NumberFormatException ignored) {
+        }
         if (weeklyDeviceGoal > 0) {
             animateLabelUpdate(deviceGoalPacingLabel, String.format("%.1f%%", (totalDeviceIntake / weeklyDeviceGoal) * 100));
         } else {
@@ -392,12 +429,12 @@ public class DashboardController {
         String deviceGoalStr = appSettingsDAO.getSetting("device_goal").orElse("100.0");
         this.weeklyDeviceGoal = Double.parseDouble(deviceGoalStr);
         if (deviceGoalField != null) {
-            deviceGoalField.setText(String.valueOf((int)this.weeklyDeviceGoal));
+            deviceGoalField.setText(String.valueOf((int) this.weeklyDeviceGoal));
         }
         String monitorGoalStr = appSettingsDAO.getSetting("monitor_goal").orElse("50.0");
         this.weeklyMonitorGoal = Double.parseDouble(monitorGoalStr);
         if (monitorGoalField != null) {
-            monitorGoalField.setText(String.valueOf((int)this.weeklyMonitorGoal));
+            monitorGoalField.setText(String.valueOf((int) this.weeklyMonitorGoal));
         }
     }
 
@@ -407,13 +444,13 @@ public class DashboardController {
             weeklyDeviceGoal = Double.parseDouble(deviceGoalField.getText());
             appSettingsDAO.saveSetting("device_goal", String.valueOf(weeklyDeviceGoal));
         } catch (NumberFormatException e) {
-            deviceGoalField.setText(String.valueOf((int)weeklyDeviceGoal));
+            deviceGoalField.setText(String.valueOf((int) weeklyDeviceGoal));
         }
         try {
             weeklyMonitorGoal = Double.parseDouble(monitorGoalField.getText());
             appSettingsDAO.saveSetting("monitor_goal", String.valueOf(weeklyMonitorGoal));
         } catch (NumberFormatException e) {
-            monitorGoalField.setText(String.valueOf((int)weeklyMonitorGoal));
+            monitorGoalField.setText(String.valueOf((int) weeklyMonitorGoal));
         }
         goalMetCelebrated = false;
         refreshAllCharts();

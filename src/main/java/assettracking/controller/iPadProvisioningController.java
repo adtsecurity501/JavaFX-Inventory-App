@@ -32,34 +32,62 @@ import java.util.Optional;
 public class iPadProvisioningController {
 
     // --- All FXML Fields ---
-    @FXML private Button importDeviceListButton;
-    @FXML private Label deviceListStatusLabel;
-    @FXML private Button importRosterButton;
-    @FXML private TextField snRefFilterField;
-    @FXML private TableView<RosterEntry> rosterTable;
-    @FXML private TableColumn<RosterEntry, String> rosterNameCol;
-    @FXML private TableColumn<RosterEntry, String> rosterSnRefCol;
-    @FXML private TextField serialScanField;
-    @FXML private TableView<StagedDevice> stagingTable;
-    @FXML private TableColumn<StagedDevice, String> stageFirstNameCol;
-    @FXML private TableColumn<StagedDevice, String> stageLastNameCol;
-    @FXML private TableColumn<StagedDevice, String> stageSerialCol;
-    @FXML private TableColumn<StagedDevice, String> stageImeiCol;
-    @FXML private TableColumn<StagedDevice, String> stageSimCol;
-    @FXML private TableColumn<StagedDevice, String> stageSnRefCol;
-    @FXML private TableColumn<StagedDevice, String> stageEmailCol;
-    @FXML private TableColumn<StagedDevice, String> stageCarrierCol;
-    @FXML private TableColumn<StagedDevice, String> stageCarrierAccountCol;
-    @FXML private Button exportButton;
-    @FXML private Label statusLabel;
-    @FXML private TextField dbSearchField;
-    @FXML private TableView<BulkDevice> dbResultsTable;
-    @FXML private TableColumn<BulkDevice, String> dbSerialCol;
-    @FXML private TableColumn<BulkDevice, String> dbImeiCol;
-    @FXML private TableColumn<BulkDevice, String> dbSimCol;
-    @FXML private TableColumn<BulkDevice, String> dbDeviceNameCol;
-    @FXML private Button stageUnassignedButton;
-    @FXML private ToggleButton bulkModeToggle;
+    @FXML
+    private Button importDeviceListButton;
+    @FXML
+    private Label deviceListStatusLabel;
+    @FXML
+    private Button importRosterButton;
+    @FXML
+    private TextField snRefFilterField;
+    @FXML
+    private TableView<RosterEntry> rosterTable;
+    @FXML
+    private TableColumn<RosterEntry, String> rosterNameCol;
+    @FXML
+    private TableColumn<RosterEntry, String> rosterSnRefCol;
+    @FXML
+    private TextField serialScanField;
+    @FXML
+    private TableView<StagedDevice> stagingTable;
+    @FXML
+    private TableColumn<StagedDevice, String> stageFirstNameCol;
+    @FXML
+    private TableColumn<StagedDevice, String> stageLastNameCol;
+    @FXML
+    private TableColumn<StagedDevice, String> stageSerialCol;
+    @FXML
+    private TableColumn<StagedDevice, String> stageImeiCol;
+    @FXML
+    private TableColumn<StagedDevice, String> stageSimCol;
+    @FXML
+    private TableColumn<StagedDevice, String> stageSnRefCol;
+    @FXML
+    private TableColumn<StagedDevice, String> stageEmailCol;
+    @FXML
+    private TableColumn<StagedDevice, String> stageCarrierCol;
+    @FXML
+    private TableColumn<StagedDevice, String> stageCarrierAccountCol;
+    @FXML
+    private Button exportButton;
+    @FXML
+    private Label statusLabel;
+    @FXML
+    private TextField dbSearchField;
+    @FXML
+    private TableView<BulkDevice> dbResultsTable;
+    @FXML
+    private TableColumn<BulkDevice, String> dbSerialCol;
+    @FXML
+    private TableColumn<BulkDevice, String> dbImeiCol;
+    @FXML
+    private TableColumn<BulkDevice, String> dbSimCol;
+    @FXML
+    private TableColumn<BulkDevice, String> dbDeviceNameCol;
+    @FXML
+    private Button stageUnassignedButton;
+    @FXML
+    private ToggleButton bulkModeToggle;
 
     private final iPadProvisioningDAO dao = new iPadProvisioningDAO();
     private final ObservableList<RosterEntry> rosterList = FXCollections.observableArrayList();
@@ -422,7 +450,7 @@ public class iPadProvisioningController {
     @FXML
     private void handleRemoveSelected() {
         stagedDeviceList.removeAll(stagingTable.getSelectionModel().getSelectedItems());
-        if(stagedDeviceList.isEmpty()) exportButton.setDisable(true);
+        if (stagedDeviceList.isEmpty()) exportButton.setDisable(true);
     }
 
     @FXML
