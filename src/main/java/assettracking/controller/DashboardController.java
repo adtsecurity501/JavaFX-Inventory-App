@@ -116,7 +116,7 @@ public class DashboardController {
             // Proper error handling if the database connection fails.
             Platform.runLater(() -> {
                 StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Database Connection Failed",
-                        "Could not connect to the database. Please ensure the H2 server is running and the network is accessible.\n\nError: " + initialLoadTask.getException().getMessage());
+                        "Could not connect to the database. Please ensure the H2 server is running and the network is accessible.\\n\\nError: " + initialLoadTask.getException().getMessage());
             });
         });
 

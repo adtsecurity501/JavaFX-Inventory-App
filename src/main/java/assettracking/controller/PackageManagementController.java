@@ -23,19 +23,32 @@ import java.util.List;
 public class PackageManagementController {
 
     // --- FXML Fields ---
-    @FXML private Pagination pagination;
-    @FXML private TextField searchField;
-    @FXML private DatePicker fromDatePicker;
-    @FXML private DatePicker toDatePicker;
-    @FXML private ComboBox<Integer> rowsPerPageCombo;
-    @FXML private TableView<Package> packageTable;
-    @FXML private TableColumn<Package, String> trackingNumberCol;
-    @FXML private TableColumn<Package, LocalDate> receiveDateCol;
-    @FXML private TableColumn<Package, String> firstNameCol;
-    @FXML private TableColumn<Package, String> lastNameCol;
-    @FXML private TableColumn<Package, String> cityCol;
-    @FXML private TableColumn<Package, String> stateCol;
-    @FXML private TableColumn<Package, String> zipCodeCol;
+    @FXML
+    private Pagination pagination;
+    @FXML
+    private TextField searchField;
+    @FXML
+    private DatePicker fromDatePicker;
+    @FXML
+    private DatePicker toDatePicker;
+    @FXML
+    private ComboBox<Integer> rowsPerPageCombo;
+    @FXML
+    private TableView<Package> packageTable;
+    @FXML
+    private TableColumn<Package, String> trackingNumberCol;
+    @FXML
+    private TableColumn<Package, LocalDate> receiveDateCol;
+    @FXML
+    private TableColumn<Package, String> firstNameCol;
+    @FXML
+    private TableColumn<Package, String> lastNameCol;
+    @FXML
+    private TableColumn<Package, String> cityCol;
+    @FXML
+    private TableColumn<Package, String> stateCol;
+    @FXML
+    private TableColumn<Package, String> zipCodeCol;
 
     // --- DAO and UI State ---
     private final PackageDAO packageDAO = new PackageDAO();
@@ -110,7 +123,11 @@ public class PackageManagementController {
             updateTableForPage(pagination.getCurrentPageIndex());
         });
 
-        countTask.setOnFailed(e -> showAlert(Alert.AlertType.ERROR, "Database Error", "Failed to count packages."));
+        countTask.setOnFailed(e -> {
+            Platform.runLater(() -> {
+                showAlert(Alert.AlertType.ERROR, "Database Error", "Failed to count packages.");
+            });
+        });
         new Thread(countTask).start();
     }
 
@@ -127,7 +144,11 @@ public class PackageManagementController {
         };
 
         fetchTask.setOnSucceeded(e -> packageList.setAll(fetchTask.getValue()));
-        fetchTask.setOnFailed(e -> showAlert(Alert.AlertType.ERROR, "Database Error", "Failed to load package data."));
+        fetchTask.setOnFailed(e -> {
+            Platform.runLater(() -> {
+                showAlert(Alert.AlertType.ERROR, "Database Error", "Failed to load package data.");
+            });
+        });
         new Thread(fetchTask).start();
     }
 

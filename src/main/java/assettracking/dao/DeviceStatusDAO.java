@@ -6,6 +6,7 @@ import assettracking.db.DatabaseConnection;
 import assettracking.manager.DeviceStatusManager;
 import assettracking.ui.DeviceStatusActions;
 import assettracking.manager.StageManager;
+import javafx.application.Platform;
 import javafx.collections.ObservableList;
 import javafx.scene.control.Alert;
 
@@ -39,7 +40,7 @@ public class DeviceStatusDAO {
                 return rs.getInt(1);
             }
         } catch (SQLException e) {
-            StageManager.showAlert(null, Alert.AlertType.ERROR, "Database Error", "Failed to count records for pagination: " + e.getMessage());
+            Platform.runLater(() -> StageManager.showAlert(null, Alert.AlertType.ERROR, "Database Error", "Failed to count records for pagination: " + e.getMessage()));
         }
         return 0;
     }
@@ -67,7 +68,7 @@ public class DeviceStatusDAO {
                 ));
             }
         } catch (SQLException e) {
-            StageManager.showAlert(null, Alert.AlertType.ERROR, "Database Error", "Failed to load page data: " + e.getMessage());
+            Platform.runLater(() -> StageManager.showAlert(null, Alert.AlertType.ERROR, "Database Error", "Failed to load page data: " + e.getMessage()));
         }
     }
 
@@ -121,58 +122,65 @@ public class DeviceStatusDAO {
 
     private DeviceStatusActions.QueryAndParams buildFilteredQuery(boolean forCount) {
         DeviceStatusTrackingController controller = manager.getController();
-        String subQuery =
-                "SELECT p.receive_date, re.receipt_id, re.serial_number, re.category, re.make, re.description, " +
-                        "ds.status, ds.sub_status, ds.last_update, ds.change_log, " +
-                        "EXISTS(SELECT 1 FROM Flag_Devices fd WHERE fd.serial_number = re.serial_number) AS is_flagged " +
-                        "FROM Receipt_Events re " +
-                        "JOIN Packages p ON re.package_id = p.package_id " +
-                        "LEFT JOIN Device_Status ds ON re.receipt_id = ds.receipt_id " +
-                        "WHERE re.receipt_id IN (SELECT receipt_id FROM (SELECT receipt_id, ROW_NUMBER() OVER(PARTITION BY serial_number ORDER BY receipt_id DESC) as rn FROM Receipt_Events) WHERE rn = 1)";
+
+        // --- THIS IS THE CORRECTED QUERY LOGIC ---
+        String baseQuery =
+                " FROM " +
+                        "    Receipt_Events re " +
+                        "INNER JOIN ( " +
+                        "    SELECT serial_number, MAX(receipt_id) AS max_receipt_id " +
+                        "    FROM Receipt_Events " +
+                        "    GROUP BY serial_number " +
+                        ") latest ON re.serial_number = latest.serial_number AND re.receipt_id = latest.max_receipt_id " +
+                        "LEFT JOIN Packages p ON re.package_id = p.package_id " +
+                        "LEFT JOIN Device_Status ds ON re.receipt_id = ds.receipt_id";
+
+        String selectClause = forCount
+                ? "SELECT COUNT(*)"
+                : "SELECT p.receive_date, re.receipt_id, re.serial_number, re.category, re.make, re.description, " +
+                "ds.status, ds.sub_status, ds.last_update, ds.change_log, " +
+                "EXISTS(SELECT 1 FROM Flag_Devices fd WHERE fd.serial_number = re.serial_number) AS is_flagged";
+        // --- END OF CORRECTION ---
 
         List<Object> params = new ArrayList<>();
-        StringBuilder whereClause = new StringBuilder();
+        StringBuilder whereClause = new StringBuilder(" WHERE 1=1");
 
         String serialNum = controller.serialSearchField.getText().trim();
         if (!serialNum.isEmpty()) {
-            whereClause.append(" AND serial_number LIKE ?");
+            whereClause.append(" AND re.serial_number LIKE ?");
             params.add("%" + serialNum + "%");
         }
         String status = controller.statusFilterCombo.getValue();
         if (status != null && !"All Statuses".equals(status)) {
-            whereClause.append(" AND status = ?");
+            whereClause.append(" AND ds.status = ?");
             params.add(status);
         }
         String category = controller.categoryFilterCombo.getValue();
         if (category != null && !"All Categories".equals(category)) {
-            whereClause.append(" AND category = ?");
+            whereClause.append(" AND re.category = ?");
             params.add(category);
         }
         LocalDate fromDate = controller.fromDateFilter.getValue();
         if (fromDate != null) {
-            // H2 compatible date casting
-            whereClause.append(" AND last_update >= ?");
+            whereClause.append(" AND ds.last_update >= ?");
             params.add(java.sql.Date.valueOf(fromDate));
         }
         LocalDate toDate = controller.toDateFilter.getValue();
         if (toDate != null) {
-            // H2 compatible date casting
-            whereClause.append(" AND last_update < ?");
-            params.add(java.sql.Date.valueOf(toDate.plusDays(1))); // Use < next day for inclusive search
+            whereClause.append(" AND ds.last_update < ?");
+            params.add(java.sql.Date.valueOf(toDate.plusDays(1)));
         }
 
-        String fullQuery;
-        if (forCount) {
-            fullQuery = "SELECT COUNT(*) FROM (" + subQuery + ") AS sub" + (!whereClause.isEmpty() ? " WHERE " + whereClause.substring(5) : "");
-        } else {
-            fullQuery = "SELECT * FROM (" + subQuery + ") AS sub" + (!whereClause.isEmpty() ? " WHERE " + whereClause.substring(5) : "");
+        String fullQuery = selectClause + baseQuery + whereClause;
+
+        if (!forCount) {
             String groupBy = controller.groupByCombo.getValue();
             if ("Status".equals(groupBy)) {
-                fullQuery += " ORDER BY status, last_update DESC";
+                fullQuery += " ORDER BY ds.status, ds.last_update DESC";
             } else if ("Category".equals(groupBy)) {
-                fullQuery += " ORDER BY category, last_update DESC";
+                fullQuery += " ORDER BY re.category, ds.last_update DESC";
             } else {
-                fullQuery += " ORDER BY last_update DESC";
+                fullQuery += " ORDER BY ds.last_update DESC";
             }
             fullQuery += " LIMIT ? OFFSET ?";
         }

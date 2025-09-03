@@ -6,6 +6,7 @@ import assettracking.manager.DeviceStatusManager;
 import assettracking.manager.StatusManager;
 import assettracking.ui.DeviceStatusActions;
 import assettracking.manager.StageManager;
+import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
@@ -212,13 +213,11 @@ public class DeviceStatusTrackingController {
     }
 
     private void loadFilterCategories() {
-        // If we have already loaded the categories, use the cache and do nothing else.
         if (cachedCategories != null) {
             categoryFilterCombo.getItems().addAll(cachedCategories);
             return;
         }
 
-        // If the cache is empty, query the database.
         cachedCategories = new ArrayList<>();
         String sql = "SELECT DISTINCT category FROM Receipt_Events WHERE category IS NOT NULL AND category != '' ORDER BY category";
         try (Connection conn = DatabaseConnection.getInventoryConnection();
@@ -227,10 +226,14 @@ public class DeviceStatusTrackingController {
             while (rs.next()) {
                 cachedCategories.add(rs.getString("category"));
             }
-            // Now that the cache is populated, add the items to the dropdown.
             categoryFilterCombo.getItems().addAll(cachedCategories);
         } catch (SQLException e) {
-            StageManager.showAlert(statusTable.getScene().getWindow(), Alert.AlertType.ERROR, "Database Error", "Failed to load categories for filtering.");
+            // --- THIS IS THE FIX ---
+            // Delay showing the alert until the UI is fully initialized.
+            Platform.runLater(() -> {
+                StageManager.showAlert(statusTable.getScene().getWindow(), Alert.AlertType.ERROR, "Database Error", "Failed to load categories for filtering.");
+            });
+            // --- END OF FIX ---
         }
     }
 
