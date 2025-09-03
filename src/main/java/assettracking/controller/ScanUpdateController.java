@@ -54,7 +54,13 @@ public class ScanUpdateController {
     public void initialize() {
         setupTableColumns();
         setupStatusComboBoxes();
-        updateUiForStatusChange();
+
+        // Add a listener to the Box ID field to re-evaluate the UI state
+        disposalLocationField.textProperty().addListener((obs, oldText, newText) -> {
+            updateUiForStatusChange();
+        });
+
+        updateUiForStatusChange(); // Initial UI setup
     }
 
     // --- NEW HELPER METHOD ---
@@ -160,12 +166,22 @@ public class ScanUpdateController {
 
         boolean isDisposal = "Disposed".equals(status);
         boolean needsBoxId = isDisposal && !"Ready for Wipe".equals(subStatus);
+
+        // --- THIS IS THE FIX ---
+        // You must set BOTH visible and managed properties.
         disposalLocationLabel.setVisible(isDisposal);
+        disposalLocationLabel.setManaged(isDisposal); // This line was missing
         boxIdHBox.setVisible(isDisposal);
+        boxIdHBox.setManaged(isDisposal);             // This line was missing
+        // --- END OF FIX ---
+
         scanSerialField.setDisable(needsBoxId && disposalLocationField.getText().trim().isEmpty());
 
         boolean isReadyForDeployment = "Processed".equals(status) && "Ready for Deployment".equals(subStatus);
         printLabelsToggle.setVisible(isReadyForDeployment);
+
+        // Also manage the printLabelsToggle for consistent layout
+        printLabelsToggle.setManaged(isReadyForDeployment);
     }
 
     @FXML
