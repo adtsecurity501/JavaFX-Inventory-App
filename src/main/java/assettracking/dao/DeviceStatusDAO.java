@@ -150,20 +150,22 @@ public class DeviceStatusDAO {
         }
         LocalDate fromDate = controller.fromDateFilter.getValue();
         if (fromDate != null) {
-            whereClause.append(" AND date(last_update) >= ?");
-            params.add(fromDate.toString());
+            // H2 compatible date casting
+            whereClause.append(" AND last_update >= ?");
+            params.add(java.sql.Date.valueOf(fromDate));
         }
         LocalDate toDate = controller.toDateFilter.getValue();
         if (toDate != null) {
-            whereClause.append(" AND date(last_update) <= ?");
-            params.add(toDate.toString());
+            // H2 compatible date casting
+            whereClause.append(" AND last_update < ?");
+            params.add(java.sql.Date.valueOf(toDate.plusDays(1))); // Use < next day for inclusive search
         }
 
         String fullQuery;
         if (forCount) {
-            fullQuery = "SELECT COUNT(*) FROM (" + subQuery + ")" + (!whereClause.isEmpty() ? " WHERE " + whereClause.substring(5) : "");
+            fullQuery = "SELECT COUNT(*) FROM (" + subQuery + ") AS sub" + (!whereClause.isEmpty() ? " WHERE " + whereClause.substring(5) : "");
         } else {
-            fullQuery = "SELECT * FROM (" + subQuery + ")" + (!whereClause.isEmpty() ? " WHERE " + whereClause.substring(5) : "");
+            fullQuery = "SELECT * FROM (" + subQuery + ") AS sub" + (!whereClause.isEmpty() ? " WHERE " + whereClause.substring(5) : "");
             String groupBy = controller.groupByCombo.getValue();
             if ("Status".equals(groupBy)) {
                 fullQuery += " ORDER BY status, last_update DESC";

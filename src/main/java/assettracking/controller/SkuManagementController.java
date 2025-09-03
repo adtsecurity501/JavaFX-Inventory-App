@@ -3,13 +3,16 @@ package assettracking.controller;
 import assettracking.data.Sku;
 import assettracking.dao.SkuDAO;
 import assettracking.manager.StageManager;
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
+import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
+import java.util.List;
 import java.util.Optional;
 
 public class SkuManagementController {
@@ -55,12 +58,10 @@ public class SkuManagementController {
 
         skuTable.setItems(sortedData);
 
-        // --- MODIFIED ---
-        // Reverted from the incorrect method reference back to the working lambda expression.
         skuTable.getSelectionModel().selectedItemProperty().addListener(
                 (obs, oldSelection, newSelection) -> populateForm(newSelection)
         );
-        refreshTable();
+        refreshTable(); // This is now an async call
     }
 
     private void setupTableColumns() {
@@ -71,9 +72,28 @@ public class SkuManagementController {
         descriptionCol.setCellValueFactory(new PropertyValueFactory<>("description"));
     }
 
+    // MODIFIED: This method now runs the database query in the background
     private void refreshTable() {
-        skuList.setAll(skuDAO.getAllSkus());
-        handleNew();
+        Task<List<Sku>> loadSkusTask = new Task<>() {
+            @Override
+            protected List<Sku> call() {
+                // This runs on a background thread
+                return skuDAO.getAllSkus();
+            }
+        };
+
+        loadSkusTask.setOnSucceeded(e -> {
+            // This runs on the UI thread after the task completes
+            skuList.setAll(loadSkusTask.getValue());
+            handleNew();
+        });
+
+        loadSkusTask.setOnFailed(e -> {
+            loadSkusTask.getException().printStackTrace();
+            statusLabel.setText("Error: Failed to load SKU data.");
+        });
+
+        new Thread(loadSkusTask).start();
     }
 
     private void populateForm(Sku sku) {

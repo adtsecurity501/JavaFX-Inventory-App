@@ -5,6 +5,7 @@ import assettracking.data.DeviceStatusView;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.concurrent.Task;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
 
@@ -19,20 +20,41 @@ public class DeviceStatusManager {
         this.deviceStatusDAO = new DeviceStatusDAO(this, deviceStatusList);
     }
 
+    // MODIFIED: This method now runs the count query in the background.
     public void resetPagination() {
-        Platform.runLater(() -> {
-            int totalCount = deviceStatusDAO.fetchPageCount();
+        Task<Integer> countTask = new Task<>() {
+            @Override
+            protected Integer call() {
+                // This runs on a background thread
+                return deviceStatusDAO.fetchPageCount();
+            }
+        };
+
+        countTask.setOnSucceeded(e -> {
+            // This runs on the UI thread after the count is fetched
+            int totalCount = countTask.getValue();
             int pageCount = (int) Math.ceil((double) totalCount / rowsPerPage);
             if (pageCount == 0) pageCount = 1;
 
             controller.pagination.setPageCount(pageCount);
+            // Check if current page is valid, if not, reset to 0
+            if (controller.pagination.getCurrentPageIndex() >= pageCount) {
+                controller.pagination.setCurrentPageIndex(0);
+            }
             controller.pagination.setPageFactory(this::createPage);
         });
+
+        countTask.setOnFailed(e -> {
+            countTask.getException().printStackTrace();
+            // Optionally show an error to the user
+        });
+
+        new Thread(countTask).start();
     }
 
     private Node createPage(int pageIndex) {
         deviceStatusDAO.updateTableForPage(pageIndex);
-        return new Label();
+        return new Label(); // Placeholder node, as required by the factory
     }
 
     public void clearFilters() {

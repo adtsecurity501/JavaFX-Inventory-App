@@ -66,40 +66,32 @@ public class PackageIntakeController {
             stmt.setString(1, currentTracking);
             ResultSet rs = stmt.executeQuery();
 
-            // STEP 1: Check if the query returned a result (i.e., the package exists)
             if (rs.next()) {
-                Package existingPkg = new Package(rs.getInt("package_id"), rs.getString("tracking_number"), rs.getString("first_name"), rs.getString("last_name"), rs.getString("city"), rs.getString("state"), rs.getString("zip_code"), LocalDate.parse(rs.getString("receive_date")));
-
-                // STEP 2: Show the confirmation dialog to the user
+                Package existingPkg = new Package(rs.getInt("package_id"), rs.getString("tracking_number"), rs.getString("first_name"), rs.getString("last_name"), rs.getString("city"), rs.getString("state"), rs.getString("zip_code"), rs.getDate("receive_date").toLocalDate());
                 boolean openExisting = StageManager.showConfirmationDialog(
                         getOwnerWindow(),
                         "Duplicate Package Found",
                         "Package with tracking number '" + currentTracking + "' already exists.",
                         "Do you want to open this existing package?"
                 );
-
-                // STEP 3A: If the user chose "Yes"
                 if (openExisting) {
-                    // Open the detail window for the EXISTING package
                     openPackageDetailWindow(existingPkg);
-                    // Clear the form for the next task
                     clearForm();
-                }
-                // STEP 3B: If the user chose "No"
-                else {
-                    // Display an error and disable the button to prevent mistakes
+                } else {
                     trackingErrorLabel.setText("Package already exists.");
                     startButton.setDisable(true);
                 }
-                return; // Stop further processing
+                return;
             }
         } catch (SQLException e) {
             showAlert(Alert.AlertType.ERROR, "Database Error", "Error checking for duplicate package: " + e.getMessage());
             return;
         }
 
+        // --- THIS IS THE CORRECTED, UNIVERSAL SQL QUERY ---
+        String returnLabelSql = "SELECT contact_name, city, state, zip_code FROM Return_Labels WHERE SUBSTRING(tracking_number, LENGTH(tracking_number) - 13) = ?";
         try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement("SELECT contact_name, city, state, zip_code FROM Return_Labels WHERE substr(tracking_number, length(tracking_number) - 13) = ?")) {
+             PreparedStatement stmt = conn.prepareStatement(returnLabelSql)) {
             stmt.setString(1, currentTracking);
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
@@ -124,15 +116,14 @@ public class PackageIntakeController {
             showAlert(Alert.AlertType.WARNING, "Input Required", "Tracking Number is required.");
             return;
         }
-
-        Package pkg = new Package(0, tracking, firstNameField.getText().trim(), lastNameField.getText().trim(),
+        int packageId = packageDAO.addPackage(tracking, firstNameField.getText().trim(), lastNameField.getText().trim(),
                 cityField.getText().trim(), stateField.getText().trim(),
                 zipField.getText().trim(), LocalDate.now());
 
-        int packageId = packageDAO.addPackage(pkg);
-
         if (packageId != -1) {
-            pkg.setPackageId(packageId);
+            Package pkg = new Package(packageId, tracking, firstNameField.getText().trim(), lastNameField.getText().trim(),
+                    cityField.getText().trim(), stateField.getText().trim(),
+                    zipField.getText().trim(), LocalDate.now());
             openPackageDetailWindow(pkg);
             clearForm();
         } else {
@@ -166,7 +157,6 @@ public class PackageIntakeController {
             Parent root = loader.load();
             PackageDetailController controller = loader.getController();
             controller.initData(pkg);
-
             Stage stage = StageManager.createCustomStage(getOwnerWindow(), "Package Details", root);
             stage.show();
         } catch (IOException e) {

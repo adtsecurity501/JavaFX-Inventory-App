@@ -36,9 +36,9 @@ public class AppSettingsDAO {
      * @param value The value to save.
      */
     public void saveSetting(String key, String value) {
-        // "INSERT OR REPLACE" is a convenient SQLite command that will
-        // insert a new row or replace the existing one if the key already exists.
-        String sql = "INSERT OR REPLACE INTO AppSettings (setting_key, setting_value) VALUES (?, ?)";
+        // This is the standard "UPSERT" syntax for PostgreSQL
+        String sql = "INSERT INTO AppSettings (setting_key, setting_value) VALUES (?, ?) " +
+                "ON CONFLICT (setting_key) DO UPDATE SET setting_value = EXCLUDED.setting_value";
         try (Connection conn = DatabaseConnection.getInventoryConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, key);

@@ -30,7 +30,7 @@ import java.util.Map;
 
 public class DashboardController {
 
-    // --- FXML Fields (UI Components) ---
+    // --- FXML Fields ---
     @FXML private BarChart<String, Number> weeklyIntakeChart;
     @FXML private PieChart inventoryPieChart, deploymentBreakdownChart;
     @FXML private Label laptopsIntakenLabel, laptopsProcessedLabel, tabletsIntakenLabel, desktopsIntakenLabel, monitorsIntakenLabel;
@@ -64,9 +64,11 @@ public class DashboardController {
     @FXML
     public void initialize() {
         setupTopModelsTable();
-        loadGoals();
         setupUIListeners();
-        refreshAllData();
+        // --- THIS IS THE KEY CHANGE ---
+        // We now call a method that immediately starts a background thread
+        // for ALL initial data loading.
+        loadInitialDataAsync();
     }
 
     public void init(StackPane rootPane) {
@@ -90,7 +92,39 @@ public class DashboardController {
         topModelsTable.setItems(topModelsList);
     }
 
-    @FXML private void refreshAllData() {
+    // --- NEW METHOD to handle ALL initial data loading on a background thread ---
+    private void loadInitialDataAsync() {
+        Task<Void> initialLoadTask = new Task<>() {
+            @Override
+            protected Void call() throws Exception {
+                // This now happens on a background thread, preventing the UI from freezing.
+                weeklyDeviceGoal = Double.parseDouble(appSettingsDAO.getSetting("device_goal").orElse("100.0"));
+                weeklyMonitorGoal = Double.parseDouble(appSettingsDAO.getSetting("monitor_goal").orElse("50.0"));
+                return null;
+            }
+        };
+
+        initialLoadTask.setOnSucceeded(e -> {
+            // This happens on the UI thread only AFTER the background task is complete.
+            deviceGoalField.setText(String.valueOf((int) weeklyDeviceGoal));
+            monitorGoalField.setText(String.valueOf((int) weeklyMonitorGoal));
+            // Now that the initial goals are loaded, fetch the rest of the dashboard data.
+            refreshAllData();
+        });
+
+        initialLoadTask.setOnFailed(e -> {
+            // Proper error handling if the database connection fails.
+            Platform.runLater(() -> {
+                StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Database Connection Failed",
+                        "Could not connect to the database. Please ensure the H2 server is running and the network is accessible.\n\nError: " + initialLoadTask.getException().getMessage());
+            });
+        });
+
+        new Thread(initialLoadTask).start();
+    }
+
+    @FXML
+    private void refreshAllData() {
         updateDynamicTitles();
         loadGranularMetrics();
         loadStaticKpis();
@@ -98,6 +132,7 @@ public class DashboardController {
         loadTopModelsData();
     }
 
+    // (The rest of the DashboardController methods remain unchanged)
     private void loadGranularMetrics() {
         Task<Map<String, Integer>> task = new Task<>() {
             @Override
@@ -105,7 +140,6 @@ public class DashboardController {
                 return dataService.getGranularMetrics(getDateFilterClause("p.receive_date"), getDateFilterClause("ds.last_update"));
             }
         };
-
         task.setOnSucceeded(e -> {
             Map<String, Integer> metrics = task.getValue();
             animateLabelUpdate(laptopsIntakenLabel, metrics.getOrDefault("laptopsIntaken", 0).toString());
@@ -120,24 +154,18 @@ public class DashboardController {
             animateLabelUpdate(monitorsIntakenLabel, metrics.getOrDefault("monitorsIntaken", 0).toString());
             animateLabelUpdate(monitorsProcessedLabel, metrics.getOrDefault("monitorsProcessed", 0).toString());
             animateLabelUpdate(monitorsDisposedLabel, metrics.getOrDefault("monitorsDisposed", 0).toString());
-
-            int totalProcessed = metrics.values().stream().filter(v -> v > 0).mapToInt(Integer::intValue).sum(); // Simplified, needs refinement based on metric names
             int totalDevicesProcessed = metrics.getOrDefault("laptopsProcessed", 0) + metrics.getOrDefault("tabletsProcessed", 0) + metrics.getOrDefault("desktopsProcessed", 0);
             int totalMonitorsProcessed = metrics.getOrDefault("monitorsProcessed", 0);
-
             animateLabelUpdate(totalProcessedLabel, String.valueOf(totalDevicesProcessed + totalMonitorsProcessed));
             updatePacing(totalDevicesProcessed, totalMonitorsProcessed);
-
             if (days7Radio.isSelected() && confettiManager != null && !goalMetCelebrated && (totalDevicesProcessed >= weeklyDeviceGoal || totalMonitorsProcessed >= weeklyMonitorGoal)) {
                 confettiManager.start();
                 goalMetCelebrated = true;
             }
         });
-
         task.setOnFailed(e -> StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Dashboard Error", "Could not load performance metrics."));
         new Thread(task).start();
     }
-
     private void loadStaticKpis() {
         Task<Map<String, String>> task = new Task<>() {
             @Override
@@ -145,7 +173,6 @@ public class DashboardController {
                 return dataService.getStaticKpis();
             }
         };
-
         task.setOnSucceeded(e -> {
             Map<String, String> kpis = task.getValue();
             animateLabelUpdate(activeTriageLabel, kpis.getOrDefault("activeTriage", "0"));
@@ -155,11 +182,9 @@ public class DashboardController {
             animateLabelUpdate(boxesAssembledLabel, String.valueOf(boxes));
             animateLabelUpdate(labelsCreatedLabel, String.valueOf(boxes * 2));
         });
-
         task.setOnFailed(e -> StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Dashboard Error", "Could not load static KPIs."));
         new Thread(task).start();
     }
-
     private void loadTopModelsData() {
         Task<List<TopModelStat>> task = new Task<>() {
             @Override
@@ -171,30 +196,23 @@ public class DashboardController {
         task.setOnFailed(e -> StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Database Error", "Could not load Top Processed Models data."));
         new Thread(task).start();
     }
-
     private void loadDynamicCharts() {
-        // Inventory Overview (Static Data)
         Task<List<PieChart.Data>> inventoryTask = new Task<>() {
             @Override protected List<PieChart.Data> call() throws Exception { return dataService.getInventoryOverviewData(); }
         };
         inventoryTask.setOnSucceeded(e -> setPieChartData(inventoryPieChart, FXCollections.observableArrayList(inventoryTask.getValue())));
         new Thread(inventoryTask).start();
-
-        // Processed Breakdown (Dynamic Data)
         Task<List<PieChart.Data>> breakdownTask = new Task<>() {
             @Override protected List<PieChart.Data> call() throws Exception { return dataService.getProcessedBreakdownData(getDateFilterClause("ds.last_update")); }
         };
         breakdownTask.setOnSucceeded(e -> setPieChartData(deploymentBreakdownChart, FXCollections.observableArrayList(breakdownTask.getValue())));
         new Thread(breakdownTask).start();
-
-        // Intake Volume (Dynamic Data)
         Task<XYChart.Series<String, Number>> intakeTask = new Task<>() {
             @Override protected XYChart.Series<String, Number> call() throws Exception { return dataService.getIntakeVolumeData(getDateFilterClause("p.receive_date")); }
         };
         intakeTask.setOnSucceeded(e -> weeklyIntakeChart.getData().setAll(intakeTask.getValue()));
         new Thread(intakeTask).start();
     }
-
     private void updatePacing(int deviceCount, int monitorCount) {
         if (weeklyDeviceGoal > 0) {
             animateLabelUpdate(deviceGoalPacingLabel, String.format("%.1f%%", (deviceCount / weeklyDeviceGoal) * 100));
@@ -207,15 +225,15 @@ public class DashboardController {
             monitorGoalPacingLabel.setText("N/A");
         }
     }
-
-    // --- Helper and UI Methods ---
-
     private String getDateFilterClause(String columnName) {
-        if (todayRadio.isSelected()) return " date(" + columnName + ") = date('now')";
-        if (days7Radio.isSelected()) return " date(" + columnName + ") >= date('now', '-7 days')";
-        return " date(" + columnName + ") >= date('now', '-30 days')";
+        if (todayRadio.isSelected()) {
+            return " " + columnName + " >= CURRENT_DATE";
+        }
+        if (days7Radio.isSelected()) {
+            return " " + columnName + " >= DATEADD('DAY', -7, CURRENT_DATE)";
+        }
+        return " " + columnName + " >= DATEADD('DAY', -30, CURRENT_DATE)";
     }
-
     private void updateDynamicTitles() {
         String timeSuffix;
         if (todayRadio.isSelected()) {
@@ -236,7 +254,6 @@ public class DashboardController {
         topModelsTitleLabel.setText("Top Processed Models " + timeSuffix);
         inventoryOverviewTitleLabel.setText("Asset Status Overview (All Time)");
     }
-
     private void setPieChartData(PieChart chart, ObservableList<PieChart.Data> data) {
         double total = data.stream().mapToDouble(PieChart.Data::getPieValue).sum();
         if (total == 0) {
@@ -256,7 +273,6 @@ public class DashboardController {
         });
         chart.setData(data);
     }
-
     private void animateLabelUpdate(Label label, String newValue) {
         if (label == null || label.getText().equals(newValue)) return;
         label.setText(newValue);
@@ -264,15 +280,12 @@ public class DashboardController {
         st.setFromX(1); st.setFromY(1); st.setToX(1.3); st.setToY(1.3);
         st.setCycleCount(2); st.setAutoReverse(true); st.play();
     }
-
     @FXML private void handleImportFlags() {
         new FlaggedDeviceImporter().importFromFile(getStage(), this::refreshAllData);
     }
-
     @FXML private void handleManageMelRules() {
         new MelRulesImporter().importFromFile(getStage());
     }
-
     @FXML private void handleApplyGoals() {
         try {
             weeklyDeviceGoal = Double.parseDouble(deviceGoalField.getText());
@@ -289,14 +302,6 @@ public class DashboardController {
         goalMetCelebrated = false;
         refreshAllData();
     }
-
-    private void loadGoals() {
-        this.weeklyDeviceGoal = Double.parseDouble(appSettingsDAO.getSetting("device_goal").orElse("100.0"));
-        this.weeklyMonitorGoal = Double.parseDouble(appSettingsDAO.getSetting("monitor_goal").orElse("50.0"));
-        deviceGoalField.setText(String.valueOf((int) this.weeklyDeviceGoal));
-        monitorGoalField.setText(String.valueOf((int) this.weeklyMonitorGoal));
-    }
-
     private Stage getStage() {
         return (Stage) mainGridPane.getScene().getWindow();
     }

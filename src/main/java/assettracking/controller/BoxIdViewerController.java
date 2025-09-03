@@ -3,9 +3,11 @@ package assettracking.controller;
 import assettracking.data.BoxIdDetail;
 import assettracking.data.BoxIdSummary;
 import assettracking.db.DatabaseConnection;
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
+import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableColumn;
@@ -19,6 +21,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class BoxIdViewerController {
 
@@ -38,7 +42,7 @@ public class BoxIdViewerController {
     @FXML
     public void initialize() {
         setupTables();
-        loadSummaryData();
+        loadSummaryDataAsync(); // <-- MODIFIED: Call the async method
 
         summaryTable.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
             if (newSelection != null) {
@@ -62,38 +66,51 @@ public class BoxIdViewerController {
     }
 
     private void setupTables() {
-        // --- CORRECTED CODE BLOCK ---
         boxIdCol.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().boxId()));
         itemCountCol.setCellValueFactory(cellData -> new SimpleObjectProperty<>(cellData.getValue().itemCount()));
 
         serialCol.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().serialNumber()));
         statusCol.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().status()));
         subStatusCol.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().subStatus()));
-        // --- END OF CORRECTION ---
 
         detailTable.setItems(detailList);
     }
 
-    private void loadSummaryData() {
-        summaryList.clear();
-        String sql = """
-            SELECT
-                SUBSTR(change_log, INSTR(change_log, ':') + 2, INSTR(change_log, '.') - INSTR(change_log, ':') - 2) as box_id,
-                COUNT(*) as item_count
-            FROM Device_Status
-            WHERE change_log LIKE 'Box ID:%'
-            GROUP BY box_id
-            ORDER BY box_id
-        """;
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
-            while (rs.next()) {
-                summaryList.add(new BoxIdSummary(rs.getString("box_id"), rs.getInt("item_count")));
+    // NEW: Asynchronous data loading method
+    private void loadSummaryDataAsync() {
+        Task<List<BoxIdSummary>> loadTask = new Task<>() {
+            @Override
+            protected List<BoxIdSummary> call() throws Exception {
+                List<BoxIdSummary> results = new ArrayList<>();
+                String sql = """
+                            SELECT
+                                SUBSTRING(change_log, INSTR(change_log, ':') + 2, INSTR(change_log, '.') - INSTR(change_log, ':') - 2) as box_id,
+                                COUNT(*) as item_count
+                            FROM Device_Status
+                            WHERE change_log LIKE 'Box ID:%'
+                            GROUP BY box_id
+                            ORDER BY box_id
+                        """;
+                try (Connection conn = DatabaseConnection.getInventoryConnection();
+                     PreparedStatement stmt = conn.prepareStatement(sql);
+                     ResultSet rs = stmt.executeQuery()) {
+                    while (rs.next()) {
+                        results.add(new BoxIdSummary(rs.getString("box_id"), rs.getInt("item_count")));
+                    }
+                }
+                return results;
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+        };
+
+        loadTask.setOnSucceeded(e -> {
+            summaryList.setAll(loadTask.getValue());
+        });
+
+        loadTask.setOnFailed(e -> {
+            loadTask.getException().printStackTrace(); // Log the error for debugging
+        });
+
+        new Thread(loadTask).start();
     }
 
     private void loadDetailData(String boxId) {

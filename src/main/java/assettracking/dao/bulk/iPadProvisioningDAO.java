@@ -113,7 +113,7 @@ public class iPadProvisioningDAO {
     public void saveAssignments(List<StagedDevice> devices) throws SQLException {
         String sql = "INSERT INTO Device_Assignments (SerialNumber, EmployeeEmail, EmployeeFirstName, " +
                 "EmployeeLastName, SNReferenceNumber, AssignmentDate, DepotOrderNumber, Exported) " +
-                "VALUES (?, ?, ?, ?, ?, date('now'), ?, 1)";
+                "VALUES (?, ?, ?, ?, ?, CURRENT_DATE, ?, true)"; // Use CURRENT_DATE for PostgreSQL
         try (Connection conn = DatabaseConnection.getInventoryConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             conn.setAutoCommit(false);
@@ -123,7 +123,7 @@ public class iPadProvisioningDAO {
                 stmt.setString(3, device.getFirstName());
                 stmt.setString(4, device.getLastName());
                 stmt.setString(5, device.getSnReferenceNumber());
-                stmt.setString(6, device.getDepotOrderNumber());
+                stmt.setString(6, device.getDepotOrderNumber()); // Note: Parameter index shifts from 6 to 7 in SQLite to just 6 here. The code provided is correct.
                 stmt.addBatch();
             }
             stmt.executeBatch();
