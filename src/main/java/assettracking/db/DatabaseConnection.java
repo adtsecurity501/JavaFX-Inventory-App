@@ -28,7 +28,7 @@ public class DatabaseConnection {
                 System.out.println("H2 JDBC Driver loaded successfully.");
 
                 HikariConfig config = new HikariConfig();
-                config.setJdbcUrl("jdbc:h2:tcp://10.68.47.13/inventorybackup");
+                config.setJdbcUrl("jdbc:h2:file:////UTSPRJ2C2333/Server/inventorybackup;AUTO_SERVER=TRUE");
                 config.setUsername("sa");
                 config.setPassword("");
                 config.setMaximumPoolSize(10);

@@ -3,11 +3,7 @@ Priority 1:
 - fix the way the program handles priting the labels on scan updates ready to deploy. Currently when I scan a serail it prints out the labesls but the text shoes Descreiiption not found.
 - add tools to box id viewere tab
 - when an error appears or a window apperas sometimes it dissapears minimized super small to the left bottom corner.
-- add error checking in serials for symbols and spaces and period and stuff
---I want to intake a pcakage and make sure that everything is being created correctly on the back end.
-Tracking is: 10000276112155
-serial is:D5MQKQ3
-device is a:Optiplex 3000 
+- increase width of the autocomplete suggestions drop down, current it is too narrow
 
 
 Priority 2:
@@ -118,8 +114,11 @@ DONE:
 - Visual bug for when dispossing fromm monitor intake, when I click Broken / Dispose  on the window that appears the Confirm Disposal textxs is there but there is no button , the button for confirm disposal is missing. 
 - when I update the status on the device status stracking page It shoiuld auto refresh when I cluck the update button, I want to make the application quick and efficient across the board, what can I do to increase speeds and reduce the amount of calls that it makes to the DB
 - when I click on an autofill suggestion it works correctly it autofills the information but then I have to click each field because the new info causes the fields to display the autofill info again.
-
-
+- I want to intake a pcakage and make sure that everything is being created correctly on the back end.
+Tracking is: 10000276112155
+serial is:D5MQKQ3
+device is a:Optiplex 3000 
+- add error checking in serials for symbols and spaces and period and stuff
 
 
 
