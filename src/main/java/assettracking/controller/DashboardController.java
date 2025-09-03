@@ -2,6 +2,7 @@ package assettracking.controller;
 
 import assettracking.dao.AppSettingsDAO;
 import assettracking.data.TopModelStat;
+import assettracking.db.DatabaseConnection;
 import assettracking.manager.DashboardDataService;
 import assettracking.manager.StageManager;
 import assettracking.manager.ConfettiManager;
@@ -125,6 +126,7 @@ public class DashboardController {
 
     @FXML
     private void refreshAllData() {
+        DatabaseConnection.refreshConnectionPool();
         updateDynamicTitles();
         loadGranularMetrics();
         loadStaticKpis();

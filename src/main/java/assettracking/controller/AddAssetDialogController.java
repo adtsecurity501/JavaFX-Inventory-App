@@ -57,13 +57,11 @@ public class AddAssetDialogController {
     @FXML private TableColumn<AssetEntry, String> serialCol, imeiCol, categoryCol, makeCol, modelCol, descriptionCol, causeCol;
     @FXML private Label sellScrapStatusLabel, sellScrapSubStatusLabel, disqualificationLabel, boxIdLabel;
 
-    // --- NEW: References to ALL popups ---
     private AutoCompletePopup descriptionPopup;
     private AutoCompletePopup modelPopup;
     private AutoCompletePopup monitorDescriptionPopup;
     private AutoCompletePopup monitorModelPopup;
 
-    // --- Class Fields ---
     private Package currentPackage;
     private PackageDetailController parentController;
     private final ObservableList<AssetEntry> assetEntries = FXCollections.observableArrayList();
@@ -82,11 +80,57 @@ public class AddAssetDialogController {
         setupViewToggles();
         setupDispositionControls();
         setupTable();
-        setupAutocomplete(); // This will now store ALL popups
+        setupAutocomplete();
         setupMonitorIntake();
+        setupInputSanitization(); // <-- ADDED THIS CALL
         refurbRadioButton.setSelected(true);
         standardIntakeRadio.setSelected(true);
     }
+
+    // --- NEW METHOD to add real-time sanitization to serial fields ---
+    private void setupInputSanitization() {
+        serialField.textProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null && !newVal.isEmpty()) {
+                String sanitized = sanitizeSerialNumber(newVal);
+                if (!newVal.equals(sanitized)) {
+                    Platform.runLater(() -> serialField.setText(sanitized));
+                }
+            }
+        });
+        monitorSerialField.textProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null && !newVal.isEmpty()) {
+                String sanitized = sanitizeSerialNumber(newVal);
+                if (!newVal.equals(sanitized)) {
+                    Platform.runLater(() -> monitorSerialField.setText(sanitized));
+                }
+            }
+        });
+        manualSerialField.textProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null && !newVal.isEmpty()) {
+                String sanitized = sanitizeSerialNumber(newVal);
+                if (!newVal.equals(sanitized)) {
+                    Platform.runLater(() -> manualSerialField.setText(sanitized));
+                }
+            }
+        });
+    }
+
+    // --- NEW HELPER METHOD ---
+    private String sanitizeSerialNumber(String input) {
+        if (input == null) return "";
+        // Removes anything that is NOT a letter or a number, then converts to uppercase.
+        return input.replaceAll("[^a-zA-Z0-9]", "").toUpperCase();
+    }
+
+    // --- MODIFIED to sanitize each line ---
+    public String[] getSerialsFromArea() {
+        return Arrays.stream(serialArea.getText().trim().split("\\r?\\n"))
+                .map(this::sanitizeSerialNumber) // Sanitize each line
+                .filter(s -> !s.isEmpty())       // Remove any lines that are now blank
+                .toArray(String[]::new);
+    }
+
+    // --- UNCHANGED METHODS BELOW ---
 
     private void setupAutocomplete() {
         descriptionPopup = new AutoCompletePopup(descriptionField, () -> assetDAO.findDescriptionsLike(descriptionField.getText()))
@@ -116,7 +160,6 @@ public class AddAssetDialogController {
         });
     }
 
-    // --- UPDATED: Now creates and stores popups for the Monitor section ---
     private void setupMonitorIntake() {
         setupMonitorSkuSearch();
         standardMonitorCheckBox.selectedProperty().addListener((obs, oldVal, isStandard) -> {
@@ -143,7 +186,6 @@ public class AddAssetDialogController {
         printerNames.stream().filter(n -> n.toLowerCase().contains("gx")).findFirst().ifPresent(monitorPrinterCombo::setValue);
     }
 
-    // --- NEW: Dedicated population method for the Monitor section with suppression logic ---
     private void populateMonitorFieldsFromSku(AssetInfo sku) {
         Platform.runLater(() -> {
             monitorDescriptionPopup.suppressListener(true);
@@ -157,7 +199,6 @@ public class AddAssetDialogController {
         });
     }
 
-    // --- All remaining methods are unchanged ---
     public String getMonitorSerial() { return monitorSerialField.getText().trim(); }
     public String getMonitorModel() { return monitorModelField.getText().trim(); }
     public String getMonitorDescription() { return monitorDescriptionField.getText().trim(); }
@@ -167,7 +208,6 @@ public class AddAssetDialogController {
     public String getManualSerial() { return manualSerialField.getText().trim(); }
     public String getManualDescription() { return manualDescriptionField.getText().trim(); }
     public String getSerial() { return serialField.getText().trim(); }
-    public String[] getSerialsFromArea() { return serialArea.getText().trim().split("\\r?\\n"); }
     public boolean isMultiSerialMode() { return multiSerialToggle.isSelected(); }
     public boolean isBulkAddMode() { return bulkAddCheckBox.isSelected(); }
     public boolean isNewCondition() { return newRadioButton.isSelected(); }

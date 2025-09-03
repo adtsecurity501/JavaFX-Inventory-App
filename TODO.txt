@@ -3,7 +3,11 @@ Priority 1:
 - fix the way the program handles priting the labels on scan updates ready to deploy. Currently when I scan a serail it prints out the labesls but the text shoes Descreiiption not found.
 - add tools to box id viewere tab
 - when an error appears or a window apperas sometimes it dissapears minimized super small to the left bottom corner.
-
+- add error checking in serials for symbols and spaces and period and stuff
+--I want to intake a pcakage and make sure that everything is being created correctly on the back end.
+Tracking is: 10000276112155
+serial is:D5MQKQ3
+device is a:Optiplex 3000 
 
 
 Priority 2:

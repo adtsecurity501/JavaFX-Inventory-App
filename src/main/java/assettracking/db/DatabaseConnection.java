@@ -10,7 +10,11 @@ import java.util.concurrent.ExecutionException;
 
 public class DatabaseConnection {
 
-    private static final CompletableFuture<HikariDataSource> dataSourceFuture = new CompletableFuture<>();
+    // --- MODIFICATION 1: Make the data source accessible ---
+    private static volatile HikariDataSource dataSource;
+    // --- END MODIFICATION ---
+
+    private static final CompletableFuture<Void> initializationFuture = new CompletableFuture<>();
 
     static {
         initializePoolInBackground();
@@ -24,9 +28,7 @@ public class DatabaseConnection {
                 System.out.println("H2 JDBC Driver loaded successfully.");
 
                 HikariConfig config = new HikariConfig();
-                // --- THIS IS THE CORRECTED LINE ---
                 config.setJdbcUrl("jdbc:h2:tcp://10.68.47.13/inventorybackup");
-                // --- END OF CORRECTION ---
                 config.setUsername("sa");
                 config.setPassword("");
                 config.setMaximumPoolSize(10);
@@ -36,23 +38,49 @@ public class DatabaseConnection {
                 config.setMaxLifetime(1800000);
 
                 System.out.println("Initializing HikariCP Connection Pool for H2...");
-                HikariDataSource ds = new HikariDataSource(config);
+                // --- MODIFICATION 2: Assign to the static field ---
+                dataSource = new HikariDataSource(config);
+                // --- END MODIFICATION ---
                 System.out.println("HikariCP Connection Pool for H2 Initialized.");
 
-                dataSourceFuture.complete(ds);
+                initializationFuture.complete(null);
 
             } catch (Exception e) {
                 System.err.println("FATAL: Failed to initialize database connection pool.");
-                dataSourceFuture.completeExceptionally(e);
+                initializationFuture.completeExceptionally(e);
             }
         });
     }
 
     public static Connection getInventoryConnection() throws SQLException {
         try {
-            return dataSourceFuture.get().getConnection();
+            initializationFuture.get(); // Wait for initialization to complete
+            return dataSource.getConnection();
         } catch (InterruptedException | ExecutionException e) {
             throw new SQLException("Failed to get database connection from the pool.", e);
+        }
+    }
+
+    // --- NEW METHOD ---
+    /**
+     * Gracefully evicts all idle connections from the pool.
+     * The next time a connection is requested, the pool will have to create a new, fresh one.
+     */
+    public static void refreshConnectionPool() {
+        if (dataSource != null) {
+            System.out.println("Refreshing database connection pool...");
+            dataSource.getHikariPoolMXBean().softEvictConnections();
+            System.out.println("Connection pool refreshed.");
+        }
+    }
+    /**
+     * Closes the connection pool. This should be called on application shutdown.
+     */
+    public static void closeConnectionPool() {
+        if (dataSource != null && !dataSource.isClosed()) {
+            System.out.println("Closing database connection pool...");
+            dataSource.close();
+            System.out.println("Connection pool closed.");
         }
     }
 }

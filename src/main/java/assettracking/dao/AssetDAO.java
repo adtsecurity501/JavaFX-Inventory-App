@@ -111,8 +111,42 @@ public class AssetDAO {
         return suggestions;
     }
 
-    // --- (The rest of the file is unchanged) ---
+    // New method that operates within an existing transaction
+    public Optional<AssetInfo> findAssetBySerialNumber(Connection conn, String serialNumber) throws SQLException {
+        // This query is simplified for brevity but functionally the same
+        String sql = "SELECT * FROM Physical_Assets WHERE serial_number = ?";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, serialNumber);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    AssetInfo asset = new AssetInfo();
+                    // Populate asset fields from result set
+                    asset.setSerialNumber(rs.getString("serial_number"));
+                    asset.setMake(rs.getString("make"));
+                    asset.setModelNumber(rs.getString("part_number"));
+                    asset.setDescription(rs.getString("description"));
+                    asset.setCategory(rs.getString("category"));
+                    asset.setImei(rs.getString("imei"));
+                    return Optional.of(asset);
+                }
+            }
+        }
+        return Optional.empty();
+    }
 
+    // New method that operates within an existing transaction
+    public void addAsset(Connection conn, AssetInfo asset) throws SQLException {
+        String sql = "INSERT INTO Physical_Assets (serial_number, imei, category, make, description, part_number) VALUES (?, ?, ?, ?, ?, ?)";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, asset.getSerialNumber());
+            stmt.setString(2, asset.getImei());
+            stmt.setString(3, asset.getCategory());
+            stmt.setString(4, asset.getMake());
+            stmt.setString(5, asset.getDescription());
+            stmt.setString(6, asset.getModelNumber());
+            stmt.executeUpdate();
+        }
+    }
     public Optional<AssetInfo> findSkuByModelAndCondition(String modelNumber, boolean isRefurbished) {
         String conditionSearchTerm = isRefurbished ? "%RFB%" : "%NEW%";
         String antiConditionSearchTerm = isRefurbished ? "%NEW%" : "%RFB%";

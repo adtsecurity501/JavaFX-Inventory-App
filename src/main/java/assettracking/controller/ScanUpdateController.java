@@ -57,6 +57,75 @@ public class ScanUpdateController {
         updateUiForStatusChange();
     }
 
+    // --- NEW HELPER METHOD ---
+    private String sanitizeSerialNumber(String input) {
+        if (input == null) return "";
+        return input.replaceAll("[^a-zA-Z0-9]", "").toUpperCase();
+    }
+
+    @FXML
+    private void onSerialScanned() {
+        // --- MODIFIED: Sanitize the input at the very beginning ---
+        String rawSerial = scanSerialField.getText();
+        String serial = sanitizeSerialNumber(rawSerial);
+        scanSerialField.setText(serial); // Update the UI to show the clean serial
+        // --- END MODIFICATION ---
+
+        if (serial.isEmpty()) return;
+
+        String newStatus = statusCombo.getValue();
+        String newSubStatus = subStatusCombo.getValue();
+        String boxId = disposalLocationField.getText().trim();
+
+        if ("Disposed".equals(newStatus) && !"Ready for Wipe".equals(newSubStatus) && boxId.isEmpty()) {
+            showAlert("Box ID Required", "A Box ID must be entered for this disposed status.");
+            disposalLocationField.requestFocus();
+            return;
+        }
+
+        String baseNote = changeLogField.getText().trim();
+        String finalNote = "Disposed".equals(newStatus) && !boxId.isEmpty()
+                ? ("Box ID: " + boxId + ". " + baseNote).trim()
+                : baseNote;
+
+        setFeedback("Processing " + serial + "...", Color.BLUE);
+
+        Task<ScanUpdateService.UpdateResult> updateTask = new Task<>() {
+            @Override
+            protected ScanUpdateService.UpdateResult call() throws Exception {
+                return updateService.updateBySerial(serial, newStatus, newSubStatus, finalNote);
+            }
+        };
+
+        updateTask.setOnSucceeded(event -> {
+            switch (updateTask.getValue()) {
+                case SUCCESS:
+                    setFeedback("âœ” Success: " + serial, Color.GREEN);
+                    resultManager.addSuccess(serial, newStatus + " / " + newSubStatus);
+                    if (parentController != null) parentController.refreshData();
+                    if (printLabelsToggle.isVisible() && printLabelsToggle.isSelected()) {
+                        printDeploymentLabels(serial);
+                    }
+                    break;
+                case NOT_FOUND:
+                    setFeedback("â Œ Not Found: " + serial, Color.RED);
+                    resultManager.addFailure(serial, "Not Found in Database");
+                    break;
+            }
+            scanSerialField.clear();
+            scanSerialField.requestFocus();
+        });
+
+        updateTask.setOnFailed(event -> {
+            setFeedback("â Œ DB Error: " + updateTask.getException().getMessage(), Color.RED);
+            resultManager.addFailure(serial, "Database Error");
+        });
+
+        new Thread(updateTask).start();
+    }
+
+    // --- UNCHANGED METHODS BELOW ---
+
     private void setupTableColumns() {
         successSerialCol.setCellValueFactory(new PropertyValueFactory<>("serial"));
         successStatusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
@@ -64,7 +133,7 @@ public class ScanUpdateController {
         successTable.setItems(resultManager.getSuccessList());
 
         failedSerialCol.setCellValueFactory(new PropertyValueFactory<>("serial"));
-        failedReasonCol.setCellValueFactory(new PropertyValueFactory<>("status")); // 'status' property holds the reason
+        failedReasonCol.setCellValueFactory(new PropertyValueFactory<>("status"));
         failedTimestampCol.setCellValueFactory(new PropertyValueFactory<>("timestamp"));
         failedTable.setItems(resultManager.getFailedList());
     }
@@ -97,62 +166,6 @@ public class ScanUpdateController {
 
         boolean isReadyForDeployment = "Processed".equals(status) && "Ready for Deployment".equals(subStatus);
         printLabelsToggle.setVisible(isReadyForDeployment);
-    }
-
-    @FXML
-    private void onSerialScanned() {
-        String serial = scanSerialField.getText().trim();
-        if (serial.isEmpty()) return;
-
-        String newStatus = statusCombo.getValue();
-        String newSubStatus = subStatusCombo.getValue();
-        String boxId = disposalLocationField.getText().trim();
-
-        if ("Disposed".equals(newStatus) && !"Ready for Wipe".equals(newSubStatus) && boxId.isEmpty()) {
-            showAlert("Box ID Required", "A Box ID must be entered for this disposed status.");
-            disposalLocationField.requestFocus();
-            return;
-        }
-
-        String baseNote = changeLogField.getText().trim();
-        String finalNote = "Disposed".equals(newStatus) && !boxId.isEmpty()
-                ? ("Box ID: " + boxId + ". " + baseNote).trim()
-                : baseNote;
-
-        setFeedback("Processing " + serial + "...", Color.BLUE);
-
-        Task<ScanUpdateService.UpdateResult> updateTask = new Task<>() {
-            @Override
-            protected ScanUpdateService.UpdateResult call() throws Exception {
-                return updateService.updateBySerial(serial, newStatus, newSubStatus, finalNote);
-            }
-        };
-
-        updateTask.setOnSucceeded(event -> {
-            switch (updateTask.getValue()) {
-                case SUCCESS:
-                    setFeedback("✔ Success: " + serial, Color.GREEN);
-                    resultManager.addSuccess(serial, newStatus + " / " + newSubStatus);
-                    if (parentController != null) parentController.refreshData();
-                    if (printLabelsToggle.isVisible() && printLabelsToggle.isSelected()) {
-                        printDeploymentLabels(serial);
-                    }
-                    break;
-                case NOT_FOUND:
-                    setFeedback("❌ Not Found: " + serial, Color.RED);
-                    resultManager.addFailure(serial, "Not Found in Database");
-                    break;
-            }
-            scanSerialField.clear();
-            scanSerialField.requestFocus();
-        });
-
-        updateTask.setOnFailed(event -> {
-            setFeedback("❌ DB Error: " + updateTask.getException().getMessage(), Color.RED);
-            resultManager.addFailure(serial, "Database Error");
-        });
-
-        new Thread(updateTask).start();
     }
 
     @FXML
@@ -197,12 +210,12 @@ public class ScanUpdateController {
             };
             bulkUpdateTask.setOnSucceeded(e -> {
                 int count = bulkUpdateTask.getValue();
-                setFeedback(String.format("✔ Successfully updated %d devices in '%s'.", count, location), Color.GREEN);
+                setFeedback(String.format("âœ” Successfully updated %d devices in '%s'.", count, location), Color.GREEN);
                 resultManager.addSuccess("Box ID: " + location, String.format("Updated %d devices", count));
                 if (parentController != null) parentController.refreshData();
                 scanLocationField.clear();
             });
-            bulkUpdateTask.setOnFailed(e -> setFeedback("❌ Bulk update failed: " + e.getSource().getException().getMessage(), Color.RED));
+            bulkUpdateTask.setOnFailed(e -> setFeedback("â Œ Bulk update failed: " + e.getSource().getException().getMessage(), Color.RED));
             new Thread(bulkUpdateTask).start();
         }
     }
@@ -262,7 +275,6 @@ public class ScanUpdateController {
         printerService.sendZplToPrinter(printerName.get(), serialZpl);
     }
 
-    // --- UI and Helper Methods ---
     @FXML private void onBoxIdScanned() { scanSerialField.requestFocus(); }
     @FXML private void handleClearBoxId() { disposalLocationField.clear(); changeLogField.clear(); disposalLocationField.requestFocus(); }
     private void setFeedback(String message, Color color) { feedbackLabel.setText(message); feedbackLabel.setTextFill(color); }

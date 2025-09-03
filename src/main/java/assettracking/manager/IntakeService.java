@@ -10,16 +10,12 @@ import assettracking.db.DatabaseConnection;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-/**
- * Handles the business logic for processing and saving new asset intake events.
- * This class is decoupled from the UI.
- */
 public class IntakeService {
 
     private final AssetDAO assetDAO = new AssetDAO();
@@ -32,63 +28,59 @@ public class IntakeService {
         this.isNewCondition = isNewCondition;
     }
 
-    public String processFromTextArea(String[] serialNumbers, AssetInfo details, boolean isScrap, String scrapStatus, String scrapSubStatus, String scrapReason, String boxId) throws SQLException {
+    public String processFromTextArea(String[] serialNumbers, AssetInfo details, boolean isScrap, String scrapStatus, String scrapSubStatus, String scrapReason, String boxId) {
         if (serialNumbers.length == 0 || serialNumbers[0].isEmpty()) {
             return "Input Required: Please enter at least one serial number.";
         }
 
-        int successCount = 0, returnCount = 0, newCount = 0;
-        StringBuilder errors = new StringBuilder();
+        int successCount = 0;
+        Connection conn = null;
 
-        try (Connection conn = DatabaseConnection.getInventoryConnection()) {
-            conn.setAutoCommit(false);
+        try {
+            conn = DatabaseConnection.getInventoryConnection();
+            conn.setAutoCommit(false); // Start transaction
+
             for (String originalSerial : serialNumbers) {
                 final String serial = originalSerial.trim();
                 if (serial.isEmpty()) continue;
 
-                boolean isReturn = assetDAO.findAssetBySerialNumber(serial).isPresent();
-                AssetInfo assetInfo = assetDAO.findAssetBySerialNumber(serial).orElse(details);
-                assetInfo.setSerialNumber(serial);
-
-                if (!isReturn) {
-                    assetDAO.addAsset(assetInfo);
-                    newCount++;
-                } else {
-                    returnCount++;
-                }
-
-                ReceiptEvent newReceipt = new ReceiptEvent(0, serial, currentPackage.getPackageId(), assetInfo.getCategory(), assetInfo.getMake(), assetInfo.getModelNumber(), assetInfo.getDescription(), assetInfo.getImei());
-                int newReceiptId = receiptEventDAO.addReceiptEvent(newReceipt);
-
-                if (newReceiptId != -1) {
-                    createInitialStatus(conn, newReceiptId, isScrap, scrapStatus, scrapSubStatus, scrapReason, boxId);
-                    successCount++;
-                } else {
-                    errors.append("Failed to create receipt for S/N: ").append(serial).append("\n");
-                }
+                AssetInfo finalDetails = assetDAO.findAssetBySerialNumber(conn, serial).orElse(details);
+                processSingleAsset(conn, serial, finalDetails, isScrap, scrapStatus, scrapSubStatus, scrapReason, boxId);
+                successCount++;
             }
 
-            if (!errors.isEmpty()) {
-                conn.rollback();
-                return "Errors occurred:\n" + errors;
-            } else {
-                conn.commit();
-                return String.format("Successfully processed %d receipts (%d new, %d returns).", successCount, newCount, returnCount);
+            conn.commit(); // Commit the transaction if all assets were processed successfully
+            return String.format("Successfully processed %d receipts.", successCount);
+
+        } catch (SQLException e) {
+            try { if (conn != null) conn.rollback(); } catch (SQLException ex) { ex.printStackTrace(); }
+            e.printStackTrace();
+            return "Transaction failed and was rolled back. Error: " + e.getMessage();
+        } finally {
+            try {
+                if (conn != null) {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
             }
         }
     }
 
-    public String processFromTable(List<AssetEntry> entries, boolean isScrap, String scrapStatus, String scrapSubStatus, String scrapReason, String boxId) throws SQLException {
+    public String processFromTable(List<AssetEntry> entries, boolean isScrap, String scrapStatus, String scrapSubStatus, String scrapReason, String boxId) {
         if (entries.isEmpty()) {
             return "No devices in the table to process.";
         }
 
         int successCount = 0, duplicateCount = 0;
-        StringBuilder errors = new StringBuilder();
         Set<String> processedSerials = new HashSet<>();
+        Connection conn = null;
 
-        try (Connection conn = DatabaseConnection.getInventoryConnection()) {
-            conn.setAutoCommit(false);
+        try {
+            conn = DatabaseConnection.getInventoryConnection();
+            conn.setAutoCommit(false); // Start transaction
+
             for (AssetEntry entry : entries) {
                 String serial = entry.getSerialNumber().trim();
                 if (serial.isEmpty() || processedSerials.contains(serial)) {
@@ -97,38 +89,55 @@ public class IntakeService {
                 }
 
                 AssetInfo assetInfo = new AssetInfo();
-                assetInfo.setSerialNumber(serial);
                 assetInfo.setMake(entry.getMake());
                 assetInfo.setModelNumber(entry.getModelNumber());
                 assetInfo.setDescription(entry.getDescription());
                 assetInfo.setCategory(entry.getCategory());
                 assetInfo.setImei(entry.getImei());
 
-                if (assetDAO.findAssetBySerialNumber(serial).isEmpty()) {
-                    assetDAO.addAsset(assetInfo);
-                }
-
-                ReceiptEvent newReceipt = new ReceiptEvent(0, serial, currentPackage.getPackageId(), assetInfo.getCategory(), assetInfo.getMake(), assetInfo.getModelNumber(), assetInfo.getDescription(), assetInfo.getImei());
-                int newReceiptId = receiptEventDAO.addReceiptEvent(newReceipt);
-
-                if (newReceiptId != -1) {
-                    createInitialStatus(conn, newReceiptId, isScrap, scrapStatus, scrapSubStatus, scrapReason, boxId);
-                    successCount++;
-                    processedSerials.add(serial);
-                } else {
-                    errors.append("Failed to create receipt for S/N: ").append(serial).append("\n");
-                }
+                AssetInfo finalDetails = assetDAO.findAssetBySerialNumber(conn, serial).orElse(assetInfo);
+                processSingleAsset(conn, serial, finalDetails, isScrap, scrapStatus, scrapSubStatus, scrapReason, boxId);
+                successCount++;
+                processedSerials.add(serial);
             }
 
-            if (!errors.isEmpty()) {
-                conn.rollback();
-                return "Errors occurred:\n" + errors;
-            } else {
-                conn.commit();
-                String result = String.format("Successfully processed %d assets.", successCount);
-                if (duplicateCount > 0) result += " Skipped " + duplicateCount + " duplicate serial(s).";
-                return result;
+            conn.commit(); // Commit the transaction
+            String result = String.format("Successfully processed %d assets.", successCount);
+            if (duplicateCount > 0) result += " Skipped " + duplicateCount + " duplicate serial(s).";
+            return result;
+
+        } catch (SQLException e) {
+            try { if (conn != null) conn.rollback(); } catch (SQLException ex) { ex.printStackTrace(); }
+            e.printStackTrace();
+            return "Transaction failed and was rolled back. Error: " + e.getMessage();
+        } finally {
+            try {
+                if (conn != null) {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
             }
+        }
+    }
+
+    private void processSingleAsset(Connection conn, String serial, AssetInfo details, boolean isScrap, String scrapStatus, String scrapSubStatus, String scrapReason, String boxId) throws SQLException {
+        if (assetDAO.findAssetBySerialNumber(conn, serial).isEmpty()) {
+            // --- THIS IS THE FIX ---
+            // Ensure the serial number is set on the details object before inserting.
+            details.setSerialNumber(serial);
+            // --- END OF FIX ---
+            assetDAO.addAsset(conn, details);
+        }
+
+        ReceiptEvent newReceipt = new ReceiptEvent(0, serial, currentPackage.getPackageId(), details.getCategory(), details.getMake(), details.getModelNumber(), details.getDescription(), details.getImei());
+        int newReceiptId = receiptEventDAO.addReceiptEvent(conn, newReceipt);
+
+        if (newReceiptId != -1) {
+            createInitialStatus(conn, newReceiptId, isScrap, scrapStatus, scrapSubStatus, scrapReason, boxId);
+        } else {
+            throw new SQLException("Failed to create receipt for S/N: " + serial);
         }
     }
 
@@ -152,20 +161,21 @@ public class IntakeService {
             finalSubStatus = "In Evaluation";
         }
 
-        // This is an "upsert" operation: update if it exists, otherwise insert.
-        String upsertStatusSql = "INSERT INTO Device_Status (receipt_id, status, sub_status, last_update) VALUES (?, ?, ?, CURRENT_TIMESTAMP) ON CONFLICT(receipt_id) DO UPDATE SET status=excluded.status, sub_status=excluded.sub_status, last_update=CURRENT_TIMESTAMP;";
-        try (PreparedStatement stmt = conn.prepareStatement(upsertStatusSql)) {
+        String statusSql = "INSERT INTO Device_Status (receipt_id, status, sub_status, last_update) VALUES (?, ?, ?, CURRENT_TIMESTAMP)";
+        try (PreparedStatement stmt = conn.prepareStatement(statusSql)) {
             stmt.setInt(1, receiptId);
             stmt.setString(2, finalStatus);
             stmt.setString(3, finalSubStatus);
             stmt.executeUpdate();
         }
 
-        String upsertDispositionSql = "INSERT INTO Disposition_Info (receipt_id, other_disqualification) VALUES (?, ?) ON CONFLICT(receipt_id) DO UPDATE SET other_disqualification=excluded.other_disqualification;";
-        try (PreparedStatement stmt = conn.prepareStatement(upsertDispositionSql)) {
-            stmt.setInt(1, receiptId);
-            stmt.setString(2, finalReason);
-            stmt.executeUpdate();
+        if (finalReason != null && !finalReason.isBlank()) {
+            String dispositionSql = "INSERT INTO Disposition_Info (receipt_id, other_disqualification) VALUES (?, ?)";
+            try (PreparedStatement stmt = conn.prepareStatement(dispositionSql)) {
+                stmt.setInt(1, receiptId);
+                stmt.setString(2, finalReason);
+                stmt.executeUpdate();
+            }
         }
     }
 }

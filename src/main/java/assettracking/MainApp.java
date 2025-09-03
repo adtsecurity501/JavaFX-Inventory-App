@@ -1,7 +1,8 @@
-package assettracking;
+package assettracking;// In assettracking/MainApp.java
 
 import atlantafx.base.theme.Dracula;
 import assettracking.controller.DashboardController;
+import assettracking.db.DatabaseConnection; // <-- IMPORT THIS
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -17,16 +18,20 @@ public class MainApp extends Application {
 
     @Override
     public void start(Stage primaryStage) throws IOException {
-        primaryStage.initStyle(StageStyle.UNDECORATED);
+        // --- ADD THIS SHUTDOWN HOOK ---
+        primaryStage.setOnCloseRequest(event -> {
+            System.out.println("Shutdown signal received, closing resources...");
+            DatabaseConnection.closeConnectionPool(); // Gracefully close the pool
+        });
+        // --- END OF ADDITION ---
 
-        // Set the initial theme for the entire application. This is the correct way.
+        primaryStage.initStyle(StageStyle.UNDECORATED);
         Application.setUserAgentStylesheet(new Dracula().getUserAgentStylesheet());
 
         FXMLLoader mainLoader = new FXMLLoader(getClass().getResource("/MainView.fxml"));
         Parent mainView = mainLoader.load();
 
         StackPane rootPane = new StackPane(mainView);
-
         Map<String, Object> namespace = mainLoader.getNamespace();
         DashboardController dashboardController = (DashboardController) namespace.get("dashboardController");
 
@@ -35,12 +40,6 @@ public class MainApp extends Application {
         }
 
         Scene scene = new Scene(rootPane, 1600, 900);
-
-        // --- MODIFIED ---
-        // The following conflicting line has been REMOVED:
-        // scene.getStylesheets().add(new Dracula().getUserAgentStylesheet());
-
-        // Your custom styles in style.css will still apply correctly over any theme.
         scene.getStylesheets().add(getClass().getResource("/style.css").toExternalForm());
 
         primaryStage.setTitle("Inventory and Package Management System");

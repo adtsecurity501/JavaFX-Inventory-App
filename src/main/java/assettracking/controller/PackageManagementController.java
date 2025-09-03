@@ -2,6 +2,7 @@ package assettracking.controller;
 
 import assettracking.data.Package;
 import assettracking.dao.PackageDAO;
+import assettracking.db.DatabaseConnection;
 import assettracking.manager.StageManager;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
@@ -178,6 +179,7 @@ public class PackageManagementController {
 
     @FXML
     private void handleRefresh() {
+        DatabaseConnection.refreshConnectionPool(); // <-- ADD THIS LINE
         resetPagination();
     }
 
