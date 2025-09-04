@@ -31,7 +31,7 @@ public class AutoCompletePopup {
         this.suggestionList = new ListView<>();
         CustomMenuItem customMenuItem = new CustomMenuItem(suggestionList, false);
         this.contextMenu = new ContextMenu(customMenuItem);
-
+        contextMenu.getStyleClass().add("autocomplete-popup");
         setupListeners();
     }
 
@@ -50,12 +50,21 @@ public class AutoCompletePopup {
     }
 
     private void setupListeners() {
+        // Dynamically bind the popup's width to the text field's width.
+        // This ensures it always matches, regardless of the window or field size.
+        textField.widthProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null && newVal.doubleValue() > 0) {
+                double newWidth = newVal.doubleValue();
+                // Set the width of the outer popup window
+                contextMenu.setPrefWidth(newWidth);
+                // Set the width of the inner list view, subtracting a small amount for padding
+                suggestionList.setPrefWidth(newWidth - 3);
+            }
+        });
         textField.textProperty().addListener((obs, oldVal, newVal) -> {
-            // If the listener is suppressed, do nothing.
             if (isSuppressed) {
                 return;
             }
-
             if (newVal == null || newVal.length() < 2) {
                 contextMenu.hide();
             } else {

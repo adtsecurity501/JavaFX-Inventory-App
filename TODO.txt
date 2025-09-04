@@ -1,9 +1,8 @@
 Priority 1:
 - add way to import information into the device_autofill_data table.
-- fix the way the program handles priting the labels on scan updates ready to deploy. Currently when I scan a serail it prints out the labesls but the text shoes Descreiiption not found.
 - add tools to box id viewere tab
-- when an error appears or a window apperas sometimes it dissapears minimized super small to the left bottom corner.
-- increase width of the autocomplete suggestions drop down, current it is too narrow
+- when an error appears or a window apperas sometimes it dissapears minimized super small to the left bottom corner 
+
 
 
 Priority 2:
@@ -119,9 +118,8 @@ Tracking is: 10000276112155
 serial is:D5MQKQ3
 device is a:Optiplex 3000 
 - add error checking in serials for symbols and spaces and period and stuff
-
-
-
+- fix the way the program handles priting the labels on scan updates ready to deploy. Currently when I scan a serail it prints out the labesls but the text shoes Descreiiption not found.
+- increase width of the autocomplete suggestions drop down, current it is too narrow
 
 
 

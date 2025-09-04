@@ -128,6 +128,39 @@ public class SkuDAO {
         return suggestions;
     }
 
+    /**
+     * Finds SKUs that have a non-empty sku_number, specifically for label printing.
+     * Returns a list of formatted strings "SKU - Description" for display in suggestions.
+     * @param fragment The text typed by the user.
+     * @return A list of matching SKU suggestions.
+     */
+    public List<String> findSkusWithSkuNumberLike(String fragment) {
+        List<String> suggestions = new ArrayList<>();
+        String sql = "SELECT sku_number, description FROM SKU_Table " +
+                "WHERE (sku_number LIKE ? OR description LIKE ?) " +
+                "AND sku_number IS NOT NULL AND sku_number != '' " + // Ensures only printable SKUs are returned
+                "LIMIT 15";
+        try (Connection conn = DatabaseConnection.getInventoryConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            String queryFragment = "%" + fragment + "%";
+            stmt.setString(1, queryFragment);
+            stmt.setString(2, queryFragment);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    String sku = rs.getString("sku_number");
+                    String description = rs.getString("description");
+                    if (description == null || description.trim().isEmpty()) {
+                        description = "No Description";
+                    }
+                    suggestions.add(sku + " - " + description);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return suggestions;
+    }
+
     private Sku mapRowToSku(ResultSet rs) throws SQLException {
         Sku sku = new Sku();
         sku.setSkuNumber(rs.getString("sku_number"));

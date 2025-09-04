@@ -50,8 +50,10 @@ public class PackageIntakeController {
     @FXML
     private void handleTrackingLookup() {
         String rawTracking = trackingField.getText().trim();
+        // Automatically sanitize FedEx/UPS tracking numbers to the last 14 digits
         String currentTracking = rawTracking.length() > 14 ? rawTracking.substring(rawTracking.length() - 14) : rawTracking;
         trackingField.setText(currentTracking);
+
         trackingErrorLabel.setText("");
         startButton.setDisable(false);
 
@@ -60,6 +62,7 @@ public class PackageIntakeController {
             return;
         }
 
+        // --- NEW LOGIC: Check for existing package first ---
         try (Connection conn = DatabaseConnection.getInventoryConnection();
              PreparedStatement stmt = conn.prepareStatement("SELECT * FROM Packages WHERE tracking_number = ?")) {
 
@@ -68,12 +71,14 @@ public class PackageIntakeController {
 
             if (rs.next()) {
                 Package existingPkg = new Package(rs.getInt("package_id"), rs.getString("tracking_number"), rs.getString("first_name"), rs.getString("last_name"), rs.getString("city"), rs.getString("state"), rs.getString("zip_code"), rs.getDate("receive_date").toLocalDate());
+
                 boolean openExisting = StageManager.showConfirmationDialog(
                         getOwnerWindow(),
                         "Duplicate Package Found",
-                        "Package with tracking number '" + currentTracking + "' already exists.",
-                        "Do you want to open this existing package?"
+                        "A package with this tracking number already exists in the database.",
+                        "Do you want to open the existing package details?"
                 );
+
                 if (openExisting) {
                     openPackageDetailWindow(existingPkg);
                     clearForm();
@@ -81,14 +86,14 @@ public class PackageIntakeController {
                     trackingErrorLabel.setText("Package already exists.");
                     startButton.setDisable(true);
                 }
-                return;
+                return; // Stop further processing
             }
         } catch (SQLException e) {
             showAlert(Alert.AlertType.ERROR, "Database Error", "Error checking for duplicate package: " + e.getMessage());
             return;
         }
 
-        // --- THIS IS THE CORRECTED, UNIVERSAL SQL QUERY ---
+        // --- Existing logic to look up from Return_Labels if no duplicate is found ---
         String returnLabelSql = "SELECT contact_name, city, state, zip_code FROM Return_Labels WHERE SUBSTRING(tracking_number, LENGTH(tracking_number) - 13) = ?";
         try (Connection conn = DatabaseConnection.getInventoryConnection();
              PreparedStatement stmt = conn.prepareStatement(returnLabelSql)) {
@@ -102,6 +107,7 @@ public class PackageIntakeController {
                 cityField.setText(rs.getString("city"));
                 stateField.setText(rs.getString("state"));
                 zipField.setText(rs.getString("zip_code"));
+                // Automatically proceed to start intake if a match is found
                 Platform.runLater(this::handleStartIntake);
             }
         } catch (SQLException e) {
@@ -116,6 +122,8 @@ public class PackageIntakeController {
             showAlert(Alert.AlertType.WARNING, "Input Required", "Tracking Number is required.");
             return;
         }
+
+        // This part now only runs if the tracking number is new
         int packageId = packageDAO.addPackage(tracking, firstNameField.getText().trim(), lastNameField.getText().trim(),
                 cityField.getText().trim(), stateField.getText().trim(),
                 zipField.getText().trim(), LocalDate.now());
@@ -127,6 +135,7 @@ public class PackageIntakeController {
             openPackageDetailWindow(pkg);
             clearForm();
         } else {
+            // This alert will now correctly trigger for other potential insert errors, as duplicates are handled above.
             showAlert(Alert.AlertType.ERROR, "Error", "Failed to create package. It might already exist.");
         }
     }

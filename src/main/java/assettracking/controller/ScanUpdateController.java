@@ -2,6 +2,7 @@ package assettracking.controller;
 
 import assettracking.dao.AssetDAO;
 import assettracking.dao.PackageDAO;
+import assettracking.dao.SkuDAO;
 import assettracking.data.AssetEntry;
 import assettracking.data.AssetInfo;
 import assettracking.data.Package;
@@ -10,7 +11,9 @@ import assettracking.manager.ScanResultManager;
 import assettracking.manager.ScanUpdateService;
 import assettracking.manager.StageManager;
 import assettracking.manager.StatusManager;
+import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.collections.FXCollections;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -18,6 +21,7 @@ import javafx.scene.Parent;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 
@@ -26,6 +30,7 @@ import javax.print.PrintServiceLookup;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class ScanUpdateController {
 
@@ -39,10 +44,18 @@ public class ScanUpdateController {
     @FXML private HBox boxIdHBox;
     @FXML private CheckBox printLabelsToggle;
 
+    // --- NEW FXML FIELDS FOR SKU SELECTION & PRINTER ---
+    @FXML private VBox skuSelectionBox;
+    @FXML private TextField skuSearchField;
+    @FXML private ListView<String> skuListView;
+    @FXML private TextField selectedSkuField;
+    @FXML private ComboBox<String> labelPrinterCombo;
+
     // --- Services and Managers ---
     private final ScanUpdateService updateService = new ScanUpdateService();
     private final ScanResultManager resultManager = new ScanResultManager();
     private final AssetDAO assetDAO = new AssetDAO();
+    private final SkuDAO skuDAO = new SkuDAO();
     private final ZplPrinterService printerService = new ZplPrinterService();
     private DeviceStatusTrackingController parentController;
 
@@ -54,16 +67,52 @@ public class ScanUpdateController {
     public void initialize() {
         setupTableColumns();
         setupStatusComboBoxes();
+        setupSkuSearch();
+        populatePrinters(); // <-- ADD THIS
 
-        // Add a listener to the Box ID field to re-evaluate the UI state
-        disposalLocationField.textProperty().addListener((obs, oldText, newText) -> {
-            updateUiForStatusChange();
-        });
+        // Add listeners to re-evaluate the UI state
+        disposalLocationField.textProperty().addListener((obs, oldText, newText) -> updateUiForStatusChange());
+        printLabelsToggle.selectedProperty().addListener((obs, wasSelected, isSelected) -> updateUiForStatusChange());
 
         updateUiForStatusChange(); // Initial UI setup
     }
 
-    // --- NEW HELPER METHOD ---
+    private void populatePrinters() {
+        List<String> printerNames = Arrays.stream(PrintServiceLookup.lookupPrintServices(null, null))
+                .map(PrintService::getName)
+                .collect(Collectors.toList());
+        labelPrinterCombo.setItems(FXCollections.observableArrayList(printerNames));
+
+        // Try to set a sensible default, like a Zebra GX printer
+        printerNames.stream()
+                .filter(n -> n.toLowerCase().contains("gx"))
+                .findFirst()
+                .ifPresent(labelPrinterCombo::setValue);
+    }
+
+    private void setupSkuSearch() {
+        skuSearchField.textProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal == null || newVal.trim().isEmpty()) {
+                skuListView.getItems().clear();
+                return;
+            }
+            List<String> suggestions = skuDAO.findSkusWithSkuNumberLike(newVal);
+            skuListView.setItems(FXCollections.observableArrayList(suggestions));
+        });
+
+        skuListView.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
+            if (newSelection != null) {
+                String selectedSku = newSelection.split(" - ")[0];
+                Platform.runLater(() -> {
+                    selectedSkuField.setText(selectedSku);
+                    skuSearchField.clear();
+                    skuListView.getItems().clear();
+                    scanSerialField.requestFocus();
+                });
+            }
+        });
+    }
+
     private String sanitizeSerialNumber(String input) {
         if (input == null) return "";
         return input.replaceAll("[^a-zA-Z0-9]", "").toUpperCase();
@@ -71,13 +120,26 @@ public class ScanUpdateController {
 
     @FXML
     private void onSerialScanned() {
-        // --- MODIFIED: Sanitize the input at the very beginning ---
-        String rawSerial = scanSerialField.getText();
-        String serial = sanitizeSerialNumber(rawSerial);
-        scanSerialField.setText(serial); // Update the UI to show the clean serial
-        // --- END MODIFICATION ---
-
+        String serial = sanitizeSerialNumber(scanSerialField.getText());
+        scanSerialField.setText(serial);
         if (serial.isEmpty()) return;
+
+        String skuToPrint = selectedSkuField.getText().trim();
+        String printerName = labelPrinterCombo.getValue();
+
+        // --- ENHANCED VALIDATION BLOCK ---
+        if (printLabelsToggle.isVisible() && printLabelsToggle.isSelected()) {
+            if (printerName == null || printerName.isEmpty()) {
+                showAlert("Printer Not Selected", "A printer must be selected from the list to print labels.");
+                labelPrinterCombo.requestFocus();
+                return;
+            }
+            if (skuToPrint.isEmpty()) {
+                showAlert("SKU Required", "A SKU must be selected from the list before printing labels.");
+                skuSearchField.requestFocus();
+                return;
+            }
+        }
 
         String newStatus = statusCombo.getValue();
         String newSubStatus = subStatusCombo.getValue();
@@ -110,7 +172,7 @@ public class ScanUpdateController {
                     resultManager.addSuccess(serial, newStatus + " / " + newSubStatus);
                     if (parentController != null) parentController.refreshData();
                     if (printLabelsToggle.isVisible() && printLabelsToggle.isSelected()) {
-                        printDeploymentLabels(serial);
+                        printDeploymentLabels(serial, skuToPrint, printerName);
                     }
                     break;
                 case NOT_FOUND:
@@ -130,8 +192,52 @@ public class ScanUpdateController {
         new Thread(updateTask).start();
     }
 
-    // --- UNCHANGED METHODS BELOW ---
+    private void updateUiForStatusChange() {
+        String status = statusCombo.getValue();
+        String subStatus = subStatusCombo.getValue();
 
+        boolean isDisposal = "Disposed".equals(status);
+        boolean needsBoxId = isDisposal && !"Ready for Wipe".equals(subStatus);
+
+        disposalLocationLabel.setVisible(isDisposal);
+        disposalLocationLabel.setManaged(isDisposal);
+        boxIdHBox.setVisible(isDisposal);
+        boxIdHBox.setManaged(isDisposal);
+
+        boolean isReadyForDeployment = "Processed".equals(status) && "Ready for Deployment".equals(subStatus);
+        printLabelsToggle.setVisible(isReadyForDeployment);
+        printLabelsToggle.setManaged(isReadyForDeployment);
+
+        boolean showSkuBox = isReadyForDeployment && printLabelsToggle.isSelected();
+        skuSelectionBox.setVisible(showSkuBox);
+        skuSelectionBox.setManaged(showSkuBox);
+        if (!showSkuBox) {
+            selectedSkuField.clear();
+        }
+
+        scanSerialField.setDisable(needsBoxId && disposalLocationField.getText().trim().isEmpty());
+    }
+
+    private void printDeploymentLabels(String serialNumber, String sku, String printerName) {
+        Optional<AssetInfo> assetOpt = assetDAO.findAssetBySerialNumber(serialNumber);
+        if (assetOpt.isEmpty()) {
+            resultManager.addFailure(serialNumber, "Asset info not found for printing");
+            return;
+        }
+        String description = assetOpt.get().getDescription() != null ? assetOpt.get().getDescription() : "N/A";
+
+        String adtZpl = ZplPrinterService.getAdtLabelZpl(sku, description);
+        String serialZpl = ZplPrinterService.getSerialLabelZpl(sku, serialNumber);
+
+        // This method now uses the printer name passed from the UI
+        printerService.sendZplToPrinter(printerName, adtZpl);
+        printerService.sendZplToPrinter(printerName, serialZpl);
+
+        // Clear the selected SKU for the next unique device scan
+        selectedSkuField.clear();
+    }
+
+    // --- All other methods (setupTableColumns, setupStatusComboBoxes, etc.) remain unchanged ---
     private void setupTableColumns() {
         successSerialCol.setCellValueFactory(new PropertyValueFactory<>("serial"));
         successStatusCol.setCellValueFactory(new PropertyValueFactory<>("status"));
@@ -158,30 +264,6 @@ public class ScanUpdateController {
         });
         subStatusCombo.getSelectionModel().selectedItemProperty().addListener((obs, o, n) -> updateUiForStatusChange());
         statusCombo.getSelectionModel().select(0);
-    }
-
-    private void updateUiForStatusChange() {
-        String status = statusCombo.getValue();
-        String subStatus = subStatusCombo.getValue();
-
-        boolean isDisposal = "Disposed".equals(status);
-        boolean needsBoxId = isDisposal && !"Ready for Wipe".equals(subStatus);
-
-        // --- THIS IS THE FIX ---
-        // You must set BOTH visible and managed properties.
-        disposalLocationLabel.setVisible(isDisposal);
-        disposalLocationLabel.setManaged(isDisposal); // This line was missing
-        boxIdHBox.setVisible(isDisposal);
-        boxIdHBox.setManaged(isDisposal);             // This line was missing
-        // --- END OF FIX ---
-
-        scanSerialField.setDisable(needsBoxId && disposalLocationField.getText().trim().isEmpty());
-
-        boolean isReadyForDeployment = "Processed".equals(status) && "Ready for Deployment".equals(subStatus);
-        printLabelsToggle.setVisible(isReadyForDeployment);
-
-        // Also manage the printLabelsToggle for consistent layout
-        printLabelsToggle.setManaged(isReadyForDeployment);
     }
 
     @FXML
@@ -267,28 +349,6 @@ public class ScanUpdateController {
         } catch (IOException e) {
             showAlert("Error", "Could not open the 'Add Asset' window.");
         }
-    }
-
-    private void printDeploymentLabels(String serialNumber) {
-        Optional<AssetInfo> assetOpt = assetDAO.findAssetBySerialNumber(serialNumber);
-        if (assetOpt.isEmpty() || assetOpt.get().getModelNumber() == null) {
-            resultManager.addFailure(serialNumber, "SKU not found for printing");
-            return;
-        }
-        AssetInfo asset = assetOpt.get();
-        String description = asset.getDescription() != null ? asset.getDescription() : "N/A";
-
-        String adtZpl = ZplPrinterService.getAdtLabelZpl(asset.getModelNumber(), description);
-        String serialZpl = ZplPrinterService.getSerialLabelZpl(asset.getModelNumber(), serialNumber);
-
-        Optional<String> printerName = findPrinter("GX");
-        if (printerName.isEmpty()) {
-            showAlert("Printer Not Found", "Could not find a default SKU printer (containing 'GX').");
-            return;
-        }
-
-        printerService.sendZplToPrinter(printerName.get(), adtZpl);
-        printerService.sendZplToPrinter(printerName.get(), serialZpl);
     }
 
     @FXML private void onBoxIdScanned() { scanSerialField.requestFocus(); }

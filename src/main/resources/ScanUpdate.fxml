@@ -25,24 +25,37 @@
                     <Label text="Set Sub-Status:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
                     <ComboBox fx:id="subStatusCombo" prefWidth="300.0" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
 
-                    <!-- NEW CHECKBOX FOR LABEL PRINTING -->
                     <CheckBox fx:id="printLabelsToggle" text="Print Deployment Labels on Scan"
                               GridPane.rowIndex="2" GridPane.columnIndex="1"
                               visible="false" managed="false" selected="true"/>
 
-                    <Label fx:id="disposalLocationLabel" text="Box ID:" visible="false" managed="false" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
-                    <HBox fx:id="boxIdHBox" spacing="10" alignment="CENTER_LEFT" visible="false" managed="false" GridPane.rowIndex="3" GridPane.columnIndex="1">
+                    <!-- THIS VBOX IS MODIFIED -->
+                    <VBox fx:id="skuSelectionBox" spacing="5" GridPane.rowIndex="3" GridPane.columnIndex="1" visible="false" managed="false">
+                        <children>
+                            <!-- PRINTER COMBOBOX ADDED HERE -->
+                            <Label text="Label Printer:"/>
+                            <ComboBox fx:id="labelPrinterCombo" prefWidth="300.0" promptText="Select Printer..."/>
+                            <Label text="Label SKU:" style="-fx-padding: 5 0 0 0;"/>
+                            <TextField fx:id="skuSearchField" promptText="Search for SKU to print..."/>
+                            <ListView fx:id="skuListView" prefHeight="100.0"/>
+                            <TextField fx:id="selectedSkuField" editable="false" promptText="Selected SKU"/>
+                        </children>
+                    </VBox>
+
+                    <Label fx:id="disposalLocationLabel" text="Box ID:" visible="false" managed="false" GridPane.rowIndex="4" GridPane.columnIndex="0"/>
+                    <HBox fx:id="boxIdHBox" spacing="10" alignment="CENTER_LEFT" visible="false" managed="false" GridPane.rowIndex="4" GridPane.columnIndex="1">
                         <TextField fx:id="disposalLocationField" onAction="#onBoxIdScanned" promptText="Scan Box ID and press Enter..." HBox.hgrow="ALWAYS"/>
                         <Button fx:id="clearBoxIdButton" onAction="#handleClearBoxId" text="Clear"/>
                     </HBox>
 
-                    <Label text="Change Note (Optional):" GridPane.rowIndex="4" GridPane.columnIndex="0"/>
-                    <TextField fx:id="changeLogField" GridPane.rowIndex="4" GridPane.columnIndex="1"/>
+                    <Label text="Change Note (Optional):" GridPane.rowIndex="5" GridPane.columnIndex="0"/>
+                    <TextField fx:id="changeLogField" GridPane.rowIndex="5" GridPane.columnIndex="1"/>
                 </GridPane>
             </TitledPane>
 
             <Label fx:id="feedbackLabel" alignment="CENTER" maxWidth="Infinity" styleClass="h2"/>
 
+            <!-- The rest of the FXML file remains unchanged -->
             <TitledPane text="Step 2: Scan to Update" collapsible="false" VBox.vgrow="ALWAYS">
                 <VBox spacing="20" style="-fx-padding: 10;">
                     <VBox spacing="8">
@@ -86,7 +99,6 @@
                                 </columns>
                                 <columnResizePolicy><TableView fx:constant="CONSTRAINED_RESIZE_POLICY" /></columnResizePolicy>
                             </TableView>
-                            <!-- NEW BUTTON -->
                             <HBox alignment="CENTER_RIGHT" style="-fx-padding: 5 0 0 0;">
                                 <Button onAction="#handleProcessFailedScans" text="Process Failed Scans..."/>
                             </HBox>
