@@ -1,5 +1,7 @@
 package assettracking.controller;
 
+import assettracking.dao.AssetDAO; // <-- IMPORT ADDED
+import assettracking.data.AssetInfo;
 import assettracking.data.DeviceStatusView;
 import assettracking.db.DatabaseConnection;
 import assettracking.manager.DeviceStatusManager;
@@ -8,13 +10,18 @@ import assettracking.ui.DeviceStatusActions;
 import assettracking.manager.StageManager;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
 import javafx.stage.Window;
 
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -54,6 +61,7 @@ public class DeviceStatusTrackingController {
 
     private DeviceStatusManager deviceStatusManager;
     private DeviceStatusActions deviceStatusActions;
+    private final AssetDAO assetDAO = new AssetDAO(); // <-- THIS IS THE FIX
     private static List<String> cachedCategories = null;
 
 
@@ -64,6 +72,39 @@ public class DeviceStatusTrackingController {
         configureAllUI();
         deviceStatusManager.resetPagination();
     }
+
+    // --- THIS IS THE CORRECTED METHOD ---
+    private void handleEditDevice() {
+        DeviceStatusView selectedDevice = statusTable.getSelectionModel().getSelectedItem();
+        if (selectedDevice == null) {
+            StageManager.showAlert(getOwnerWindow(), Alert.AlertType.WARNING, "No Selection", "Please select a device to edit.");
+            return;
+        }
+
+        // Optimized to make only one database call
+        Optional<AssetInfo> assetOpt = assetDAO.findAssetBySerialNumber(selectedDevice.getSerialNumber());
+        if (assetOpt.isEmpty()) {
+            StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Error", "Could not find the full details for the selected asset in the database.");
+            return;
+        }
+        AssetInfo assetToEdit = assetOpt.get();
+
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/AddAssetDialog.fxml"));
+            Parent root = loader.load();
+            AddAssetDialogController controller = loader.getController();
+            controller.initDataForEdit(assetToEdit, this::refreshData);
+
+            Stage stage = StageManager.createCustomStage(getOwnerWindow(), "Edit Asset: " + selectedDevice.getSerialNumber(), root);
+            stage.showAndWait();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Error", "Could not open the edit window.");
+        }
+    }
+
+    // --- ALL OTHER METHODS BELOW ARE UNCHANGED ---
 
     private void configureAllUI() {
         setupTableColumns();
@@ -85,16 +126,13 @@ public class DeviceStatusTrackingController {
             if (newVal != null) {
                 subStatusUpdateCombo.getItems().addAll(StatusManager.getSubStatuses(newVal));
                 if (!subStatusUpdateCombo.getItems().isEmpty()) {
-                    subStatusUpdateCombo.getSelectionModel().select(0); // Changed from selectFirst()
+                    subStatusUpdateCombo.getSelectionModel().select(0);
                 }
             }
             updateDisposalControlsVisibility();
         });
 
-
-        subStatusUpdateCombo.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
-            updateDisposalControlsVisibility();
-        });
+        subStatusUpdateCombo.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> updateDisposalControlsVisibility());
     }
 
     private void setupTableSelectionListener() {
@@ -128,31 +166,23 @@ public class DeviceStatusTrackingController {
     private void updateDisposalControlsVisibility() {
         String status = statusUpdateCombo.getValue();
         String subStatus = subStatusUpdateCombo.getValue();
-
         boolean needsBoxId = "Disposed".equals(status) && !"Ready for Wipe".equals(subStatus);
-
         boxIdLabel.setVisible(needsBoxId);
         boxIdLabel.setManaged(needsBoxId);
         boxIdField.setVisible(needsBoxId);
         boxIdField.setManaged(needsBoxId);
-
         if (!needsBoxId) {
             boxIdField.clear();
         }
     }
 
-    /**
-     * MODIFIED: Added a call to refreshData() at the end of the method.
-     */
     @FXML
     private void onUpdateDeviceAction() {
         ObservableList<DeviceStatusView> selectedDevices = statusTable.getSelectionModel().getSelectedItems();
         String newStatus = statusUpdateCombo.getValue();
         String newSubStatus = subStatusUpdateCombo.getValue();
         String note = null;
-
         boolean needsBoxId = "Disposed".equals(newStatus) && !"Ready for Wipe".equals(newSubStatus);
-
         if (needsBoxId) {
             String boxId = boxIdField.getText().trim();
             if (boxId.isEmpty()) {
@@ -161,16 +191,10 @@ public class DeviceStatusTrackingController {
             }
             note = "Box ID: " + boxId;
         }
-
         deviceStatusManager.updateDeviceStatus(selectedDevices, newStatus, newSubStatus, note);
         boxIdField.clear();
-
-        // --- ADD THIS LINE ---
-        // Refreshes the table to show the change immediately.
         refreshData();
     }
-
-    // --- NO CHANGES TO ANY OTHER METHODS IN THIS FILE ---
 
     private void setupTableColumns() {
         serialNumberCol.setCellValueFactory(new PropertyValueFactory<>("serialNumber"));
@@ -181,7 +205,6 @@ public class DeviceStatusTrackingController {
         subStatusCol.setCellValueFactory(new PropertyValueFactory<>("subStatus"));
         lastUpdateCol.setCellValueFactory(new PropertyValueFactory<>("lastUpdate"));
         notesCol.setCellValueFactory(new PropertyValueFactory<>("changeNote"));
-
         statusTable.setItems(deviceStatusManager.getDeviceStatusList());
         statusTable.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
         statusTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
@@ -192,10 +215,8 @@ public class DeviceStatusTrackingController {
         categoryFilterCombo.getItems().add("All Categories");
         loadFilterCategories();
         categoryFilterCombo.getSelectionModel().selectFirst();
-
         groupByCombo.getItems().addAll("None", "Status", "Category");
         groupByCombo.getSelectionModel().selectFirst();
-
         rowsPerPageCombo.getItems().addAll(50, 100, 200, 500);
         rowsPerPageCombo.setValue(deviceStatusManager.getRowsPerPage());
         rowsPerPageCombo.valueProperty().addListener((obs, old, val) -> {
@@ -204,7 +225,6 @@ public class DeviceStatusTrackingController {
                 deviceStatusManager.resetPagination();
             }
         });
-
         statusFilterCombo.valueProperty().addListener((obs, old, val) -> deviceStatusManager.resetPagination());
         categoryFilterCombo.valueProperty().addListener((obs, old, val) -> deviceStatusManager.resetPagination());
         groupByCombo.valueProperty().addListener((obs, old, val) -> deviceStatusManager.resetPagination());
@@ -217,7 +237,6 @@ public class DeviceStatusTrackingController {
             categoryFilterCombo.getItems().addAll(cachedCategories);
             return;
         }
-
         cachedCategories = new ArrayList<>();
         String sql = "SELECT DISTINCT category FROM Receipt_Events WHERE category IS NOT NULL AND category != '' ORDER BY category";
         try (Connection conn = DatabaseConnection.getInventoryConnection();
@@ -228,12 +247,7 @@ public class DeviceStatusTrackingController {
             }
             categoryFilterCombo.getItems().addAll(cachedCategories);
         } catch (SQLException e) {
-            // --- THIS IS THE FIX ---
-            // Delay showing the alert until the UI is fully initialized.
-            Platform.runLater(() -> {
-                StageManager.showAlert(statusTable.getScene().getWindow(), Alert.AlertType.ERROR, "Database Error", "Failed to load categories for filtering.");
-            });
-            // --- END OF FIX ---
+            Platform.runLater(() -> StageManager.showAlert(statusTable.getScene().getWindow(), Alert.AlertType.ERROR, "Database Error", "Failed to load categories for filtering."));
         }
     }
 
@@ -256,14 +270,12 @@ public class DeviceStatusTrackingController {
     private void configureTableRowFactory() {
         ContextMenu contextMenu = new ContextMenu();
         MenuItem historyMenuItem = new MenuItem("View Full History");
-        historyMenuItem.setOnAction(event -> {
-            DeviceStatusView selectedDevice = statusTable.getSelectionModel().getSelectedItem();
-            if (selectedDevice != null) {
-                deviceStatusActions.openDeviceHistoryWindow(selectedDevice.getSerialNumber());
-            }
-        });
-        contextMenu.getItems().add(historyMenuItem);
-
+        historyMenuItem.setOnAction(event -> handleViewHistory());
+        MenuItem editMenuItem = new MenuItem("Edit Selected Device...");
+        editMenuItem.setOnAction(event -> handleEditDevice());
+        MenuItem deleteMenuItem = new MenuItem("Delete Selected Device...");
+        deleteMenuItem.setOnAction(event -> handleDeleteDevice());
+        contextMenu.getItems().addAll(historyMenuItem, new SeparatorMenuItem(), editMenuItem, deleteMenuItem);
         statusTable.setRowFactory(tv -> {
             TableRow<DeviceStatusView> row = new TableRow<>();
             row.contextMenuProperty().bind(
@@ -272,7 +284,6 @@ public class DeviceStatusTrackingController {
                             .otherwise((ContextMenu) null)
             );
             row.itemProperty().addListener((obs, previousItem, currentItem) -> {
-                // Always remove old styles first
                 row.getStyleClass().removeAll("flagged-row", "wip-row", "disposal-row", "processed-row", "shipped-row");
                 if (currentItem != null) {
                     if (currentItem.isIsFlagged()) {
@@ -292,6 +303,25 @@ public class DeviceStatusTrackingController {
         });
     }
 
+    private void handleDeleteDevice() {
+        DeviceStatusView selectedDevice = statusTable.getSelectionModel().getSelectedItem();
+        if (selectedDevice == null) {
+            StageManager.showAlert(getOwnerWindow(), Alert.AlertType.WARNING, "No Selection", "Please select a device to delete.");
+            return;
+        }
+        if (StageManager.showDeleteConfirmationDialog(getOwnerWindow(), "device", selectedDevice.getSerialNumber())) {
+            deviceStatusManager.updateDeviceStatus(FXCollections.observableArrayList(selectedDevice), "Disposed", "Deleted (Mistake)", "Entry deleted by user.");
+            refreshData();
+        }
+    }
+
+    private void handleViewHistory() {
+        DeviceStatusView selectedDevice = statusTable.getSelectionModel().getSelectedItem();
+        if (selectedDevice != null) {
+            deviceStatusActions.openDeviceHistoryWindow(selectedDevice.getSerialNumber());
+        }
+    }
+
     private void clearFilterInputs() {
         serialSearchField.clear();
         statusFilterCombo.getSelectionModel().selectFirst();
@@ -303,7 +333,7 @@ public class DeviceStatusTrackingController {
 
     @FXML private void onRefreshAction() { refreshData(); }
     @FXML private void onClearFiltersAction() { clearFilterInputs(); deviceStatusManager.resetPagination(); }
-    @FXML private void onViewHistoryAction() { deviceStatusActions.openDeviceHistoryWindow(); }
+    @FXML private void onViewHistoryAction() { handleViewHistory(); }
     @FXML private void onSearchAction() { deviceStatusManager.resetPagination(); }
     @FXML private void handleImportFlags() { deviceStatusActions.importFlags(); }
     @FXML private void handleExportToCSV() { deviceStatusActions.exportToCSV(); }

@@ -10,6 +10,7 @@ import assettracking.data.AssetInfo;
 import assettracking.data.Package;
 import assettracking.db.DatabaseConnection;
 import assettracking.label.service.ZplPrinterService;
+import assettracking.manager.StageManager;
 import assettracking.manager.StatusManager;
 import assettracking.ui.AutoCompletePopup;
 import javafx.application.Platform;
@@ -34,6 +35,9 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
+
+import assettracking.ui.AutoCompleteTableCell;
+import assettracking.ui.SerialLookupTableCell;
 
 public class AddAssetDialogController {
 
@@ -72,6 +76,8 @@ public class AddAssetDialogController {
     private final ZplPrinterService printerService = new ZplPrinterService();
     private StandardIntakeHandler standardIntakeHandler;
     private MonitorIntakeHandler monitorIntakeHandler;
+    private boolean isEditMode = false;
+    private Runnable onSaveCallback;
 
     @FXML
     public void initialize() {
@@ -142,8 +148,33 @@ public class AddAssetDialogController {
                         assetDAO.findSkuDetails(selectedValue, "model_number").ifPresent(this::populateFieldsFromSku));
     }
 
+    public void initDataForEdit(AssetInfo assetInfo, Runnable onSaveCallback) {
+        this.isEditMode = true;
+        this.onSaveCallback = onSaveCallback;
+
+        // Populate fields
+        setFormAssetDetails(assetInfo);
+        serialField.setText(assetInfo.getSerialNumber());
+
+        // Configure UI for edit mode
+        standardIntakeRadio.setSelected(true);
+        saveButton.setText("Save Changes");
+
+        // Disable controls that shouldn't be used in edit mode
+        serialField.setEditable(false);
+        multiSerialToggle.setDisable(true);
+        bulkAddCheckBox.setDisable(true);
+        standardIntakeRadio.setDisable(true);
+        monitorIntakeRadio.setDisable(true);
+
+        // Hide the disposition pane completely
+        sellScrapCheckBox.getParent().getParent().getParent().setVisible(false);
+        sellScrapCheckBox.getParent().getParent().getParent().setManaged(false);
+    }
+
     private void populateFieldsFromSku(AssetInfo sku) {
         Platform.runLater(() -> {
+            // --- ADD THESE TWO LINES ---
             descriptionPopup.suppressListener(true);
             modelPopup.suppressListener(true);
 
@@ -155,6 +186,7 @@ public class AddAssetDialogController {
             }
             standardIntakeHandler.applyMelRule(sku.getModelNumber(), sku.getDescription());
 
+            // --- ADD THESE TWO LINES ---
             descriptionPopup.suppressListener(false);
             modelPopup.suppressListener(false);
         });
@@ -188,12 +220,14 @@ public class AddAssetDialogController {
 
     private void populateMonitorFieldsFromSku(AssetInfo sku) {
         Platform.runLater(() -> {
+            // --- ADD THESE TWO LINES ---
             monitorDescriptionPopup.suppressListener(true);
             monitorModelPopup.suppressListener(true);
 
             monitorDescriptionField.setText(sku.getDescription());
             monitorModelField.setText(sku.getModelNumber());
 
+            // --- ADD THESE TWO LINES ---
             monitorDescriptionPopup.suppressListener(false);
             monitorModelPopup.suppressListener(false);
         });
@@ -276,7 +310,35 @@ public class AddAssetDialogController {
         assetEntries.setAll(entries);
     }
     @FXML private void handleLookupSerial() { standardIntakeHandler.handleLookupSerial(); }
-    @FXML private void handleSave() { standardIntakeHandler.handleSave(); }
+    @FXML
+    private void handleSave() {
+        if (isEditMode) {
+            // --- EDIT MODE LOGIC ---
+            AssetInfo details = getAssetDetailsFromForm();
+            details.setSerialNumber(serialField.getText()); // Make sure serial is included
+
+            Task<Boolean> updateTask = new Task<>() {
+                @Override
+                protected Boolean call() {
+                    return assetDAO.updateAsset(details);
+                }
+            };
+            updateTask.setOnSucceeded(e -> {
+                if (updateTask.getValue()) {
+                    if (onSaveCallback != null) {
+                        onSaveCallback.run(); // This will refresh the device list
+                    }
+                    handleClose();
+                } else {
+                    StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Update Failed", "Could not save changes to the database.");
+                }
+            });
+            new Thread(updateTask).start();
+
+        } else {
+            standardIntakeHandler.handleSave();
+        }
+    }
     @FXML private void handleFunctioningButton() { monitorIntakeHandler.handleFunctioningButton(); }
     @FXML private void handleBrokenButton() { monitorIntakeHandler.handleBrokenButton(); }
     @FXML private void handleAddRow() { assetEntries.add(new AssetEntry("", "", "", "", "", "", "")); }
@@ -403,25 +465,39 @@ public class AddAssetDialogController {
         });
     }
     private void setupTable() {
+        // Serial Number Column with Autofill on Enter
         serialCol.setCellValueFactory(new PropertyValueFactory<>("serialNumber"));
-        serialCol.setCellFactory(TextFieldTableCell.forTableColumn());
+        serialCol.setCellFactory(col -> new SerialLookupTableCell(assetDAO));
         serialCol.setOnEditCommit(event -> event.getRowValue().setSerialNumber(event.getNewValue()));
+
+        // IMEI Column (standard text editing)
         imeiCol.setCellValueFactory(new PropertyValueFactory<>("imei"));
         imeiCol.setCellFactory(TextFieldTableCell.forTableColumn());
         imeiCol.setOnEditCommit(event -> event.getRowValue().setImei(event.getNewValue()));
+
+        // Category Column with Autocomplete
         categoryCol.setCellValueFactory(new PropertyValueFactory<>("category"));
-        categoryCol.setCellFactory(TextFieldTableCell.forTableColumn());
+        categoryCol.setCellFactory(col -> new AutoCompleteTableCell<>(() -> skuDAO.findDistinctValuesLike("category", "")));
         categoryCol.setOnEditCommit(event -> event.getRowValue().setCategory(event.getNewValue()));
+
+        // Make/Manufacturer Column with Autocomplete
         makeCol.setCellValueFactory(new PropertyValueFactory<>("make"));
-        makeCol.setCellFactory(TextFieldTableCell.forTableColumn());
+        makeCol.setCellFactory(col -> new AutoCompleteTableCell<>(() -> skuDAO.findDistinctValuesLike("manufac", "")));
         makeCol.setOnEditCommit(event -> event.getRowValue().setMake(event.getNewValue()));
+
+        // Model Number Column with Autocomplete
         modelCol.setCellValueFactory(new PropertyValueFactory<>("modelNumber"));
-        modelCol.setCellFactory(TextFieldTableCell.forTableColumn());
+        modelCol.setCellFactory(col -> new AutoCompleteTableCell<>(() -> assetDAO.findModelNumbersLike("")));
         modelCol.setOnEditCommit(event -> event.getRowValue().setModelNumber(event.getNewValue()));
+
+        // Description Column with Autocomplete
         descriptionCol.setCellValueFactory(new PropertyValueFactory<>("description"));
-        descriptionCol.setCellFactory(TextFieldTableCell.forTableColumn());
+        descriptionCol.setCellFactory(col -> new AutoCompleteTableCell<>(() -> assetDAO.findDescriptionsLike("")));
         descriptionCol.setOnEditCommit(event -> event.getRowValue().setDescription(event.getNewValue()));
+
+        // Probable Cause Column (not editable)
         causeCol.setCellValueFactory(new PropertyValueFactory<>("probableCause"));
+
         deviceTable.setItems(assetEntries);
         deviceTable.setEditable(true);
         deviceTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);

@@ -3,6 +3,7 @@ package assettracking.controller;
 import assettracking.data.Sku;
 import assettracking.dao.SkuDAO;
 import assettracking.manager.StageManager;
+import assettracking.ui.AutoCompletePopup; // <-- IMPORT AutoCompletePopup
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -34,18 +35,20 @@ public class SkuManagementController {
     private final SkuDAO skuDAO = new SkuDAO();
     private final ObservableList<Sku> skuList = FXCollections.observableArrayList();
 
+    // --- NEW: References to the autocomplete popups ---
+    private AutoCompletePopup categoryPopup;
+    private AutoCompletePopup manufacturerPopup;
+
     @FXML
     public void initialize() {
         setupTableColumns();
+        setupAutocomplete(); // <-- ADD THIS NEW METHOD CALL
 
         FilteredList<Sku> filteredData = new FilteredList<>(skuList, p -> true);
 
         searchField.textProperty().addListener((observable, oldValue, newValue) -> filteredData.setPredicate(sku -> {
-            if (newValue == null || newValue.isEmpty()) {
-                return true;
-            }
+            if (newValue == null || newValue.isEmpty()) return true;
             String lowerCaseFilter = newValue.toLowerCase();
-
             if (sku.getSkuNumber() != null && sku.getSkuNumber().toLowerCase().contains(lowerCaseFilter)) return true;
             if (sku.getModelNumber() != null && sku.getModelNumber().toLowerCase().contains(lowerCaseFilter)) return true;
             if (sku.getCategory() != null && sku.getCategory().toLowerCase().contains(lowerCaseFilter)) return true;
@@ -55,13 +58,18 @@ public class SkuManagementController {
 
         SortedList<Sku> sortedData = new SortedList<>(filteredData);
         sortedData.comparatorProperty().bind(skuTable.comparatorProperty());
-
         skuTable.setItems(sortedData);
 
         skuTable.getSelectionModel().selectedItemProperty().addListener(
                 (obs, oldSelection, newSelection) -> populateForm(newSelection)
         );
-        refreshTable(); // This is now an async call
+        refreshTable();
+    }
+
+    // --- NEW METHOD ---
+    private void setupAutocomplete() {
+        categoryPopup = new AutoCompletePopup(categoryField, () -> skuDAO.findDistinctValuesLike("category", categoryField.getText()));
+        manufacturerPopup = new AutoCompletePopup(manufacturerField, () -> skuDAO.findDistinctValuesLike("manufac", manufacturerField.getText()));
     }
 
     private void setupTableColumns() {
@@ -72,27 +80,24 @@ public class SkuManagementController {
         descriptionCol.setCellValueFactory(new PropertyValueFactory<>("description"));
     }
 
-    // MODIFIED: This method now runs the database query in the background
     private void refreshTable() {
         Task<List<Sku>> loadSkusTask = new Task<>() {
             @Override
             protected List<Sku> call() {
-                // This runs on a background thread
                 return skuDAO.getAllSkus();
             }
         };
-
         loadSkusTask.setOnSucceeded(e -> {
-            // This runs on the UI thread after the task completes
             skuList.setAll(loadSkusTask.getValue());
             handleNew();
         });
-
         loadSkusTask.setOnFailed(e -> {
-            loadSkusTask.getException().printStackTrace();
+            // It's good practice to log the actual exception for debugging
+            if (loadSkusTask.getException() != null) {
+                loadSkusTask.getException().printStackTrace();
+            }
             statusLabel.setText("Error: Failed to load SKU data.");
         });
-
         new Thread(loadSkusTask).start();
     }
 
@@ -100,12 +105,24 @@ public class SkuManagementController {
         if (sku == null) {
             handleNew();
         } else {
+            // --- THIS IS THE FIX ---
+            // Suppress the listeners before programmatically changing the text
+            categoryPopup.suppressListener(true);
+            manufacturerPopup.suppressListener(true);
+
             skuNumberField.setText(sku.getSkuNumber());
             modelNumberField.setText(sku.getModelNumber());
             categoryField.setText(sku.getCategory());
             manufacturerField.setText(sku.getManufacturer());
             descriptionField.setText(sku.getDescription());
             skuNumberField.setEditable(false);
+
+            // --- AND RE-ENABLE THEM AFTERWARDS ---
+            // We use Platform.runLater to ensure this happens after the text change is fully processed
+            Platform.runLater(() -> {
+                categoryPopup.suppressListener(false);
+                manufacturerPopup.suppressListener(false);
+            });
         }
     }
 
@@ -129,10 +146,8 @@ public class SkuManagementController {
             StageManager.showAlert(skuTable.getScene().getWindow(), Alert.AlertType.WARNING, "No Selection", "Please select an SKU from the table to delete.");
             return;
         }
-
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION, "Are you sure you want to delete SKU: " + selectedSku.getSkuNumber() + "?", ButtonType.YES, ButtonType.NO);
         Optional<ButtonType> result = alert.showAndWait();
-
         if (result.isPresent() && result.get() == ButtonType.YES) {
             if (skuDAO.deleteSku(selectedSku.getSkuNumber())) {
                 statusLabel.setText("Successfully deleted SKU: " + selectedSku.getSkuNumber());
@@ -143,33 +158,58 @@ public class SkuManagementController {
         }
     }
 
+    // --- THIS METHOD IS MODIFIED ---
     @FXML
     private void handleSave() {
-        String skuNumber = skuNumberField.getText();
-        if (skuNumber == null || skuNumber.trim().isEmpty()) {
-            StageManager.showAlert(skuTable.getScene().getWindow(), Alert.AlertType.WARNING, "Input Error", "SKU Number cannot be empty.");
+        String modelNumber = modelNumberField.getText();
+        String description = descriptionField.getText();
+        String skuNumber = skuNumberField.getText().trim(); // Use trimmed version for checks
+
+        // Validation: A record must have at least a Model Number or a Description.
+        if ((modelNumber == null || modelNumber.trim().isEmpty()) && (description == null || description.trim().isEmpty())) {
+            StageManager.showAlert(skuTable.getScene().getWindow(), Alert.AlertType.WARNING, "Input Error", "An entry must have at least a Model Number or a Description.");
             return;
         }
 
         Sku sku = new Sku();
-        sku.setSkuNumber(skuNumber.trim());
+        sku.setSkuNumber(skuNumberField.getText()); // Use untrimmed for saving to allow spaces if needed
         sku.setModelNumber(modelNumberField.getText());
         sku.setCategory(categoryField.getText());
         sku.setManufacturer(manufacturerField.getText());
         sku.setDescription(descriptionField.getText());
 
         boolean success;
-        if (!skuNumberField.isEditable()) {
+        Sku selectedSku = skuTable.getSelectionModel().getSelectedItem();
+
+        // --- THIS IS THE CORRECTED LOGIC ---
+        // Determine if we are updating an existing SKU or adding a new one.
+        boolean isUpdateOperation = !skuNumberField.isEditable() &&
+                selectedSku != null &&
+                selectedSku.getSkuNumber().equals(sku.getSkuNumber());
+
+        if (isUpdateOperation) {
+            // We are editing an existing item selected from the table
             success = skuDAO.updateSku(sku);
         } else {
-            success = skuDAO.addSku(sku);
+            // We are adding a new item
+            if (skuNumber.isEmpty()) {
+                // Let the database handle the blank SKU for autofill entries
+                success = skuDAO.addSku(sku);
+            } else {
+                // If SKU is not empty, check if it already exists to prevent duplicates
+                if (skuDAO.findSkuByNumber(skuNumber).isPresent()) {
+                    StageManager.showAlert(skuTable.getScene().getWindow(), Alert.AlertType.ERROR, "Duplicate SKU", "An SKU with the number '" + skuNumber + "' already exists. Please use a unique SKU number.");
+                    return; // Stop the save process
+                }
+                success = skuDAO.addSku(sku);
+            }
         }
 
         if (success) {
-            statusLabel.setText("Successfully saved SKU: " + sku.getSkuNumber());
+            statusLabel.setText("Successfully saved entry.");
             refreshTable();
         } else {
-            statusLabel.setText("Error: Could not save SKU. It may already exist.");
+            statusLabel.setText("Error: Could not save entry. The SKU might already exist.");
         }
     }
 }

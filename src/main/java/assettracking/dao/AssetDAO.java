@@ -175,6 +175,23 @@ public class AssetDAO {
         return Optional.empty();
     }
 
+    public boolean updateAsset(AssetInfo asset) {
+        String sql = "UPDATE Physical_Assets SET category = ?, make = ?, part_number = ?, description = ?, imei = ? WHERE serial_number = ?";
+        try (Connection conn = DatabaseConnection.getInventoryConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, asset.getCategory());
+            stmt.setString(2, asset.getMake());
+            stmt.setString(3, asset.getModelNumber());
+            stmt.setString(4, asset.getDescription());
+            stmt.setString(5, asset.getImei());
+            stmt.setString(6, asset.getSerialNumber());
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
     public Optional<String> findDescriptionBySkuNumber(String skuNumber) {
         String sql = "SELECT description FROM SKU_Table WHERE sku_number = ? AND (model_number IS NULL OR model_number = '')";
         try (Connection conn = DatabaseConnection.getInventoryConnection();

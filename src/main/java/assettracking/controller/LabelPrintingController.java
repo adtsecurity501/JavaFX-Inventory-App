@@ -93,15 +93,18 @@ public class LabelPrintingController {
         imageSkuPopup = new AutoCompletePopup(imageSkuField, () -> skuDAO.findSkusLike(imageSkuField.getText()))
                 .setOnSuggestionSelected(selectedValue -> {
                     String sku = selectedValue.split(" - ")[0];
+                    // --- THIS IS THE NEW HELPER METHOD CALL ---
                     selectAndSetText(imageSkuPopup, imageSkuField, sku);
                 });
 
         imageDeviceSkuPopup = new AutoCompletePopup(imageDeviceSkuField, () -> skuDAO.findSkusLike(imageDeviceSkuField.getText()))
                 .setOnSuggestionSelected(selectedValue -> {
                     String sku = selectedValue.split(" - ")[0];
+                    // --- THIS IS THE NEW HELPER METHOD CALL ---
                     selectAndSetText(imageDeviceSkuPopup, imageDeviceSkuField, sku);
                 });
     }
+
 
     // --- NEW: Helper method to handle suppression logic ---
     private void selectAndSetText(AutoCompletePopup popup, TextField field, String value) {

@@ -161,6 +161,32 @@ public class SkuDAO {
         return suggestions;
     }
 
+    public List<String> findDistinctValuesLike(String columnName, String fragment) {
+        List<String> suggestions = new ArrayList<>();
+        // Basic validation to prevent SQL injection, though parameters make it safe.
+        if (!columnName.matches("^[a-zA-Z0-9_]+$")) {
+            return suggestions;
+        }
+
+        String sql = String.format(
+                "SELECT DISTINCT %s FROM SKU_Table WHERE %s IS NOT NULL AND %s != '' AND %s LIKE ? ORDER BY %s LIMIT 10",
+                columnName, columnName, columnName, columnName, columnName
+        );
+
+        try (Connection conn = DatabaseConnection.getInventoryConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setString(1, "%" + fragment + "%");
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    suggestions.add(rs.getString(1));
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return suggestions;
+    }
     private Sku mapRowToSku(ResultSet rs) throws SQLException {
         Sku sku = new Sku();
         sku.setSkuNumber(rs.getString("sku_number"));

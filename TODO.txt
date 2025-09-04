@@ -1,8 +1,9 @@
 Priority 1:
 - add way to import information into the device_autofill_data table.
-- When I minimize the window it goes to the bottom left corner and it looks terrible no styles, Shoudln't it go into the task bar when minimized?
-- update the flow for when you are doing scan update and then you have failed packages and you click the process failed scans, instead of making a tracking number FAILED_SCANS_[date...], I want to be able to choose which pacakage to add them too or if i want have the option to create a new package.
-- I need to update the scan update so that the sku stays after you scan a serial becasue sometimes I scan and deploy multiple of the same sku at once and scan all of them.
+- When I minimize the window it goes to the bottom left corner and it looks terrible no styles
+- I have a box id at the top of the list that is blank and says there are 2 devices in side but when I click on it it shows alot more than 2, what is going on?
+- on scan update the sizing is off between succesful scans and failed/unrefnized scans windwos. The sucess. scans windows is smaller and i think it's because it doesn't have the process failed scans button
+
 
 Priority 2:
 
@@ -127,6 +128,16 @@ device is a:Optiplex 3000
 - no hover effect for - or square in the title menu bar also make sure all windows and errors have the styled title menu bar.
 - fix visual bug on label printing tab, when you click generic barcode the whole row increases in size
 - when I open a package for example, the minimize button in the title menu bar is selected and it has a border around it that shows that Its selected, I dont want it to be selected by default. 
+- update the flow for when you are doing scan update and then you have failed packages and you click the process failed scans, instead of making a tracking number FAILED_SCANS_[date...], I want to be able to choose which pacakage to add them too or if i want have the option to create a new package.
+- I need to update the scan update so that the sku stays after you scan a serial becasue sometimes I scan and deploy multiple of the same sku at once and scan all of them.
+- add autofill dropdowns for sku managemnt, I got a error sku number cannot be emptyThat is wrong becasue I might add autofill information likke Descriptopn categoryt model and manufac to the sku table
+- When i click on the autocomplete suggestion it adds it to the field but then the suggestion pops up again and I have to click it again to fill it in
+- 
+
+
+
+
+
 
 
 

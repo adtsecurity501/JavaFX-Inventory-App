@@ -17,6 +17,9 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.stage.Window;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.Dialog;
+import javafx.scene.control.DialogPane;
 
 import java.util.Optional;
 
@@ -85,6 +88,44 @@ public final class StageManager {
 
         Platform.runLater(content::requestFocus);
         return stage;
+    }
+
+    public static boolean showDeleteConfirmationDialog(Window owner, String objectType, String objectName) {
+        Dialog<String> dialog = new Dialog<>();
+        Stage stage = (Stage) dialog.getDialogPane().getScene().getWindow();
+        // We can reuse our custom stage creation to get our styled title bar!
+        StageManager.createCustomStage(owner, "Confirm Deletion", dialog.getDialogPane());
+
+        dialog.setHeaderText("Are you absolutely sure you want to delete this " + objectType + "?");
+        dialog.setContentText("This action cannot be undone. To confirm, please type DELETE into the box below.\n\n" + objectName);
+
+        DialogPane dialogPane = dialog.getDialogPane();
+        dialogPane.getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+
+        TextField input = new TextField();
+        input.setPromptText("DELETE");
+
+        // Disable the OK button initially
+        Node okButton = dialogPane.lookupButton(ButtonType.OK);
+        okButton.setDisable(true);
+
+        // Add a listener to enable the OK button only when "DELETE" is typed
+        input.textProperty().addListener((observable, oldValue, newValue) -> {
+            okButton.setDisable(!newValue.trim().equals("DELETE"));
+        });
+
+        dialogPane.setExpandableContent(new VBox(8, input));
+        dialogPane.setExpanded(true);
+
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == ButtonType.OK) {
+                return input.getText();
+            }
+            return null;
+        });
+
+        Optional<String> result = dialog.showAndWait();
+        return result.isPresent() && result.get().equals("DELETE");
     }
 
     // --- THIS IS THE CORRECTED METHOD ---

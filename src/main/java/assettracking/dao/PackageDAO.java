@@ -114,7 +114,30 @@ public class PackageDAO {
         }
         return packageList;
     }
+    public int getAssetCountForPackage(int packageId) throws SQLException {
+        String sql = "SELECT COUNT(*) FROM Receipt_Events WHERE package_id = ?";
+        try (Connection conn = DatabaseConnection.getInventoryConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, packageId);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt(1);
+            }
+        }
+        return 0;
+    }
 
+    public boolean deletePackage(int packageId) {
+        String sql = "DELETE FROM Packages WHERE package_id = ?";
+        try (Connection conn = DatabaseConnection.getInventoryConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, packageId);
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
 
     private QueryAndParams buildFilteredQuery(boolean forCount, String trackingFilter, LocalDate fromDate, LocalDate toDate) {
         String selectClause = forCount ? "SELECT COUNT(*) " : "SELECT * ";

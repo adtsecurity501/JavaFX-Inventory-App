@@ -16,6 +16,7 @@ import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
+import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.GridPane;
 import javafx.stage.FileChooser;
 import javafx.stage.Window;
@@ -29,6 +30,7 @@ import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -247,7 +249,7 @@ public class BoxIdViewerController {
                 List<BoxIdSummary> results = new ArrayList<>();
                 String sql = """
                             SELECT
-                                SUBSTRING(change_log, INSTR(change_log, ':') + 2, INSTR(change_log, '.') - INSTR(change_log, ':') - 2) as box_id,
+                                SUBSTRING(change_log, INSTR(change_log, ':') + 2) as box_id,
                                 COUNT(*) as item_count
                             FROM Device_Status
                             WHERE change_log LIKE 'Box ID:%'
@@ -268,7 +270,7 @@ public class BoxIdViewerController {
         loadTask.setOnFailed(e -> {
             Throwable ex = e.getSource().getException();
             if (ex != null) {
-                StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Database Error", "Failed to load box summary data: " + ex.getMessage());
+                Platform.runLater(() -> StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Database Error", "Failed to load box summary data: " + ex.getMessage()));
             }
         });
         new Thread(loadTask).start();
@@ -304,7 +306,7 @@ public class BoxIdViewerController {
         loadDetailsTask.setOnFailed(e -> {
             Throwable ex = e.getSource().getException();
             if (ex != null) {
-                StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Database Error", "Failed to load box contents: " + ex.getMessage());
+                Platform.runLater(() -> StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Database Error", "Failed to load box contents: " + ex.getMessage()));
             }
         });
         new Thread(loadDetailsTask).start();

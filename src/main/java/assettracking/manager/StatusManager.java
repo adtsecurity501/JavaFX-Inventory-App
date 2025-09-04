@@ -37,7 +37,8 @@ public final class StatusManager {
                 "Can-Am, Picked Up",
                 "Ingram, Pending Pickup",
                 "Ingram, Picked Up",
-                "Ready for Wipe"
+                "Ready for Wipe",
+                "Deleted (Mistake)"
         ));
 
         // 5. & 6. Shipping-related statuses

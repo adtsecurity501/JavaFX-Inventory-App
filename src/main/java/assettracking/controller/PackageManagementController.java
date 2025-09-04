@@ -18,6 +18,7 @@ import javafx.stage.Stage;
 import javafx.stage.Window;
 
 import java.io.IOException;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -174,6 +175,34 @@ public class PackageManagementController {
             resetPagination(); // Refresh data after the detail window is closed
         } catch (IOException e) {
             showAlert(Alert.AlertType.ERROR, "Error", "Could not open the package detail window.");
+        }
+    }
+
+    @FXML
+    private void handleDeletePackage() {
+        Package selectedPackage = packageTable.getSelectionModel().getSelectedItem();
+        if (selectedPackage == null) {
+            showAlert(Alert.AlertType.WARNING, "No Selection", "Please select a package to delete.");
+            return;
+        }
+
+        try {
+            int assetCount = packageDAO.getAssetCountForPackage(selectedPackage.getPackageId());
+            if (assetCount > 0) {
+                showAlert(Alert.AlertType.ERROR, "Deletion Failed", "Cannot delete a package that contains assets. Please remove or reassign all " + assetCount + " assets from this package first.");
+                return;
+            }
+
+            if (StageManager.showDeleteConfirmationDialog(getOwnerWindow(), "package", selectedPackage.getTrackingNumber())) {
+                if (packageDAO.deletePackage(selectedPackage.getPackageId())) {
+                    showAlert(Alert.AlertType.INFORMATION, "Success", "Package " + selectedPackage.getTrackingNumber() + " was deleted.");
+                    resetPagination(); // Refresh the table
+                } else {
+                    showAlert(Alert.AlertType.ERROR, "Deletion Failed", "An error occurred while deleting the package from the database.");
+                }
+            }
+        } catch (SQLException e) {
+            showAlert(Alert.AlertType.ERROR, "Database Error", "Could not check package contents: " + e.getMessage());
         }
     }
 
