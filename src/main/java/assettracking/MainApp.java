@@ -1,8 +1,8 @@
-package assettracking;// In assettracking/MainApp.java
+package assettracking;
 
 import atlantafx.base.theme.Dracula;
 import assettracking.controller.DashboardController;
-import assettracking.db.DatabaseConnection; // <-- IMPORT THIS
+import assettracking.db.DatabaseConnection;
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -18,13 +18,12 @@ public class MainApp extends Application {
 
     @Override
     public void start(Stage primaryStage) throws IOException {
-        // --- ADD THIS SHUTDOWN HOOK ---
         primaryStage.setOnCloseRequest(event -> {
             System.out.println("Shutdown signal received, closing resources...");
-            DatabaseConnection.closeConnectionPool(); // Gracefully close the pool
+            DatabaseConnection.closeConnectionPool();
         });
-        // --- END OF ADDITION ---
 
+        // Reverted to UNDECORATED
         primaryStage.initStyle(StageStyle.UNDECORATED);
         Application.setUserAgentStylesheet(new Dracula().getUserAgentStylesheet());
 

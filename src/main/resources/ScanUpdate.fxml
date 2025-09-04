@@ -32,13 +32,17 @@
                     <!-- THIS VBOX IS MODIFIED -->
                     <VBox fx:id="skuSelectionBox" spacing="5" GridPane.rowIndex="3" GridPane.columnIndex="1" visible="false" managed="false">
                         <children>
-                            <!-- PRINTER COMBOBOX ADDED HERE -->
                             <Label text="Label Printer:"/>
                             <ComboBox fx:id="labelPrinterCombo" prefWidth="300.0" promptText="Select Printer..."/>
                             <Label text="Label SKU:" style="-fx-padding: 5 0 0 0;"/>
                             <TextField fx:id="skuSearchField" promptText="Search for SKU to print..."/>
                             <ListView fx:id="skuListView" prefHeight="100.0"/>
-                            <TextField fx:id="selectedSkuField" editable="false" promptText="Selected SKU"/>
+
+                            <!-- NEW HBOX WRAPPER -->
+                            <HBox spacing="5" alignment="CENTER_LEFT">
+                                <TextField fx:id="selectedSkuField" editable="false" promptText="Selected SKU" HBox.hgrow="ALWAYS"/>
+                                <Button fx:id="clearSkuButton" text="Clear"/>
+                            </HBox>
                         </children>
                     </VBox>
 

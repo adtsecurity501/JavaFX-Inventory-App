@@ -16,7 +16,6 @@ import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
-import javafx.scene.control.ChoiceDialog;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.GridPane;
 import javafx.stage.FileChooser;
@@ -34,7 +33,11 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 public class BoxIdViewerController {
@@ -49,8 +52,6 @@ public class BoxIdViewerController {
     @FXML private TableColumn<BoxIdDetail, String> serialCol;
     @FXML private TableColumn<BoxIdDetail, String> statusCol;
     @FXML private TableColumn<BoxIdDetail, String> subStatusCol;
-
-    // --- NEW FXML Fields ---
     @FXML private Button printLabelButton;
     @FXML private Button exportCsvButton;
     @FXML private Button updateStatusButton;
@@ -66,7 +67,6 @@ public class BoxIdViewerController {
         setupTables();
         loadSummaryDataAsync();
 
-        // Disable buttons until a box is selected
         printLabelButton.setDisable(true);
         exportCsvButton.setDisable(true);
         updateStatusButton.setDisable(true);
@@ -101,11 +101,9 @@ public class BoxIdViewerController {
     private void setupTables() {
         boxIdCol.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().boxId()));
         itemCountCol.setCellValueFactory(cellData -> new SimpleObjectProperty<>(cellData.getValue().itemCount()));
-
         serialCol.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().serialNumber()));
         statusCol.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().status()));
         subStatusCol.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().subStatus()));
-
         detailTable.setItems(detailList);
     }
 
@@ -114,9 +112,6 @@ public class BoxIdViewerController {
         BoxIdSummary selectedBox = summaryTable.getSelectionModel().getSelectedItem();
         if (selectedBox == null) return;
 
-        // --- NEW LOGIC TO GET PRINTERS AND SHOW DIALOG ---
-
-        // 1. Get a list of all available system printers.
         List<String> printerNames = Arrays.stream(PrintServiceLookup.lookupPrintServices(null, null))
                 .map(PrintService::getName)
                 .collect(Collectors.toList());
@@ -126,22 +121,18 @@ public class BoxIdViewerController {
             return;
         }
 
-        // 2. Create a choice dialog for the user.
-        // Try to find a "GX" printer to be the default selection.
         String defaultPrinter = printerNames.stream()
                 .filter(n -> n.toLowerCase().contains("gx"))
                 .findFirst()
-                .orElse(printerNames.get(0)); // Otherwise, just use the first printer in the list.
+                .orElse(printerNames.get(0));
 
         ChoiceDialog<String> dialog = new ChoiceDialog<>(defaultPrinter, printerNames);
         dialog.setTitle("Select Printer");
         dialog.setHeaderText("Choose a label printer for the box label.");
         dialog.setContentText("Printer:");
 
-        // 3. Show the dialog and wait for the user to make a choice.
         Optional<String> result = dialog.showAndWait();
 
-        // 4. If the user clicked OK, proceed with printing to the selected printer.
         result.ifPresent(selectedPrinter -> {
             String today = LocalDate.now().format(DateTimeFormatter.ofPattern("MM/dd/yyyy"));
             String zpl = String.format(
@@ -156,6 +147,8 @@ public class BoxIdViewerController {
             );
 
             if (printerService.sendZplToPrinter(selectedPrinter, zpl)) {
+                statusLabel.getStyleClass().remove("status-label-error");
+                statusLabel.getStyleClass().add("status-label-success");
                 statusLabel.setText("Printed label for Box ID: " + selectedBox.boxId() + " to " + selectedPrinter);
             } else {
                 StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Print Failed", "Failed to send label to printer: " + selectedPrinter);
@@ -180,6 +173,8 @@ public class BoxIdViewerController {
                 for (BoxIdDetail detail : detailList) {
                     writer.printf("\"%s\",\"%s\",\"%s\"\n", detail.serialNumber(), detail.status(), detail.subStatus());
                 }
+                statusLabel.getStyleClass().remove("status-label-error");
+                statusLabel.getStyleClass().add("status-label-success");
                 statusLabel.setText("Exported contents of " + selectedBox.boxId());
             } catch (IOException e) {
                 StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Export Failed", "Could not write to file: " + e.getMessage());
@@ -199,6 +194,8 @@ public class BoxIdViewerController {
             Task<Integer> updateTask = createBulkUpdateTask(selectedBox.boxId(), status, subStatus);
             updateTask.setOnSucceeded(e -> {
                 int updatedCount = updateTask.getValue();
+                statusLabel.getStyleClass().remove("status-label-error");
+                statusLabel.getStyleClass().add("status-label-success");
                 statusLabel.setText(String.format("Updated %d items in Box ID %s to %s / %s.", updatedCount, selectedBox.boxId(), status, subStatus));
                 refreshAllData();
             });
@@ -225,6 +222,8 @@ public class BoxIdViewerController {
             List<String> serialsToRemove = selectedItems.stream().map(BoxIdDetail::serialNumber).collect(Collectors.toList());
             Task<Void> removeTask = createRemoveItemsTask(serialsToRemove);
             removeTask.setOnSucceeded(e -> {
+                statusLabel.getStyleClass().remove("status-label-error");
+                statusLabel.getStyleClass().add("status-label-success");
                 statusLabel.setText("Removed " + serialsToRemove.size() + " item(s) from the box.");
                 refreshAllData();
             });
@@ -254,14 +253,14 @@ public class BoxIdViewerController {
             protected List<BoxIdSummary> call() throws Exception {
                 List<BoxIdSummary> results = new ArrayList<>();
                 String sql = """
-                    SELECT
-                        SUBSTRING(change_log, INSTR(change_log, ':') + 2, INSTR(change_log, '.') - INSTR(change_log, ':') - 2) as box_id,
-                        COUNT(*) as item_count
-                    FROM Device_Status
-                    WHERE change_log LIKE 'Box ID:%'
-                    GROUP BY box_id
-                    ORDER BY box_id
-                """;
+                            SELECT
+                                SUBSTRING(change_log, INSTR(change_log, ':') + 2, INSTR(change_log, '.') - INSTR(change_log, ':') - 2) as box_id,
+                                COUNT(*) as item_count
+                            FROM Device_Status
+                            WHERE change_log LIKE 'Box ID:%'
+                            GROUP BY box_id
+                            ORDER BY box_id
+                        """;
                 try (Connection conn = DatabaseConnection.getInventoryConnection();
                      PreparedStatement stmt = conn.prepareStatement(sql);
                      ResultSet rs = stmt.executeQuery()) {
@@ -272,7 +271,6 @@ public class BoxIdViewerController {
                 return results;
             }
         };
-
         loadTask.setOnSucceeded(e -> summaryList.setAll(loadTask.getValue()));
         loadTask.setOnFailed(e -> e.getSource().getException().printStackTrace());
         new Thread(loadTask).start();
@@ -304,7 +302,6 @@ public class BoxIdViewerController {
                 return results;
             }
         };
-
         loadDetailsTask.setOnSucceeded(e -> detailList.setAll(loadDetailsTask.getValue()));
         loadDetailsTask.setOnFailed(e -> e.getSource().getException().printStackTrace());
         new Thread(loadDetailsTask).start();
@@ -314,10 +311,8 @@ public class BoxIdViewerController {
         Dialog<Pair<String, String>> dialog = new Dialog<>();
         dialog.setTitle("Bulk Status Update");
         dialog.setHeaderText("Select the new status for all items in this box.");
-
         ButtonType updateButtonType = new ButtonType("Update", ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(updateButtonType, ButtonType.CANCEL);
-
         ComboBox<String> statusCombo = new ComboBox<>(FXCollections.observableArrayList(StatusManager.getStatuses()));
         ComboBox<String> subStatusCombo = new ComboBox<>();
         statusCombo.getSelectionModel().selectedItemProperty().addListener((obs, o, n) -> {
@@ -325,7 +320,6 @@ public class BoxIdViewerController {
             subStatusCombo.getSelectionModel().selectFirst();
         });
         statusCombo.getSelectionModel().select("Disposed");
-
         GridPane grid = new GridPane();
         grid.setHgap(10);
         grid.setVgap(10);
@@ -335,14 +329,12 @@ public class BoxIdViewerController {
         grid.add(new Label("New Sub-Status:"), 0, 1);
         grid.add(subStatusCombo, 1, 1);
         dialog.getDialogPane().setContent(grid);
-
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == updateButtonType) {
                 return new Pair<>(statusCombo.getValue(), subStatusCombo.getValue());
             }
             return null;
         });
-
         return dialog.showAndWait();
     }
 

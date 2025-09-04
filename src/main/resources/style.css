@@ -181,8 +181,7 @@
 /* IPAD PROVISIONING STYLES ---                                     */
 /* ========================================================================== */
 
-/* Style for rows that were automatically set to T-Mobile */
-.t-mobile-override-row .table-cell {
+/* Style for rows that were automatically set to T-Mobile */.t-mobile-override-row .table-cell {
     -fx-background-color: -color-info-emphasis; /* A pleasant blue from the theme */
     -fx-text-fill: white; /* High contrast text */
 }
@@ -191,3 +190,16 @@
 .t-mobile-override-row:odd .table-cell {
     -fx-background-color: -color-info-emphasis;
 }
+
+/* ========================================================================== */
+/* STATUS LABEL STYLING ---                                         */
+/* ========================================================================== */
+
+.status-label-success {
+    -fx-text-fill: -color-fg-success;
+}
+
+.status-label-error {
+    -fx-text-fill: -color-fg-danger;
+}
+

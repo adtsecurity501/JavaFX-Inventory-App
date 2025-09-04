@@ -43,6 +43,8 @@ public class ScanUpdateController {
     @FXML private TableColumn<ScanResult, String> failedSerialCol, failedReasonCol, failedTimestampCol;
     @FXML private HBox boxIdHBox;
     @FXML private CheckBox printLabelsToggle;
+    @FXML private Button clearSkuButton;
+
 
     // --- NEW FXML FIELDS FOR SKU SELECTION & PRINTER ---
     @FXML private VBox skuSelectionBox;
@@ -69,6 +71,8 @@ public class ScanUpdateController {
         setupStatusComboBoxes();
         setupSkuSearch();
         populatePrinters(); // <-- ADD THIS
+        clearSkuButton.setOnAction(e -> selectedSkuField.clear()); // Add this line
+
 
         // Add listeners to re-evaluate the UI state
         disposalLocationField.textProperty().addListener((obs, oldText, newText) -> updateUiForStatusChange());
@@ -232,9 +236,6 @@ public class ScanUpdateController {
         // This method now uses the printer name passed from the UI
         printerService.sendZplToPrinter(printerName, adtZpl);
         printerService.sendZplToPrinter(printerName, serialZpl);
-
-        // Clear the selected SKU for the next unique device scan
-        selectedSkuField.clear();
     }
 
     // --- All other methods (setupTableColumns, setupStatusComboBoxes, etc.) remain unchanged ---
@@ -325,15 +326,37 @@ public class ScanUpdateController {
             return;
         }
 
-        String trackingNumber = "FAILED_SCANS_" + new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-        int packageId = new PackageDAO().addPackage(trackingNumber, "SYSTEM", "GENERATED", "DEPOT", "UT", "84660", java.time.LocalDate.now());
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/SelectPackageDialog.fxml"));
+            Parent root = loader.load();
+            SelectPackageDialogController dialogController = loader.getController();
 
-        if (packageId == -1) {
-            showAlert("Database Error", "Could not create a new package for the failed scans.");
-            return;
+            Stage stage = StageManager.createCustomStage(getStage(), "Select Package for Failed Scans", root);
+            stage.showAndWait();
+
+            dialogController.getResult().ifPresent(result -> {
+                if (result.createNew()) {
+                    // User chose to create a new package
+                    String trackingNumber = "FAILED_SCANS_" + new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+                    int packageId = new PackageDAO().addPackage(trackingNumber, "SYSTEM", "GENERATED", "DEPOT", "UT", "84660", java.time.LocalDate.now());
+
+                    if (packageId != -1) {
+                        Package newPackage = new Package(packageId, trackingNumber, "SYSTEM", "GENERATED", "DEPOT", "UT", "84660", java.time.LocalDate.now());
+                        openAddAssetDialogForFailedScans(newPackage);
+                    } else {
+                        showAlert("Database Error", "Could not create a new package for the failed scans.");
+                    }
+                } else if (result.selectedPackage() != null) {
+                    // User selected an existing package
+                    openAddAssetDialogForFailedScans(result.selectedPackage());
+                }
+            });
+        } catch (IOException e) {
+            e.printStackTrace();
+            showAlert("Error", "Could not open the package selection dialog.");
         }
-
-        Package newPackage = new Package(packageId, trackingNumber, "SYSTEM", "GENERATED", "DEPOT", "UT", "84660", java.time.LocalDate.now());
+    }
+    private void openAddAssetDialogForFailedScans(Package targetPackage) {
         List<AssetEntry> failedEntries = new ArrayList<>();
         resultManager.getFailedSerials().forEach(serial -> failedEntries.add(new AssetEntry(serial, "", "", "", "", "", "")));
 
@@ -341,16 +364,20 @@ public class ScanUpdateController {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/AddAssetDialog.fxml"));
             Parent root = loader.load();
             AddAssetDialogController controller = loader.getController();
-            controller.initDataForBulkAdd(newPackage, failedEntries);
-            Stage stage = StageManager.createCustomStage(getStage(), "Process Failed Scans for Package " + trackingNumber, root);
+            controller.initDataForBulkAdd(targetPackage, failedEntries);
+
+            Stage stage = StageManager.createCustomStage(getStage(), "Process Failed Scans for Package " + targetPackage.getTrackingNumber(), root);
             stage.showAndWait();
+
+            // If successful, clear the list
             resultManager.clearFailedScans();
             if (parentController != null) parentController.refreshData();
+
         } catch (IOException e) {
+            e.printStackTrace();
             showAlert("Error", "Could not open the 'Add Asset' window.");
         }
     }
-
     @FXML private void onBoxIdScanned() { scanSerialField.requestFocus(); }
     @FXML private void handleClearBoxId() { disposalLocationField.clear(); changeLogField.clear(); disposalLocationField.requestFocus(); }
     private void setFeedback(String message, Color color) { feedbackLabel.setText(message); feedbackLabel.setTextFill(color); }

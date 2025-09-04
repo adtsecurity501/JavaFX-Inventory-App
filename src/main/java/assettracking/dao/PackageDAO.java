@@ -89,6 +89,33 @@ public class PackageDAO {
         return packageList;
     }
 
+    public List<Package> searchPackagesByTracking(String trackingFilter) throws SQLException {
+        List<Package> packageList = new ArrayList<>();
+        String sql = "SELECT * FROM Packages WHERE tracking_number LIKE ? ORDER BY receive_date DESC LIMIT 50";
+
+        try (Connection conn = DatabaseConnection.getInventoryConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setString(1, "%" + trackingFilter + "%");
+            ResultSet rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                packageList.add(new Package(
+                        rs.getInt("package_id"),
+                        rs.getString("tracking_number"),
+                        rs.getString("first_name"),
+                        rs.getString("last_name"),
+                        rs.getString("city"),
+                        rs.getString("state"),
+                        rs.getString("zip_code"),
+                        LocalDate.parse(rs.getString("receive_date"))
+                ));
+            }
+        }
+        return packageList;
+    }
+
+
     private QueryAndParams buildFilteredQuery(boolean forCount, String trackingFilter, LocalDate fromDate, LocalDate toDate) {
         String selectClause = forCount ? "SELECT COUNT(*) " : "SELECT * ";
         String fromClause = "FROM Packages";

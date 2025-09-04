@@ -1,15 +1,12 @@
 package assettracking.manager;
 
 import javafx.application.Application;
-import javafx.application.Platform; // <-- MAKE SURE THIS IMPORT IS PRESENT
+import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -20,7 +17,6 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.stage.Window;
-import javafx.scene.control.Separator;
 
 import java.util.Optional;
 
@@ -43,6 +39,7 @@ public final class StageManager {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
+        // --- THE LOGIC IS NOW HANDLED INSIDE THIS METHOD ---
         Button minimizeButton = createWindowButton("M 0 5 H 10", stage, "minimize");
         Button maximizeButton = createWindowButton("M 0 1 H 9 V 10 H 0 Z", stage, "maximize");
         Button closeButton = createWindowButton("M 0 0 L 10 10 M 10 0 L 0 10", stage, "close");
@@ -71,126 +68,26 @@ public final class StageManager {
         scene.getStylesheets().addAll(Application.getUserAgentStylesheet(), StageManager.class.getResource("/style.css").toExternalForm());
 
         stage.setScene(scene);
-
-        // --- THIS IS THE FIX ---
-        // 1. Force the stage to calculate its size based on the content.
-        // This must be done BEFORE showing the stage to prevent the "minimized" bug.
         stage.sizeToScene();
 
-        // 2. Center the new dialog over its owner window for a better user experience.
         if (owner != null) {
-            // We use Platform.runLater to ensure the width/height properties have been
-            // updated after the layout pass before we try to calculate the center.
             Platform.runLater(() -> {
                 double ownerX = owner.getX();
                 double ownerY = owner.getY();
                 double ownerWidth = owner.getWidth();
                 double ownerHeight = owner.getHeight();
-
                 double stageWidth = stage.getWidth();
                 double stageHeight = stage.getHeight();
-
                 stage.setX(ownerX + (ownerWidth - stageWidth) / 2);
                 stage.setY(ownerY + (ownerHeight - stageHeight) / 2);
             });
         }
-        // --- END OF FIX ---
 
+        Platform.runLater(content::requestFocus);
         return stage;
     }
 
-    public static boolean showConfirmationDialog(Window owner, String title, String headerText, String contentText) {
-        final boolean[] result = {false};
-
-        Label headerLabel = new Label(headerText);
-        headerLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 1.1em;");
-        Label contentLabel = new Label(contentText);
-        contentLabel.setWrapText(true);
-        contentLabel.setMaxWidth(450);
-
-        Button okButton = new Button("OK");
-        okButton.getStyleClass().add("success");
-        okButton.setDefaultButton(true);
-
-        Button cancelButton = new Button("Cancel");
-        cancelButton.setCancelButton(true);
-
-        HBox buttonBar = new HBox(10, cancelButton, okButton);
-        buttonBar.setAlignment(Pos.CENTER_RIGHT);
-
-        VBox layout = new VBox(20, headerLabel, new Separator(), contentLabel, buttonBar);
-        layout.setPadding(new Insets(20));
-
-        Stage dialogStage = createCustomStage(owner, title, layout);
-
-        okButton.setOnAction(e -> {
-            result[0] = true;
-            dialogStage.close();
-        });
-
-        cancelButton.setOnAction(e -> {
-            result[0] = false;
-            dialogStage.close();
-        });
-
-        dialogStage.showAndWait();
-
-        return result[0];
-    }
-
-    public static Optional<String> showTextInputDialog(Window owner, String title, String headerText, String contentText, String initialValue) {
-        final String[] result = {null};
-
-        Label headerLabel = new Label(headerText);
-        headerLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 1.1em;");
-        Label contentLabel = new Label(contentText);
-        TextField inputField = new TextField(initialValue);
-
-        Button okButton = new Button("OK");
-        okButton.getStyleClass().add("success");
-        okButton.setDefaultButton(true);
-
-        Button cancelButton = new Button("Cancel");
-        cancelButton.setCancelButton(true);
-
-        HBox buttonBar = new HBox(10, cancelButton, okButton);
-        buttonBar.setAlignment(Pos.CENTER_RIGHT);
-
-        VBox layout = new VBox(15, headerLabel, contentLabel, inputField, buttonBar);
-        layout.setPadding(new Insets(20));
-
-        Stage dialogStage = createCustomStage(owner, title, layout);
-
-        okButton.setOnAction(e -> {
-            result[0] = inputField.getText();
-            dialogStage.close();
-        });
-        cancelButton.setOnAction(e -> dialogStage.close());
-
-        dialogStage.showAndWait();
-
-        return Optional.ofNullable(result[0]);
-    }
-
-    public static void showAlert(Window owner, Alert.AlertType alertType, String title, String contentText) {
-        Label contentLabel = new Label(contentText);
-        contentLabel.setWrapText(true);
-        contentLabel.setMaxWidth(450);
-
-        Button okButton = new Button("OK");
-        okButton.getStyleClass().add("accent");
-        okButton.setDefaultButton(true);
-
-        VBox layout = new VBox(20, contentLabel, okButton);
-        layout.setAlignment(Pos.CENTER);
-        layout.setPadding(new Insets(20));
-
-        Stage dialogStage = createCustomStage(owner, title, layout);
-        okButton.setOnAction(e -> dialogStage.close());
-
-        dialogStage.showAndWait();
-    }
-
+    // --- THIS IS THE CORRECTED METHOD ---
     private static Button createWindowButton(String svgContent, Stage stage, String action) {
         SVGPath icon = new SVGPath();
         icon.setContent(svgContent);
@@ -200,12 +97,89 @@ public final class StageManager {
         button.setGraphic(icon);
         button.getStyleClass().add("window-button");
 
+        // This switch block sets the action for each button. This was the missing piece.
         switch (action) {
-            case "minimize" -> button.setOnAction(e -> stage.setIconified(true));
-            case "maximize" -> button.setOnAction(e -> stage.setMaximized(!stage.isMaximized()));
-            case "close" -> button.setOnAction(e -> stage.close());
+            case "minimize":
+                button.setOnAction(e -> stage.setIconified(true));
+                break;
+            case "maximize":
+                button.setOnAction(e -> stage.setMaximized(!stage.isMaximized()));
+                break;
+            case "close":
+                button.setOnAction(e -> stage.close());
+                break;
         }
-
         return button;
+    }
+
+    // --- The helper methods below are unchanged and correct ---
+
+    public static boolean showConfirmationDialog(Window owner, String title, String headerText, String contentText) {
+        final boolean[] result = {false};
+        Label headerLabel = new Label(headerText);
+        headerLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 1.1em;");
+        Label contentLabel = new Label(contentText);
+        contentLabel.setWrapText(true);
+        contentLabel.setMaxWidth(450);
+        Button okButton = new Button("OK");
+        okButton.getStyleClass().add("success");
+        okButton.setDefaultButton(true);
+        Button cancelButton = new Button("Cancel");
+        cancelButton.setCancelButton(true);
+        HBox buttonBar = new HBox(10, cancelButton, okButton);
+        buttonBar.setAlignment(Pos.CENTER_RIGHT);
+        VBox layout = new VBox(20, headerLabel, new Separator(), contentLabel, buttonBar);
+        layout.setPadding(new Insets(20));
+        Stage dialogStage = createCustomStage(owner, title, layout);
+        okButton.setOnAction(e -> {
+            result[0] = true;
+            dialogStage.close();
+        });
+        cancelButton.setOnAction(e -> {
+            result[0] = false;
+            dialogStage.close();
+        });
+        dialogStage.showAndWait();
+        return result[0];
+    }
+
+    public static Optional<String> showTextInputDialog(Window owner, String title, String headerText, String contentText, String initialValue) {
+        final String[] result = {null};
+        Label headerLabel = new Label(headerText);
+        headerLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 1.1em;");
+        Label contentLabel = new Label(contentText);
+        TextField inputField = new TextField(initialValue);
+        Button okButton = new Button("OK");
+        okButton.getStyleClass().add("success");
+        okButton.setDefaultButton(true);
+        Button cancelButton = new Button("Cancel");
+        cancelButton.setCancelButton(true);
+        HBox buttonBar = new HBox(10, cancelButton, okButton);
+        buttonBar.setAlignment(Pos.CENTER_RIGHT);
+        VBox layout = new VBox(15, headerLabel, contentLabel, inputField, buttonBar);
+        layout.setPadding(new Insets(20));
+        Stage dialogStage = createCustomStage(owner, title, layout);
+        okButton.setOnAction(e -> {
+            result[0] = inputField.getText();
+            dialogStage.close();
+        });
+        cancelButton.setOnAction(e -> dialogStage.close());
+        dialogStage.showAndWait();
+        return Optional.ofNullable(result[0]);
+    }
+
+    public static void showAlert(Window owner, Alert.AlertType alertType, String title, String contentText) {
+        Label contentLabel = new Label(contentText);
+        contentLabel.setWrapText(true);
+        contentLabel.setMaxWidth(450);
+        Button okButton = new Button("OK");
+        okButton.getStyleClass().add("accent");
+        okButton.setDefaultButton(true);
+        VBox layout = new VBox(20, contentLabel, okButton);
+        layout.setAlignment(Pos.CENTER);
+        layout.setPadding(new Insets(20));
+        Stage dialogStage = createCustomStage(owner, title, layout);
+        okButton.setOnAction(e -> dialogStage.close());
+        dialogStage.showAndWait();
     }
 }
