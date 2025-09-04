@@ -1,11 +1,9 @@
 Priority 1:
 - add way to import information into the device_autofill_data table.
-- when an error appears or a window apperas sometimes it dissapears minimized super small to the left bottom corner 
-
 
 
 Priority 2:
-- fix visual bug on label printing tab, when you click generic barcode the whole row increases in size
+
 - test printing labels from scan update.
 - Test all features extensively
 - Make sure history works
@@ -14,6 +12,7 @@ Priority 2:
 - update statuses and substatuses across whole app so it's consistent
 - update categories and statuses in database
 - inlclude monitors in the WIP backlog on dashboard
+
 
 At End:
 - rename the database and change paths everwhere
@@ -122,8 +121,9 @@ device is a:Optiplex 3000
 - fix the way the program handles priting the labels on scan updates ready to deploy. Currently when I scan a serail it prints out the labesls but the text shoes Descreiiption not found.
 - increase width of the autocomplete suggestions drop down, current it is too narrow
 - add tools to box id viewere tab
-
-
+- when an error appears or a window apperas sometimes it dissapears minimized super small to the left bottom corner 
+- no hover effect for - or square in the title menu bar also make sure all windows and errors have the styled title menu bar.
+- fix visual bug on label printing tab, when you click generic barcode the whole row increases in size
 
 
 

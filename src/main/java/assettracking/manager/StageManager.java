@@ -1,6 +1,7 @@
 package assettracking.manager;
 
 import javafx.application.Application;
+import javafx.application.Platform; // <-- MAKE SURE THIS IMPORT IS PRESENT
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -70,6 +71,31 @@ public final class StageManager {
         scene.getStylesheets().addAll(Application.getUserAgentStylesheet(), StageManager.class.getResource("/style.css").toExternalForm());
 
         stage.setScene(scene);
+
+        // --- THIS IS THE FIX ---
+        // 1. Force the stage to calculate its size based on the content.
+        // This must be done BEFORE showing the stage to prevent the "minimized" bug.
+        stage.sizeToScene();
+
+        // 2. Center the new dialog over its owner window for a better user experience.
+        if (owner != null) {
+            // We use Platform.runLater to ensure the width/height properties have been
+            // updated after the layout pass before we try to calculate the center.
+            Platform.runLater(() -> {
+                double ownerX = owner.getX();
+                double ownerY = owner.getY();
+                double ownerWidth = owner.getWidth();
+                double ownerHeight = owner.getHeight();
+
+                double stageWidth = stage.getWidth();
+                double stageHeight = stage.getHeight();
+
+                stage.setX(ownerX + (ownerWidth - stageWidth) / 2);
+                stage.setY(ownerY + (ownerHeight - stageHeight) / 2);
+            });
+        }
+        // --- END OF FIX ---
+
         return stage;
     }
 

@@ -104,7 +104,7 @@
 }
 
 .window-button:hover {
-    -fx-background-color: -color-bg-subtle;
+    -fx-background-color: -color-bg-inset;
 }
 
 .window-close-button:hover {
@@ -132,17 +132,44 @@
     -fx-background-radius: 6;
 }
 
+/*
+ * This is the definitive fix for the layout jump bug.
+ * The key is to ensure the button's border width is identical in all states.
+ * We only change the COLOR of the border, not its size or existence.
+ */
 .tool-selector-button {
     -fx-font-size: 14px;
-    -fx-pref-height: 40px;
     -fx-cursor: hand;
+
+    /* Lock the size */
+    -fx-min-height: 40px;
+    -fx-pref-height: 40px;
+    -fx-max-height: 40px;
+
+    /* Define a consistent border for the normal (unselected) state */
+    -fx-border-width: 1px;
+    -fx-border-color: -color-border-default;
+    -fx-background-color: -color-bg-default;
 }
 
+/* Style for when the button is selected */
 .tool-selector-button:selected {
     -fx-background-color: -color-accent-emphasis;
     -fx-text-fill: white;
-    -fx-border-color: transparent;
     -fx-font-weight: bold;
+    /* The border is still 1px wide, but now it matches the background,
+       making it visually disappear while still occupying the same space. */
+    -fx-border-color: -color-accent-emphasis;
+}
+
+/* Style for when any button gains focus */
+.tool-selector-button:focused {
+    -fx-border-color: -color-accent-emphasis; /* Use accent color for the focus ring */
+}
+
+/* A specific override to ensure a selected button's border doesn't change color on focus */
+.tool-selector-button:selected:focused {
+    -fx-border-color: -color-accent-emphasis;
 }
 
 /* Style for the Scan Update window's main container */
