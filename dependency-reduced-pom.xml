@@ -43,7 +43,6 @@
                 <transformer>
                   <mainClass>assettracking.Launcher</mainClass>
                 </transformer>
-                <transformer />
               </transformers>
               <filters>
                 <filter>

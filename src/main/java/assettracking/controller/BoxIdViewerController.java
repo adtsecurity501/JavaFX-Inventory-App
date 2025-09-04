@@ -16,7 +16,6 @@ import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
-import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.GridPane;
 import javafx.stage.FileChooser;
 import javafx.stage.Window;
@@ -30,7 +29,6 @@ import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -42,7 +40,6 @@ import java.util.stream.Collectors;
 
 public class BoxIdViewerController {
 
-    // --- FXML Fields ---
     @FXML private TextField searchField;
     @FXML private TableView<BoxIdSummary> summaryTable;
     @FXML private TableColumn<BoxIdSummary, String> boxIdCol;
@@ -57,7 +54,6 @@ public class BoxIdViewerController {
     @FXML private Button updateStatusButton;
     @FXML private Label statusLabel;
 
-    // --- Data Lists ---
     private final ObservableList<BoxIdSummary> summaryList = FXCollections.observableArrayList();
     private final ObservableList<BoxIdDetail> detailList = FXCollections.observableArrayList();
     private final ZplPrinterService printerService = new ZplPrinterService();
@@ -87,14 +83,11 @@ public class BoxIdViewerController {
         });
 
         FilteredList<BoxIdSummary> filteredData = new FilteredList<>(summaryList, p -> true);
-        searchField.textProperty().addListener((obs, oldVal, newVal) -> {
-            filteredData.setPredicate(summary -> {
-                if (newVal == null || newVal.isEmpty()) {
-                    return true;
-                }
-                return summary.boxId().toLowerCase().contains(newVal.toLowerCase());
-            });
-        });
+        searchField.textProperty().addListener((obs, oldVal, newVal) ->
+                filteredData.setPredicate(summary ->
+                        newVal == null || newVal.isEmpty() || summary.boxId().toLowerCase().contains(newVal.toLowerCase())
+                )
+        );
         summaryTable.setItems(filteredData);
     }
 
@@ -124,7 +117,7 @@ public class BoxIdViewerController {
         String defaultPrinter = printerNames.stream()
                 .filter(n -> n.toLowerCase().contains("gx"))
                 .findFirst()
-                .orElse(printerNames.get(0));
+                .orElse(printerNames.getFirst());
 
         ChoiceDialog<String> dialog = new ChoiceDialog<>(defaultPrinter, printerNames);
         dialog.setTitle("Select Printer");
@@ -236,12 +229,12 @@ public class BoxIdViewerController {
         BoxIdSummary selected = summaryTable.getSelectionModel().getSelectedItem();
         loadSummaryDataAsync();
         if (selected != null) {
-            Platform.runLater(() -> {
-                summaryTable.getItems().stream()
-                        .filter(item -> item.boxId().equals(selected.boxId()))
-                        .findFirst()
-                        .ifPresent(item -> summaryTable.getSelectionModel().select(item));
-            });
+            Platform.runLater(() ->
+                    summaryTable.getItems().stream()
+                            .filter(item -> item.boxId().equals(selected.boxId()))
+                            .findFirst()
+                            .ifPresent(item -> summaryTable.getSelectionModel().select(item))
+            );
         } else {
             detailList.clear();
         }
@@ -272,7 +265,12 @@ public class BoxIdViewerController {
             }
         };
         loadTask.setOnSucceeded(e -> summaryList.setAll(loadTask.getValue()));
-        loadTask.setOnFailed(e -> e.getSource().getException().printStackTrace());
+        loadTask.setOnFailed(e -> {
+            Throwable ex = e.getSource().getException();
+            if (ex != null) {
+                StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Database Error", "Failed to load box summary data: " + ex.getMessage());
+            }
+        });
         new Thread(loadTask).start();
     }
 
@@ -303,7 +301,12 @@ public class BoxIdViewerController {
             }
         };
         loadDetailsTask.setOnSucceeded(e -> detailList.setAll(loadDetailsTask.getValue()));
-        loadDetailsTask.setOnFailed(e -> e.getSource().getException().printStackTrace());
+        loadDetailsTask.setOnFailed(e -> {
+            Throwable ex = e.getSource().getException();
+            if (ex != null) {
+                StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Database Error", "Failed to load box contents: " + ex.getMessage());
+            }
+        });
         new Thread(loadDetailsTask).start();
     }
 
@@ -392,13 +395,6 @@ public class BoxIdViewerController {
                 return null;
             }
         };
-    }
-
-    private Optional<String> findPrinter(String hint) {
-        return Arrays.stream(PrintServiceLookup.lookupPrintServices(null, null))
-                .map(PrintService::getName)
-                .filter(n -> n.toLowerCase().contains(hint.toLowerCase()))
-                .findFirst();
     }
 
     private Window getOwnerWindow() {
