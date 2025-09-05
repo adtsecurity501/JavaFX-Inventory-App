@@ -1,6 +1,6 @@
 Priority 1:
 - add way to import information into the device_autofill_data table.
-- When I minimize the window it goes to the bottom left corner and it looks terrible no styles
+- When I minimize the window it goes to the bottom left corner and it has no styles
 
 
 
@@ -11,9 +11,8 @@ Priority 2:
 - Test all features extensively
 - Make sure history works
 - clean the monitor data, look for long dell serials that are incorrect. 
-- Dig into WIP backlog, what is that?
 - update statuses and substatuses across whole app so it's consistent
-- update categories and statuses in database
+- Dig into WIP backlog, what is that?
 - inlclude monitors in the WIP backlog on dashboard
 
 

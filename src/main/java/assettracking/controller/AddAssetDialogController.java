@@ -98,25 +98,43 @@ public class AddAssetDialogController {
     private void setupInputSanitization() {
         serialField.textProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal != null && !newVal.isEmpty()) {
+                // Save the current cursor position
+                int caretPos = serialField.getCaretPosition();
                 String sanitized = sanitizeSerialNumber(newVal);
                 if (!newVal.equals(sanitized)) {
-                    Platform.runLater(() -> serialField.setText(sanitized));
+                    Platform.runLater(() -> {
+                        serialField.setText(sanitized);
+                        // Restore the cursor position
+                        serialField.positionCaret(caretPos);
+                    });
                 }
             }
         });
         monitorSerialField.textProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal != null && !newVal.isEmpty()) {
+                // Save the current cursor position
+                int caretPos = monitorSerialField.getCaretPosition();
                 String sanitized = sanitizeSerialNumber(newVal);
                 if (!newVal.equals(sanitized)) {
-                    Platform.runLater(() -> monitorSerialField.setText(sanitized));
+                    Platform.runLater(() -> {
+                        monitorSerialField.setText(sanitized);
+                        // Restore the cursor position
+                        monitorSerialField.positionCaret(caretPos);
+                    });
                 }
             }
         });
         manualSerialField.textProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal != null && !newVal.isEmpty()) {
+                // Save the current cursor position
+                int caretPos = manualSerialField.getCaretPosition();
                 String sanitized = sanitizeSerialNumber(newVal);
                 if (!newVal.equals(sanitized)) {
-                    Platform.runLater(() -> manualSerialField.setText(sanitized));
+                    Platform.runLater(() -> {
+                        manualSerialField.setText(sanitized);
+                        // Restore the cursor position
+                        manualSerialField.positionCaret(caretPos);
+                    });
                 }
             }
         });
