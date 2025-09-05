@@ -38,13 +38,13 @@ public class StandardIntakeHandler {
         });
 
         try (Connection conn = controller.getDbConnection();
-             PreparedStatement flagStmt = conn.prepareStatement("SELECT flag_reason, sub_status FROM Flag_Devices WHERE serial_number = ?")) {
+             PreparedStatement flagStmt = conn.prepareStatement("SELECT flag_reason FROM Flag_Devices WHERE serial_number = ?")) { // Query no longer needs sub_status
             flagStmt.setString(1, serialToLookup);
             ResultSet rs = flagStmt.executeQuery();
             if (rs.next()) {
                 final String reason = rs.getString("flag_reason");
-                final String subStatus = rs.getString("sub_status");
-                controller.setFlaggedDeviceFields(subStatus);
+                // The reason is no longer needed here, as the status is now fixed
+                controller.setFlaggedDeviceFields();
                 controller.setProbableCause("Flagged Reason: " + reason);
             }
         } catch (SQLException e) {
@@ -96,7 +96,7 @@ public class StandardIntakeHandler {
 
         return new Task<>() {
             @Override
-            protected String call() throws Exception {
+            protected String call() {
                 if (controller.isBulkAddMode()) {
                     return intakeService.processFromTable(new ArrayList<>(controller.getAssetEntries()), controller.isSellScrap(), controller.getScrapStatus(), controller.getScrapSubStatus(), controller.getScrapReason(), controller.getBoxId());
                 } else {

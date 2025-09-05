@@ -158,9 +158,17 @@ public class DeviceStatusDAO {
             whereClause.append(" AND ds.status = ?");
             params.add(status);
         }
+
+        // --- NEW LOGIC TO ADD SUB-STATUS TO THE QUERY ---
+        String subStatus = controller.subStatusFilterCombo.getValue();
+        if (subStatus != null && !"All Sub-Statuses".equals(subStatus)) {
+            whereClause.append(" AND ds.sub_status = ?");
+            params.add(subStatus);
+        }
+        // --- END OF NEW LOGIC ---
+
         String category = controller.categoryFilterCombo.getValue();
         if (category != null && !"All Categories".equals(category)) {
-            // --- UPDATED: Filter by the current category in Physical_Assets ---
             whereClause.append(" AND pa.category = ?");
             params.add(category);
         }

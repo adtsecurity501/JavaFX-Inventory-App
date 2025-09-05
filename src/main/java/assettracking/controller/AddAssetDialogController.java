@@ -54,7 +54,7 @@ public class AddAssetDialogController {
     @FXML private GridPane standardMonitorPane, manualMonitorPane;
     @FXML private TextField manualSerialField, manualDescriptionField, serialField, makeField, modelField, descriptionField, imeiField;
     @FXML private TextField disqualificationField, boxIdField;
-    @FXML private Button functioningButton, lookupButton, saveButton, closeButton;
+    @FXML private Button functioningButton, saveButton, closeButton;
     @FXML private BorderPane textModePane, tableModePane;
     @FXML private ToggleButton multiSerialToggle;
     @FXML private TextArea serialArea;
@@ -305,11 +305,13 @@ public class AddAssetDialogController {
         disqualificationField.clear();
         boxIdField.requestFocus();
     }
-    public void setFlaggedDeviceFields(String subStatus) {
+    public void setFlaggedDeviceFields() {
         probableCauseLabel.setText("Flagged Device");
         sellScrapCheckBox.setSelected(true);
-        sellScrapStatusCombo.setValue("Action Required");
-        sellScrapSubStatusCombo.setValue(subStatus);
+        sellScrapStatusCombo.setValue("Flag!");
+        sellScrapSubStatusCombo.setValue("Requires Review");
+        sellScrapStatusCombo.setDisable(true);
+        sellScrapSubStatusCombo.setDisable(true);
     }
     public void setFormAssetDetails(AssetInfo asset) {
         Platform.runLater(() -> {

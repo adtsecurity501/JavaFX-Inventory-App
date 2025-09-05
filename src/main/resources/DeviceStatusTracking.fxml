@@ -30,6 +30,8 @@
             <TextField fx:id="serialSearchField" onAction="#onSearchAction" promptText="Enter serial..." HBox.hgrow="ALWAYS"/>
             <Label text="Status:"/>
             <ComboBox fx:id="statusFilterCombo" prefWidth="150.0"/>
+            <Label text="Sub-Status:"/>
+            <ComboBox fx:id="subStatusFilterCombo" prefWidth="180.0"/>
             <Label text="Category:"/>
             <ComboBox fx:id="categoryFilterCombo" prefWidth="150.0"/>
             <Label text="Group By:"/>
@@ -60,10 +62,6 @@
 
     <!-- UPDATE PANEL (MODIFIED) -->
     <VBox fx:id="updateDetailsPanel" spacing="8" style="-fx-padding: 10; -fx-background-color: -color-bg-subtle; -fx-background-radius: 4;" managed="false" visible="false">
-        <minHeight>
-            <Region fx:constant="USE_PREF_SIZE" />
-        </minHeight>
-        <children>
             <GridPane hgap="10" vgap="8">
                 <columnConstraints>
                     <ColumnConstraints hgrow="NEVER"/>
@@ -82,11 +80,9 @@
                 <!-- NEW FIELDS FOR BOX ID -->
                 <Label fx:id="boxIdLabel" text="Box ID:" GridPane.columnIndex="2" GridPane.rowIndex="2" visible="false" managed="false"/>
                 <TextField fx:id="boxIdField" promptText="Box ID is required" GridPane.columnIndex="3" GridPane.rowIndex="2" visible="false" managed="false"/>
-
-                <Button fx:id="updateButton" onAction="#onUpdateDeviceAction" text="Update Selected" styleClass="success" GridPane.columnIndex="4" GridPane.rowIndex="0" GridPane.rowSpan="3"/>
+                <Button onAction="#onUpdateDeviceAction" text="Update Selected" styleClass="success" GridPane.columnIndex="4" GridPane.rowIndex="0" GridPane.rowSpan="3"/>
             </GridPane>
             <Label fx:id="flagReasonLabel" styleClass="error-label" wrapText="true" maxWidth="Infinity"/>
-        </children>
     </VBox>
 
     <!-- Table and Pagination (No changes here) -->

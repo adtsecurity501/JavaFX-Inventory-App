@@ -48,6 +48,7 @@ public class DeviceStatusTrackingController {
     @FXML public ComboBox<String> statusUpdateCombo;
     @FXML public ComboBox<String> subStatusUpdateCombo;
     @FXML public ComboBox<String> statusFilterCombo;
+    @FXML public ComboBox<String> subStatusFilterCombo;
     @FXML public ComboBox<String> categoryFilterCombo;
     @FXML public ComboBox<String> groupByCombo;
     @FXML public DatePicker fromDateFilter;
@@ -56,7 +57,6 @@ public class DeviceStatusTrackingController {
     @FXML public Label flagReasonLabel;
     @FXML private Label boxIdLabel;
     @FXML private TextField boxIdField;
-    @FXML private Button updateButton;
 
     private DeviceStatusManager deviceStatusManager;
     private DeviceStatusActions deviceStatusActions;
@@ -119,10 +119,29 @@ public class DeviceStatusTrackingController {
     }
 
     private void setupStatusMappings() {
+        // --- THIS PART IS FOR THE FILTER ---
         statusFilterCombo.getItems().add("All Statuses");
         statusFilterCombo.getItems().addAll(StatusManager.getStatuses());
         statusFilterCombo.getSelectionModel().selectFirst();
 
+        // --- NEW LOGIC FOR SUB-STATUS FILTER ---
+        subStatusFilterCombo.getItems().add("All Sub-Statuses");
+        subStatusFilterCombo.getSelectionModel().selectFirst();
+
+        // Add a listener to update the sub-status dropdown when the main status changes
+        statusFilterCombo.valueProperty().addListener((obs, oldStatus, newStatus) -> {
+            subStatusFilterCombo.getItems().clear();
+            subStatusFilterCombo.getItems().add("All Sub-Statuses");
+            if (newStatus != null && !"All Statuses".equals(newStatus)) {
+                List<String> subStatuses = StatusManager.getSubStatuses(newStatus);
+                if (subStatuses != null) {
+                    subStatusFilterCombo.getItems().addAll(subStatuses);
+                }
+            }
+            subStatusFilterCombo.getSelectionModel().selectFirst();
+        });
+
+        // --- THIS PART IS FOR THE UPDATE PANEL (NO CHANGES NEEDED HERE) ---
         statusUpdateCombo.getItems().addAll(StatusManager.getStatuses());
 
         statusUpdateCombo.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
@@ -229,6 +248,10 @@ public class DeviceStatusTrackingController {
                 deviceStatusManager.resetPagination();
             }
         });
+
+        // Add a listener for the new sub-status filter to trigger a data refresh
+        subStatusFilterCombo.valueProperty().addListener((obs, old, val) -> deviceStatusManager.resetPagination()); // <-- ADD THIS LINE
+
         statusFilterCombo.valueProperty().addListener((obs, old, val) -> deviceStatusManager.resetPagination());
         categoryFilterCombo.valueProperty().addListener((obs, old, val) -> deviceStatusManager.resetPagination());
         groupByCombo.valueProperty().addListener((obs, old, val) -> deviceStatusManager.resetPagination());
@@ -251,6 +274,7 @@ public class DeviceStatusTrackingController {
             }
             categoryFilterCombo.getItems().addAll(cachedCategories);
         } catch (SQLException e) {
+            // Replace printStackTrace
             Platform.runLater(() -> StageManager.showAlert(statusTable.getScene().getWindow(), Alert.AlertType.ERROR, "Database Error", "Failed to load categories for filtering."));
         }
     }
@@ -266,7 +290,8 @@ public class DeviceStatusTrackingController {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            // Replace printStackTrace
+            StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Database Error", "Could not look up flag reason: " + e.getMessage());
         }
         return "Reason not found.";
     }
@@ -333,7 +358,7 @@ public class DeviceStatusTrackingController {
             stage.showAndWait();
 
         } catch (IOException e) {
-            e.printStackTrace();
+            // Replace printStackTrace
             StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Error", "Could not open the Flag Management window.");
         }
     }
@@ -358,7 +383,6 @@ public class DeviceStatusTrackingController {
     @FXML private void onClearFiltersAction() { clearFilterInputs(); deviceStatusManager.resetPagination(); }
     @FXML private void onViewHistoryAction() { handleViewHistory(); }
     @FXML private void onSearchAction() { deviceStatusManager.resetPagination(); }
-    @FXML private void handleImportFlags() { deviceStatusActions.importFlags(); }
     @FXML private void handleExportToCSV() { deviceStatusActions.exportToCSV(); }
     @FXML private void onScanUpdateAction() { deviceStatusActions.openScanUpdateWindow(); }
     public void refreshData() { deviceStatusManager.resetPagination(); }

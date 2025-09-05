@@ -10,8 +10,8 @@ import assettracking.db.DatabaseConnection;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -53,8 +53,14 @@ public class IntakeService {
             return String.format("Successfully processed %d receipts.", successCount);
 
         } catch (SQLException e) {
-            try { if (conn != null) conn.rollback(); } catch (SQLException ex) { ex.printStackTrace(); }
-            e.printStackTrace();
+            try { if (conn != null) conn.rollback(); } catch (SQLException ex) {
+                // Log rollback failure
+                System.err.println("Critical Error: Failed to rollback transaction.");
+                ex.printStackTrace(); // Keep this for critical failures
+            }
+            // Log the original error
+            System.err.println("Error in processFromTextArea: " + e.getMessage());
+            // Return a user-friendly message
             return "Transaction failed and was rolled back. Error: " + e.getMessage();
         } finally {
             try {
@@ -107,8 +113,14 @@ public class IntakeService {
             return result;
 
         } catch (SQLException e) {
-            try { if (conn != null) conn.rollback(); } catch (SQLException ex) { ex.printStackTrace(); }
-            e.printStackTrace();
+            try { if (conn != null) conn.rollback(); } catch (SQLException ex) {
+                // Log rollback failure
+                System.err.println("Critical Error: Failed to rollback transaction.");
+                ex.printStackTrace(); // Keep this for critical failures
+            }
+            // Log the original error
+            System.err.println("Error in processFromTable: " + e.getMessage());
+            // Return a user-friendly message
             return "Transaction failed and was rolled back. Error: " + e.getMessage();
         } finally {
             try {
@@ -142,6 +154,41 @@ public class IntakeService {
     }
 
     private void createInitialStatus(Connection conn, int receiptId, boolean isScrap, String scrapStatus, String scrapSubStatus, String scrapReason, String boxId) throws SQLException {
+        // --- BEGIN NEW FLAG CHECK LOGIC ---
+        String serialNumber = "";
+        String getSerialSql = "SELECT serial_number FROM Receipt_Events WHERE receipt_id = ?";
+        try (PreparedStatement stmt = conn.prepareStatement(getSerialSql)) {
+            stmt.setInt(1, receiptId);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                serialNumber = rs.getString("serial_number");
+            }
+        }
+
+        if (!serialNumber.isEmpty()) {
+            String getFlagSql = "SELECT flag_reason FROM Flag_Devices WHERE serial_number = ?";
+            try (PreparedStatement stmt = conn.prepareStatement(getFlagSql)) {
+                stmt.setString(1, serialNumber);
+                ResultSet rs = stmt.executeQuery();
+                if (rs.next()) {
+                    // FLAG EXISTS. Override all other logic and set status to "Flag!".
+                    String flagReason = rs.getString("flag_reason");
+                    String logMessage = "Flagged on intake. Reason: " + flagReason;
+
+                    String statusSql = "INSERT INTO Device_Status (receipt_id, status, sub_status, last_update, change_log) VALUES (?, 'Flag!', 'Requires Review', CURRENT_TIMESTAMP, ?)";
+                    try (PreparedStatement insertStmt = conn.prepareStatement(statusSql)) {
+                        insertStmt.setInt(1, receiptId);
+                        insertStmt.setString(2, logMessage);
+                        insertStmt.executeUpdate();
+                    }
+                    // The status is now set. Exit the method to prevent other statuses from being set.
+                    return;
+                }
+            }
+        }
+        // --- END NEW FLAG CHECK LOGIC ---
+
+        // --- ORIGINAL LOGIC (runs only if no flag is found) ---
         String finalStatus, finalSubStatus;
         String finalReason = null;
 

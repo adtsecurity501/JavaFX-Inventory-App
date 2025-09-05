@@ -92,51 +92,56 @@ public class SkuManagementController {
             handleNew();
         });
         loadSkusTask.setOnFailed(e -> {
-            // It's good practice to log the actual exception for debugging
-            if (loadSkusTask.getException() != null) {
-                loadSkusTask.getException().printStackTrace();
-            }
-            statusLabel.setText("Error: Failed to load SKU data.");
+            Throwable ex = loadSkusTask.getException();
+            ex.printStackTrace(); // <-- Check removed
+            statusLabel.setText("Error: Failed to load SKU data. See log for details.");
         });
         new Thread(loadSkusTask).start();
     }
 
     private void populateForm(Sku sku) {
-        if (sku == null) {
-            handleNew();
-        } else {
-            // --- THIS IS THE FIX ---
-            // Suppress the listeners before programmatically changing the text
-            categoryPopup.suppressListener(true);
-            manufacturerPopup.suppressListener(true);
+        // --- THIS IS THE FIX ---
+        // The logic to clear the form is now inside this method, but crucially,
+        // it does NOT call requestFocus().
 
+        // Suppress the listeners before programmatically changing the text
+        categoryPopup.suppressListener(true);
+        manufacturerPopup.suppressListener(true);
+
+        if (sku == null) {
+            // A selection was cleared. Clear the form fields but do not steal focus.
+            skuNumberField.clear();
+            modelNumberField.clear();
+            categoryField.clear();
+            manufacturerField.clear();
+            descriptionField.clear();
+            skuNumberField.setEditable(true);
+            statusLabel.setText("");
+        } else {
+            // A valid SKU was selected. Populate the form.
             skuNumberField.setText(sku.getSkuNumber());
             modelNumberField.setText(sku.getModelNumber());
             categoryField.setText(sku.getCategory());
             manufacturerField.setText(sku.getManufacturer());
             descriptionField.setText(sku.getDescription());
             skuNumberField.setEditable(false);
-
-            // --- AND RE-ENABLE THEM AFTERWARDS ---
-            // We use Platform.runLater to ensure this happens after the text change is fully processed
-            Platform.runLater(() -> {
-                categoryPopup.suppressListener(false);
-                manufacturerPopup.suppressListener(false);
-            });
         }
+
+        // --- AND RE-ENABLE THEM AFTERWARDS ---
+        // We use Platform.runLater to ensure this happens after the text change is fully processed
+        Platform.runLater(() -> {
+            categoryPopup.suppressListener(false);
+            manufacturerPopup.suppressListener(false);
+        });
     }
 
     @FXML
     private void handleNew() {
+        // This method is now exclusively for the "New" button's action.
+        // It clears the table selection (which will trigger populateForm(null) to clear the fields)
+        // and then correctly sets the focus to the first input field for a new entry.
         skuTable.getSelectionModel().clearSelection();
-        skuNumberField.clear();
-        modelNumberField.clear();
-        categoryField.clear();
-        manufacturerField.clear();
-        descriptionField.clear();
-        skuNumberField.setEditable(true);
         skuNumberField.requestFocus();
-        statusLabel.setText("");
     }
 
     @FXML

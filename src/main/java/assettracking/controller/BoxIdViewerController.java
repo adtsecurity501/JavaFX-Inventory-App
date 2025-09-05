@@ -142,8 +142,7 @@ public class BoxIdViewerController {
             );
 
             if (printerService.sendZplToPrinter(selectedPrinter, zpl)) {
-                statusLabel.getStyleClass().remove("status-label-error");
-                statusLabel.getStyleClass().add("status-label-success");
+                statusLabel.getStyleClass().setAll("status-label-success"); // Clears old styles and adds the new one
                 statusLabel.setText("Printed label for Box ID: " + selectedBox.boxId() + " to " + selectedPrinter);
             } else {
                 StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Print Failed", "Failed to send label to printer: " + selectedPrinter);
@@ -168,8 +167,7 @@ public class BoxIdViewerController {
                 for (BoxIdDetail detail : detailList) {
                     writer.printf("\"%s\",\"%s\",\"%s\"\n", detail.serialNumber(), detail.status(), detail.subStatus());
                 }
-                statusLabel.getStyleClass().remove("status-label-error");
-                statusLabel.getStyleClass().add("status-label-success");
+                statusLabel.getStyleClass().setAll("status-label-success");
                 statusLabel.setText("Exported contents of " + selectedBox.boxId());
             } catch (IOException e) {
                 StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Export Failed", "Could not write to file: " + e.getMessage());
