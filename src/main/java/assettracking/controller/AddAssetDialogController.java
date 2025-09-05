@@ -18,6 +18,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
+import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.control.cell.TextFieldTableCell;
@@ -152,6 +153,9 @@ public class AddAssetDialogController {
         this.isEditMode = true;
         this.onSaveCallback = onSaveCallback;
 
+        // --- NEW LOGIC TO INITIALIZE AUTOCOMPLETE FOR EDIT MODE ---
+        setupAutocomplete(); // This ensures the popup objects are created
+
         // Populate fields
         setFormAssetDetails(assetInfo);
         serialField.setText(assetInfo.getSerialNumber());
@@ -168,8 +172,12 @@ public class AddAssetDialogController {
         monitorIntakeRadio.setDisable(true);
 
         // Hide the disposition pane completely
-        sellScrapCheckBox.getParent().getParent().getParent().setVisible(false);
-        sellScrapCheckBox.getParent().getParent().getParent().setManaged(false);
+        // Find the TitledPane to hide it
+        Node dispositionPane = sellScrapCheckBox.getParent().getParent().getParent();
+        if (dispositionPane != null) {
+            dispositionPane.setVisible(false);
+            dispositionPane.setManaged(false);
+        }
     }
 
     private void populateFieldsFromSku(AssetInfo sku) {

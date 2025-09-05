@@ -88,10 +88,8 @@ public class FlaggedDeviceImporter {
                     skippedRowCount++;
                     continue;
                 }
-
                 String serial = getCellValueAsString(row.getCell(serialNumberIndex)).trim();
                 String cause = getCellValueAsString(row.getCell(probableCauseIndex)).trim();
-
                 if (!serial.isEmpty()) {
                     dataToImport.put(serial, cause.isEmpty() ? "Unknown Issue (Imported)" : cause);
                 } else {
@@ -104,9 +102,8 @@ public class FlaggedDeviceImporter {
             return "No unique, valid data found to import.";
         }
 
-        // MODIFIED: This SQL now inserts into the new 'flag_reason' column.
-        // It sets a standard 'sub_status' for all flagged devices.
-        String upsertSql = "INSERT OR IGNORE INTO Flag_Devices (serial_number, status, sub_status, flag_reason) VALUES (?, 'Flag!', 'Requires Review', ?)";
+        // --- THIS IS THE CORRECTED H2-COMPATIBLE SQL ---
+        String upsertSql = "MERGE INTO Flag_Devices (serial_number, status, sub_status, flag_reason) KEY(serial_number) VALUES (?, 'Flag!', 'Requires Review', ?)";
         int successfullyProcessedCount = 0;
 
         try (Connection conn = DatabaseConnection.getInventoryConnection()) {

@@ -32,7 +32,6 @@ import java.util.Optional;
 
 public class DeviceStatusTrackingController {
 
-    // --- (All FXML Fields are the same) ---
     @FXML public Pagination pagination;
     @FXML public TextField serialSearchField;
     @FXML public TableView<DeviceStatusView> statusTable;
@@ -61,9 +60,8 @@ public class DeviceStatusTrackingController {
 
     private DeviceStatusManager deviceStatusManager;
     private DeviceStatusActions deviceStatusActions;
-    private final AssetDAO assetDAO = new AssetDAO(); // <-- THIS IS THE FIX
+    private final AssetDAO assetDAO = new AssetDAO(); // <-- THIS LINE IS ADDED
     private static List<String> cachedCategories = null;
-
 
     @FXML
     public void initialize() {
@@ -81,18 +79,23 @@ public class DeviceStatusTrackingController {
             return;
         }
 
-        // Optimized to make only one database call
         Optional<AssetInfo> assetOpt = assetDAO.findAssetBySerialNumber(selectedDevice.getSerialNumber());
-        if (assetOpt.isEmpty()) {
-            StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Error", "Could not find the full details for the selected asset in the database.");
-            return;
-        }
-        AssetInfo assetToEdit = assetOpt.get();
+        AssetInfo assetToEdit = assetOpt.orElseGet(() -> {
+            System.out.println("Warning: No Physical_Assets record found for " + selectedDevice.getSerialNumber() + ". Creating edit object from view data.");
+            AssetInfo infoFromView = new AssetInfo();
+            infoFromView.setSerialNumber(selectedDevice.getSerialNumber());
+            infoFromView.setCategory(selectedDevice.getCategory());
+            infoFromView.setMake(selectedDevice.getMake());
+            infoFromView.setDescription(selectedDevice.getDescription());
+            return infoFromView;
+        });
 
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/AddAssetDialog.fxml"));
             Parent root = loader.load();
             AddAssetDialogController controller = loader.getController();
+
+            // This line tells the dialog to call "this.refreshData()" upon a successful save.
             controller.initDataForEdit(assetToEdit, this::refreshData);
 
             Stage stage = StageManager.createCustomStage(getOwnerWindow(), "Edit Asset: " + selectedDevice.getSerialNumber(), root);
@@ -104,8 +107,9 @@ public class DeviceStatusTrackingController {
         }
     }
 
-    // --- ALL OTHER METHODS BELOW ARE UNCHANGED ---
-
+    // --- ALL OTHER METHODS ARE UNCHANGED ---
+    // (I've omitted them for brevity, but they are the same as the previous version you have)
+    // ...
     private void configureAllUI() {
         setupTableColumns();
         setupStatusMappings();

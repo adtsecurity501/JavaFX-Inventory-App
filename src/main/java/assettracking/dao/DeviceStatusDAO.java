@@ -123,7 +123,7 @@ public class DeviceStatusDAO {
     private DeviceStatusActions.QueryAndParams buildFilteredQuery(boolean forCount) {
         DeviceStatusTrackingController controller = manager.getController();
 
-        // --- THIS IS THE CORRECTED QUERY LOGIC ---
+        // --- QUERY LOGIC HAS BEEN CORRECTED HERE ---
         String baseQuery =
                 " FROM " +
                         "    Receipt_Events re " +
@@ -132,15 +132,18 @@ public class DeviceStatusDAO {
                         "    FROM Receipt_Events " +
                         "    GROUP BY serial_number " +
                         ") latest ON re.serial_number = latest.serial_number AND re.receipt_id = latest.max_receipt_id " +
+                        // --- NEW: JOIN the Physical_Assets table to get the most current data ---
+                        "LEFT JOIN Physical_Assets pa ON re.serial_number = pa.serial_number " +
                         "LEFT JOIN Packages p ON re.package_id = p.package_id " +
                         "LEFT JOIN Device_Status ds ON re.receipt_id = ds.receipt_id";
 
         String selectClause = forCount
-                ? "SELECT COUNT(*)"
-                : "SELECT p.receive_date, re.receipt_id, re.serial_number, re.category, re.make, re.description, " +
+                ? "SELECT COUNT(DISTINCT re.serial_number)"
+                // --- UPDATED: Select category, make, and description from Physical_Assets (aliased as 'pa') ---
+                : "SELECT p.receive_date, re.receipt_id, re.serial_number, pa.category, pa.make, pa.description, " +
                 "ds.status, ds.sub_status, ds.last_update, ds.change_log, " +
                 "EXISTS(SELECT 1 FROM Flag_Devices fd WHERE fd.serial_number = re.serial_number) AS is_flagged";
-        // --- END OF CORRECTION ---
+        // --- END OF CORRECTIONS ---
 
         List<Object> params = new ArrayList<>();
         StringBuilder whereClause = new StringBuilder(" WHERE 1=1");
@@ -157,7 +160,8 @@ public class DeviceStatusDAO {
         }
         String category = controller.categoryFilterCombo.getValue();
         if (category != null && !"All Categories".equals(category)) {
-            whereClause.append(" AND re.category = ?");
+            // --- UPDATED: Filter by the current category in Physical_Assets ---
+            whereClause.append(" AND pa.category = ?");
             params.add(category);
         }
         LocalDate fromDate = controller.fromDateFilter.getValue();
@@ -178,7 +182,8 @@ public class DeviceStatusDAO {
             if ("Status".equals(groupBy)) {
                 fullQuery += " ORDER BY ds.status, ds.last_update DESC";
             } else if ("Category".equals(groupBy)) {
-                fullQuery += " ORDER BY re.category, ds.last_update DESC";
+                // --- UPDATED: Group by the current category in Physical_Assets ---
+                fullQuery += " ORDER BY pa.category, ds.last_update DESC";
             } else {
                 fullQuery += " ORDER BY ds.last_update DESC";
             }
