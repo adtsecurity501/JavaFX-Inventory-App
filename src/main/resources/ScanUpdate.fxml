@@ -81,35 +81,36 @@
                 </VBox>
             </TitledPane>
 
-            <SplitPane dividerPositions="0.5" VBox.vgrow="ALWAYS" minHeight="400.0">
-                <TitledPane text="Successful Scans" collapsible="false">
-                    <TableView fx:id="successTable">
-                        <columns>
-                            <TableColumn fx:id="successSerialCol" prefWidth="150.0" text="Serial Number"/>
-                            <TableColumn fx:id="successStatusCol" prefWidth="250.0" text="New Status"/>
-                            <TableColumn fx:id="successTimestampCol" prefWidth="180.0" text="Timestamp"/>
-                        </columns>
-                        <columnResizePolicy><TableView fx:constant="CONSTRAINED_RESIZE_POLICY" /></columnResizePolicy>
-                    </TableView>
-                </TitledPane>
-                <TitledPane text="Failed/Unrecognized Scans" collapsible="false">
-                    <content>
-                        <VBox spacing="5">
-                            <TableView fx:id="failedTable" VBox.vgrow="ALWAYS">
-                                <columns>
-                                    <TableColumn fx:id="failedSerialCol" prefWidth="150.0" text="Serial Number"/>
-                                    <TableColumn fx:id="failedReasonCol" prefWidth="250.0" text="Reason"/>
-                                    <TableColumn fx:id="failedTimestampCol" prefWidth="180.0" text="Timestamp"/>
-                                </columns>
-                                <columnResizePolicy><TableView fx:constant="CONSTRAINED_RESIZE_POLICY" /></columnResizePolicy>
-                            </TableView>
-                            <HBox alignment="CENTER_RIGHT" style="-fx-padding: 5 0 0 0;">
-                                <Button onAction="#handleProcessFailedScans" text="Process Failed Scans..."/>
-                            </HBox>
-                        </VBox>
-                    </content>
-                </TitledPane>
-            </SplitPane>
+            <VBox spacing="5" VBox.vgrow="ALWAYS" minHeight="400.0">
+                <SplitPane dividerPositions="0.5" VBox.vgrow="ALWAYS">
+                    <TitledPane text="Successful Scans" collapsible="false">
+                        <TableView fx:id="successTable">
+                            <columns>
+                                <TableColumn fx:id="successSerialCol" prefWidth="150.0" text="Serial Number"/>
+                                <TableColumn fx:id="successStatusCol" prefWidth="250.0" text="New Status"/>
+                                <TableColumn fx:id="successTimestampCol" prefWidth="180.0" text="Timestamp"/>
+                            </columns>
+                            <columnResizePolicy><TableView fx:constant="CONSTRAINED_RESIZE_POLICY" /></columnResizePolicy>
+                        </TableView>
+                    </TitledPane>
+                    <TitledPane text="Failed/Unrecognized Scans" collapsible="false">
+                        <!-- The content is now JUST the TableView, no more VBox/HBox -->
+                        <TableView fx:id="failedTable">
+                            <columns>
+                                <TableColumn fx:id="failedSerialCol" prefWidth="150.0" text="Serial Number"/>
+                                <TableColumn fx:id="failedReasonCol" prefWidth="250.0" text="Reason"/>
+                                <TableColumn fx:id="failedTimestampCol" prefWidth="180.0" text="Timestamp"/>
+                            </columns>
+                            <columnResizePolicy><TableView fx:constant="CONSTRAINED_RESIZE_POLICY" /></columnResizePolicy>
+                        </TableView>
+                    </TitledPane>
+                </SplitPane>
+
+                <!-- NEW HBox for the button, now outside the SplitPane -->
+                <HBox alignment="CENTER_RIGHT" style="-fx-padding: 5 0 0 0;">
+                    <Button onAction="#handleProcessFailedScans" text="Process Failed Scans..."/>
+                </HBox>
+            </VBox>
         </VBox>
     </content>
 </ScrollPane>

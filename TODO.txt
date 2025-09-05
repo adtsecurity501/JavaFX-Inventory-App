@@ -1,8 +1,8 @@
 Priority 1:
 - add way to import information into the device_autofill_data table.
 - When I minimize the window it goes to the bottom left corner and it looks terrible no styles
-- I have a box id at the top of the list that is blank and says there are 2 devices in side but when I click on it it shows alot more than 2, what is going on?
-- on scan update the sizing is off between succesful scans and failed/unrefnized scans windwos. The sucess. scans windows is smaller and i think it's because it doesn't have the process failed scans button
+
+
 
 
 Priority 2:
@@ -132,9 +132,11 @@ device is a:Optiplex 3000
 - I need to update the scan update so that the sku stays after you scan a serial becasue sometimes I scan and deploy multiple of the same sku at once and scan all of them.
 - add autofill dropdowns for sku managemnt, I got a error sku number cannot be emptyThat is wrong becasue I might add autofill information likke Descriptopn categoryt model and manufac to the sku table
 - When i click on the autocomplete suggestion it adds it to the field but then the suggestion pops up again and I have to click it again to fill it in
-- 
-
-
+- I need a way to edit a device once it's been added in case I forget to set the right cateogry or description or something, and then maybe even a way to safe delete a device or package if it was my by accident. It will then ask you to type DELETE to delete it.
+- on the process failed scsans for package lost window I need the cateogyrt make model description fields to have autofill and a way to search the serial umber to see if it has autofill information that also does the same thing if I double clcick on serial field and press enter.
+- the autofill in prodcess failed scans for package lost isn't correctly giving me the suggestinos. 
+- I have a box id at the top of the list that is blank and says there are 2 devices in side but when I click on it it shows alot more than 2, what is going on?
+- on scan update the sizing is off between succesful scans and failed/unrefnized scans windwos. The sucess. scans windows is smaller and i think it's because it doesn't have the process failed scans button
 
 
 
