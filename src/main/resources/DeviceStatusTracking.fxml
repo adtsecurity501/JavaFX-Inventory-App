@@ -54,8 +54,7 @@
             <Button onAction="#onScanUpdateAction" text="Scan Update..." />
             <Button onAction="#onViewHistoryAction" text="View History" />
             <Button onAction="#handleExportToCSV" text="Export to CSV..." />
-            <Button onAction="#handleManuallyFlagDevice" text="Manually Flag Device..." styleClass="warning" />
-
+            <Button onAction="#handleManageFlags" text="Manage Flags..." styleClass="accent"/>
         </HBox>
     </VBox>
 
