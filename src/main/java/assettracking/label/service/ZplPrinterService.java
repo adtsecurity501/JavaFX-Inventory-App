@@ -49,16 +49,16 @@ public class ZplPrinterService {
 
     public static String getAdtLabelZpl(String sku, String description) {
         return String.format("""
-            ^XA
-            ^PW710
-            ^LL305
-            ^FO17,13^GB677,181,8^FS
-            ^FT35,66^A0N,47,48^FDSKU:^FS
-            ^FT280,145^A0N,110,108^FD%s^FS
-            ^BY2,3,74^FT50,150^BCN,,Y,N^FD>:%s^FS
-            ^FT50,272^A0N,38,14^FB600,1,0,L^FD%s^FS
-            ^XZ
-            """, sku, sku, description);
+        ^XA
+        ^PW710
+        ^LL305
+        ^FO17,13^GB677,181,8^FS
+        ^FT35,66^A0N,47,48^FDSKU:^FS
+        ^FT280,145^A0N,110,108^FD%s^FS
+        ^BY2,3,74^FT50,150^BCN,,Y,N^FD>:%s^FS
+        ^FT50,272^A0N,38,14^FB600,1,0,L^FD%s^FS
+        ^PQ1,1,1,Y^XZ
+        """, sku, sku, description);
     }
 
     public static String getSerialLabelZpl(String sku, String serial) {
@@ -76,7 +76,7 @@ public class ZplPrinterService {
             ^FT193,277^A0N,28,28^FH\\^FD%s^FS
             ^FT494,274^A0N,39,38^FH\\^FDSKU:^FS
             ^FT574,274^A0N,39,38^FH\\^FD%s^FS
-            ^PQ1,0,1,Y^XZ
+            ^PQ1,1,1,Y^XZ
             """, serial, serial, today, sku);
     }
 
@@ -98,8 +98,9 @@ public class ZplPrinterService {
             } else {
                 template = templateService.loadTemplate("Standard_Asset_Tag.json");
             }
+            String generatedZpl = generator.generate(template, data);
 
-            return generator.generate(template, data);
+            return generatedZpl.replace("^XZ", "^PQ1,1,1,Y^XZ");
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -115,8 +116,8 @@ public class ZplPrinterService {
             ^LL0305
             ^FT45,73^A0N,45,45^FH\\^FDBarcode:^FS
             ^BY2,3,69^FT45,164^BCN,,N,N^FD>:%s^FS
-            ^FT45,210^A0N,30,30^FH\\^FD%s^FS
-            ^XZ
+            ^FT45,210^A0N,30,30^FH\\\\^FD%s^FS
+            ^PQ1,1,1,Y^XZ
             """, barcode, barcode);
     }
 
@@ -135,7 +136,7 @@ public class ZplPrinterService {
             ^FT280,200^A0N,35,35^FD%s^FS
             ^FT500,270^A0N,30,30^FDCompleted^FS
             ^FO643,240^GB40,40,2^FS
-            ^XZ
+            ^PQ1,1,1,Y^XZ
             """, imageSkuDescription, deviceSku, prefixLabel, finalPrefix);
     }
 }

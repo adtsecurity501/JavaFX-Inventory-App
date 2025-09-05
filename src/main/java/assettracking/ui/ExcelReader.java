@@ -81,10 +81,15 @@ public class ExcelReader {
                 }
             }
 
-            // UPDATED VALIDATION: Add "country" to the list of required headers.
-            if (!headers.containsKey("first name") || !headers.containsKey("last name") || employeeEmailIndex == -1 || !headers.containsKey("sn reference number") || !headers.containsKey("country")) {
-                throw new IOException("Roster file is missing required columns. Ensure 'First name', 'Last name', 'SN Reference Number', 'Country', and two separate 'Email' columns are present.");
+            // --- THIS IS THE FIX ---
+            // The check for "country" has been removed from this validation block.
+            if (!headers.containsKey("first name") || !headers.containsKey("last name") || employeeEmailIndex == -1 || !headers.containsKey("sn reference number")) {
+                throw new IOException("Roster file is missing required columns. Ensure 'First name', 'Last name', 'SN Reference Number', and two separate 'Email' columns are present.");
             }
+
+            // We now safely get the column index, defaulting to -1 if it's not found.
+            int countryColIndex = headers.getOrDefault("country", -1);
+            // --- END OF FIX ---
 
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {
                 Row row = sheet.getRow(i);
@@ -93,14 +98,21 @@ public class ExcelReader {
                 String snRef = getCellValueAsString(row.getCell(headers.get("sn reference number")));
                 if (snRef.isEmpty()) continue;
 
-                // UPDATED CONSTRUCTOR CALL: Pass the country value.
+                // --- ANOTHER FIX ---
+                // If the country column wasn't found, we use an empty string.
+                String country = "";
+                if (countryColIndex != -1) {
+                    country = getCellValueAsString(row.getCell(countryColIndex));
+                }
+                // --- END OF FIX ---
+
                 roster.add(new RosterEntry(
                         getCellValueAsString(row.getCell(headers.get("first name"))),
                         getCellValueAsString(row.getCell(headers.get("last name"))),
                         getCellValueAsString(row.getCell(employeeEmailIndex)),
                         snRef,
                         getCellValueAsString(row.getCell(headers.get("depot reference"))),
-                        getCellValueAsString(row.getCell(headers.get("country"))) // NEW: Read country
+                        country // Pass the country value (which may be blank)
                 ));
             }
         }

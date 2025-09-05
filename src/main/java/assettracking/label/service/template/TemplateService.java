@@ -104,17 +104,23 @@ public class TemplateService {
         template.setWidth(508);
         template.setHeight(203);
 
-        // Replicates the exact layout of your original ZPL for IMEI
+        // --- NEW, TIGHTER COORDINATES TO PREVENT OVERFLOW ---
         template.getElements().add(createText("Property of ADT, LLC", 14, 29, 18));
         template.getElements().add(createText("Help Desk:", 318, 24, 18));
         template.getElements().add(createText("1-877-238-4357", 318, 43, 18));
+
+        // S/N Section
         template.getElements().add(createText("S/N:", 14, 64, 27));
         template.getElements().add(createText("${serial}", 81, 64, 27));
-        template.getElements().add(createBarcode("${serial}", 15, 117, 41));
-        template.getElements().add(createText("IMEI:", 14, 146, 27));
-        template.getElements().add(createText("${imei}", 101, 146, 27));
-        // Corrected the barcode format to include ">:" which is standard for Code 128
-        template.getElements().add(createBarcode("${imei}", 15, 198, 41));
+        // S/N Barcode is moved UP significantly to tighten the layout
+        template.getElements().add(createBarcode("${serial}", 15, 92, 40)); // Was Y=117, H=41
+
+        // IMEI Section
+        // IMEI text is moved UP to follow the S/N barcode
+        template.getElements().add(createText("IMEI:", 14, 135, 27)); // Was Y=146
+        template.getElements().add(createText("${imei}", 101, 135, 27)); // Was Y=146
+        // IMEI barcode is moved UP to fit on the label
+        template.getElements().add(createBarcode("${imei}", 15, 163, 40)); // Was Y=198, H=41
 
         try {
             saveTemplate(template);
