@@ -318,6 +318,25 @@ public class DeviceStatusTrackingController {
             refreshData();
         }
     }
+    @FXML
+    private void handleManuallyFlagDevice() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/ManualFlagDialog.fxml"));
+            Parent root = loader.load();
+            ManualFlagDialogController dialogController = loader.getController();
+
+            // Pass a callback to the dialog so it can trigger a refresh on success
+            dialogController.setOnSaveCallback(this::refreshData);
+
+            Stage stage = StageManager.createCustomStage(getOwnerWindow(), "Manually Flag a Device", root);
+            stage.showAndWait();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Error", "Could not open the manual flag window.");
+        }
+    }
+
 
     private void handleViewHistory() {
         DeviceStatusView selectedDevice = statusTable.getSelectionModel().getSelectedItem();
