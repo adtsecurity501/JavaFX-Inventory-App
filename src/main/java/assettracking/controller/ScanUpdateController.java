@@ -156,16 +156,16 @@ public class ScanUpdateController {
         }
 
         String baseNote = changeLogField.getText().trim();
-        String finalNote = "Disposed".equals(newStatus) && !boxId.isEmpty()
-                ? ("Box ID: " + boxId + ". " + baseNote).trim()
-                : baseNote;
+// The note no longer needs to contain the Box ID.
+        String finalNote = baseNote;
 
         setFeedback("Processing " + serial + "...", Color.BLUE);
 
         Task<ScanUpdateService.UpdateResult> updateTask = new Task<>() {
             @Override
             protected ScanUpdateService.UpdateResult call() throws Exception {
-                return updateService.updateBySerial(serial, newStatus, newSubStatus, finalNote);
+                // Pass the boxId as a new, separate argument.
+                return updateService.updateBySerial(serial, newStatus, newSubStatus, finalNote, boxId);
             }
         };
 

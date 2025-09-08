@@ -42,19 +42,32 @@ import java.util.stream.Collectors;
 
 public class BoxIdViewerController {
 
-    @FXML private TextField searchField;
-    @FXML private TableView<BoxIdSummary> summaryTable;
-    @FXML private TableColumn<BoxIdSummary, String> boxIdCol;
-    @FXML private TableColumn<BoxIdSummary, Integer> itemCountCol;
-    @FXML private Label detailHeaderLabel;
-    @FXML private TableView<BoxIdDetail> detailTable;
-    @FXML private TableColumn<BoxIdDetail, String> serialCol;
-    @FXML private TableColumn<BoxIdDetail, String> statusCol;
-    @FXML private TableColumn<BoxIdDetail, String> subStatusCol;
-    @FXML private Button printLabelButton;
-    @FXML private Button exportCsvButton;
-    @FXML private Button updateStatusButton;
-    @FXML private Label statusLabel;
+    @FXML
+    private TextField searchField;
+    @FXML
+    private TableView<BoxIdSummary> summaryTable;
+    @FXML
+    private TableColumn<BoxIdSummary, String> boxIdCol;
+    @FXML
+    private TableColumn<BoxIdSummary, Integer> itemCountCol;
+    @FXML
+    private Label detailHeaderLabel;
+    @FXML
+    private TableView<BoxIdDetail> detailTable;
+    @FXML
+    private TableColumn<BoxIdDetail, String> serialCol;
+    @FXML
+    private TableColumn<BoxIdDetail, String> statusCol;
+    @FXML
+    private TableColumn<BoxIdDetail, String> subStatusCol;
+    @FXML
+    private Button printLabelButton;
+    @FXML
+    private Button exportCsvButton;
+    @FXML
+    private Button updateStatusButton;
+    @FXML
+    private Label statusLabel;
 
     private final ObservableList<BoxIdSummary> summaryList = FXCollections.observableArrayList();
     private final ObservableList<BoxIdDetail> detailList = FXCollections.observableArrayList();
@@ -247,10 +260,10 @@ public class BoxIdViewerController {
                 List<BoxIdSummary> results = new ArrayList<>();
                 String sql = """
                             SELECT
-                                SUBSTRING(change_log, INSTR(change_log, ':') + 2) as box_id,
+                                box_id,
                                 COUNT(*) as item_count
                             FROM Device_Status
-                            WHERE change_log LIKE 'Box ID:%'
+                            WHERE box_id IS NOT NULL AND box_id != ''
                             GROUP BY box_id
                             ORDER BY box_id
                         """;
@@ -281,17 +294,17 @@ public class BoxIdViewerController {
             protected List<BoxIdDetail> call() throws Exception {
                 List<BoxIdDetail> results = new ArrayList<>();
                 String sql = """
-                    SELECT
-                        re.serial_number,
-                        ds.status,
-                        ds.sub_status
-                    FROM Device_Status ds
-                    JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id
-                    WHERE ds.change_log LIKE ?
-                """;
+                            SELECT
+                                re.serial_number,
+                                ds.status,
+                                ds.sub_status
+                            FROM Device_Status ds
+                            JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id
+                            WHERE ds.box_id = ?
+                        """;
                 try (Connection conn = DatabaseConnection.getInventoryConnection();
                      PreparedStatement stmt = conn.prepareStatement(sql)) {
-                    stmt.setString(1, "Box ID: " + boxId + "%");
+                    stmt.setString(1, boxId);
                     ResultSet rs = stmt.executeQuery();
                     while (rs.next()) {
                         results.add(new BoxIdDetail(rs.getString("serial_number"), rs.getString("status"), rs.getString("sub_status")));
@@ -346,18 +359,18 @@ public class BoxIdViewerController {
             @Override
             protected Integer call() throws Exception {
                 String sql = """
-                    UPDATE Device_Status ds
-                    SET status = ?, sub_status = ?, last_update = CURRENT_TIMESTAMP
-                    WHERE ds.receipt_id IN (
-                        SELECT re.receipt_id FROM Receipt_Events re
-                        JOIN (
-                            SELECT serial_number, MAX(receipt_id) as max_receipt_id
-                            FROM Receipt_Events GROUP BY serial_number
-                        ) latest ON re.serial_number = latest.serial_number AND re.receipt_id = latest.max_receipt_id
-                        JOIN Device_Status inner_ds ON re.receipt_id = inner_ds.receipt_id
-                        WHERE inner_ds.change_log LIKE ?
-                    )
-                """;
+                            UPDATE Device_Status ds
+                            SET status = ?, sub_status = ?, last_update = CURRENT_TIMESTAMP
+                            WHERE ds.receipt_id IN (
+                                SELECT re.receipt_id FROM Receipt_Events re
+                                JOIN (
+                                    SELECT serial_number, MAX(receipt_id) as max_receipt_id
+                                    FROM Receipt_Events GROUP BY serial_number
+                                ) latest ON re.serial_number = latest.serial_number AND re.receipt_id = latest.max_receipt_id
+                                JOIN Device_Status inner_ds ON re.receipt_id = inner_ds.receipt_id
+                                WHERE inner_ds.change_log LIKE ?
+                            )
+                        """;
                 try (Connection conn = DatabaseConnection.getInventoryConnection();
                      PreparedStatement stmt = conn.prepareStatement(sql)) {
                     stmt.setString(1, newStatus);
@@ -375,16 +388,9 @@ public class BoxIdViewerController {
             protected Void call() throws Exception {
                 String placeholders = String.join(",", Collections.nCopies(serials.size(), "?"));
                 String sql = String.format("""
-                    UPDATE Device_Status ds SET status = 'Disposed', sub_status = 'Ready for Wipe', change_log = 'Removed from box'
-                    WHERE ds.receipt_id IN (
-                        SELECT re.receipt_id FROM Receipt_Events re
-                        JOIN (
-                           SELECT serial_number, MAX(receipt_id) as max_receipt_id
-                           FROM Receipt_Events GROUP BY serial_number
-                        ) latest ON re.serial_number = latest.serial_number AND re.receipt_id = latest.max_receipt_id
-                        WHERE re.serial_number IN (%s)
-                    )
-                """, placeholders);
+                            UPDATE Device_Status ds SET status = 'Disposed', sub_status = 'Ready for Wipe', box_id = NULL, change_log = 'Removed from box'
+                            WHERE ds.receipt_id IN ( ... )
+                        """, placeholders);
                 try (Connection conn = DatabaseConnection.getInventoryConnection();
                      PreparedStatement stmt = conn.prepareStatement(sql)) {
                     for (int i = 0; i < serials.size(); i++) {

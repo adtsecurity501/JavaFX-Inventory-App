@@ -12,14 +12,10 @@ import java.util.Optional;
 
 public class iPadProvisioningDAO {
     public void upsertBulkDevices(List<BulkDevice> devices) throws SQLException {
-        String upsertSql = "INSERT INTO Bulk_Devices (SerialNumber, IMEI, ICCID, Capacity, DeviceName, LastImportDate) " +
-                "VALUES (?, ?, ?, ?, ?, ?) " +
-                "ON CONFLICT(SerialNumber) DO UPDATE SET " +
-                "IMEI=excluded.IMEI, " +
-                "ICCID=excluded.ICCID, " +
-                "Capacity=excluded.Capacity, " +
-                "DeviceName=excluded.DeviceName, " +
-                "LastImportDate=excluded.LastImportDate;";
+        // This is the correct "UPSERT" syntax for an H2 database.
+        String upsertSql = "MERGE INTO Bulk_Devices (SerialNumber, IMEI, ICCID, Capacity, DeviceName, LastImportDate) " +
+                "KEY(SerialNumber) " +
+                "VALUES (?, ?, ?, ?, ?, ?)";
 
         try (Connection conn = DatabaseConnection.getInventoryConnection();
              PreparedStatement stmt = conn.prepareStatement(upsertSql)) {

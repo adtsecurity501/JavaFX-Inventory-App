@@ -78,7 +78,7 @@ public class DeviceStatusDAO {
             return;
         }
 
-        String updateStatusSql = "UPDATE Device_Status SET status = ?, sub_status = ?, last_update = CURRENT_TIMESTAMP, change_log = ? WHERE receipt_id = ?";
+        String updateStatusSql = "UPDATE Device_Status SET status = ?, sub_status = ?, last_update = CURRENT_TIMESTAMP, change_log = ?, box_id = CASE WHEN ? = 'Deleted (Mistake)' THEN NULL ELSE box_id END WHERE receipt_id = ?";
         String deleteFlagSql = "DELETE FROM Flag_Devices WHERE serial_number = ?";
 
         Connection conn = null;
@@ -92,7 +92,8 @@ public class DeviceStatusDAO {
                     updateStmt.setString(1, newStatus);
                     updateStmt.setString(2, newSubStatus);
                     updateStmt.setString(3, note);
-                    updateStmt.setInt(4, device.getReceiptId());
+                    updateStmt.setString(4, newSubStatus); // Pass sub-status to the CASE statement
+                    updateStmt.setInt(5, device.getReceiptId());
                     updateStmt.addBatch();
 
                     if ("Flag!".equals(device.getStatus())) {
