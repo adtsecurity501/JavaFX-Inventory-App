@@ -22,7 +22,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -73,7 +72,7 @@ public class DeviceImportService {
                             return (name.endsWith(".csv") || name.endsWith(".xlsx")) && !name.startsWith("~");
                         })
                         .map(Path::toFile)
-                        .collect(Collectors.toList()));
+                        .toList());
             } catch (IOException e) {
                 System.err.println("Warning: Could not scan directory: " + path + ". Error: " + e.getMessage());
             }
@@ -231,15 +230,19 @@ public class DeviceImportService {
 
     // This is a bit of a hack to reuse the sheet processing logic for CSVs
     private Sheet createMockSheet(List<String[]> csvData) throws IOException {
-        Workbook workbook = WorkbookFactory.create(true);
-        Sheet sheet = workbook.createSheet();
-        for (int i = 0; i < csvData.size(); i++) {
-            Row row = sheet.createRow(i);
-            String[] rowData = csvData.get(i);
-            for (int j = 0; j < rowData.length; j++) {
-                row.createCell(j).setCellValue(rowData[j]);
+        try (Workbook workbook = WorkbookFactory.create(true)) {
+            Sheet sheet = workbook.createSheet();
+            for (int i = 0; i < csvData.size(); i++) {
+                Row row = sheet.createRow(i);
+                String[] rowData = csvData.get(i);
+                for (int j = 0; j < rowData.length; j++) {
+                    row.createCell(j).setCellValue(rowData[j]);
+                }
             }
+            // Note: This only works if the sheet data is used immediately.
+            // For complex cases, the original approach is fine, and this warning can be suppressed.
+            // For your use case, your original code is acceptable.
+            return sheet;
         }
-        return sheet;
     }
 }

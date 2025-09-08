@@ -10,19 +10,19 @@ import javafx.scene.control.ComboBox;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.util.Callback;
 
 public class MainViewController {
 
+    public VBox dashboard;
     @FXML
     private HBox titleBar;
     @FXML
     private Button minimizeButton;
     @FXML
     private Button maximizeButton;
-    @FXML
-    private Button closeButton;
     @FXML
     private ComboBox<Theme> themeComboBox;
 

@@ -48,7 +48,8 @@ public class AppSettingsDAO {
             stmt.executeUpdate();
         } catch (SQLException e) {
             System.err.println("Failed to save setting: " + key);
-            e.printStackTrace();
+            // You could even show an alert here if it's critical
+            // StageManager.showAlert(null, Alert.AlertType.ERROR, "DB Error", "Could not save setting: " + key);
         }
     }
 }
