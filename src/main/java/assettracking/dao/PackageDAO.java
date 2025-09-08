@@ -142,14 +142,51 @@ public class PackageDAO {
     }
 
     public boolean deletePackage(int packageId) {
-        String sql = "DELETE FROM Packages WHERE package_id = ?";
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setInt(1, packageId);
-            return stmt.executeUpdate() > 0;
+        String deleteReceiptsSql = "DELETE FROM Receipt_Events WHERE package_id = ?";
+        String deletePackageSql = "DELETE FROM Packages WHERE package_id = ?";
+
+        Connection conn = null;
+        try {
+            conn = DatabaseConnection.getInventoryConnection();
+            // Start a transaction
+            conn.setAutoCommit(false);
+
+            // 1. Delete the "child" records first (the receipt events)
+            try (PreparedStatement stmt = conn.prepareStatement(deleteReceiptsSql)) {
+                stmt.setInt(1, packageId);
+                stmt.executeUpdate();
+            }
+
+            // 2. Now it's safe to delete the "parent" record (the package)
+            try (PreparedStatement stmt = conn.prepareStatement(deletePackageSql)) {
+                stmt.setInt(1, packageId);
+                stmt.executeUpdate();
+            }
+
+            // 3. If both operations succeeded, commit the transaction
+            conn.commit();
+            return true;
+
         } catch (SQLException e) {
+            // If anything went wrong, roll back the entire transaction
+            if (conn != null) {
+                try {
+                    conn.rollback();
+                } catch (SQLException ex) {
+                    ex.printStackTrace();
+                }
+            }
             e.printStackTrace();
             return false;
+        } finally {
+            if (conn != null) {
+                try {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
         }
     }
 
