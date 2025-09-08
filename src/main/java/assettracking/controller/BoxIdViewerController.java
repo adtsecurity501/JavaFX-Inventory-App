@@ -200,8 +200,7 @@ public class BoxIdViewerController {
             Task<Integer> updateTask = createBulkUpdateTask(selectedBox.boxId(), status, subStatus);
             updateTask.setOnSucceeded(e -> {
                 int updatedCount = updateTask.getValue();
-                statusLabel.getStyleClass().remove("status-label-error");
-                statusLabel.getStyleClass().add("status-label-success");
+                statusLabel.getStyleClass().setAll("status-label-success"); // More robust
                 statusLabel.setText(String.format("Updated %d items in Box ID %s to %s / %s.", updatedCount, selectedBox.boxId(), status, subStatus));
                 refreshAllData();
             });
@@ -228,8 +227,7 @@ public class BoxIdViewerController {
             List<String> serialsToRemove = selectedItems.stream().map(BoxIdDetail::serialNumber).collect(Collectors.toList());
             Task<Void> removeTask = createRemoveItemsTask(serialsToRemove);
             removeTask.setOnSucceeded(e -> {
-                statusLabel.getStyleClass().remove("status-label-error");
-                statusLabel.getStyleClass().add("status-label-success");
+                statusLabel.getStyleClass().setAll("status-label-success"); // More robust
                 statusLabel.setText("Removed " + serialsToRemove.size() + " item(s) from the box.");
                 refreshAllData();
             });
