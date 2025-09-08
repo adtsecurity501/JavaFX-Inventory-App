@@ -142,6 +142,10 @@ public class PackageDAO {
     }
 
     public boolean deletePackage(int packageId) {
+        // We need to delete in the correct order to respect foreign key constraints.
+        String getReceiptIdsSql = "SELECT receipt_id FROM Receipt_Events WHERE package_id = ?";
+        String deleteDispositionsSql = "DELETE FROM Disposition_Info WHERE receipt_id = ?";
+        String deleteStatusesSql = "DELETE FROM Device_Status WHERE receipt_id = ?";
         String deleteReceiptsSql = "DELETE FROM Receipt_Events WHERE package_id = ?";
         String deletePackageSql = "DELETE FROM Packages WHERE package_id = ?";
 
@@ -151,19 +155,47 @@ public class PackageDAO {
             // Start a transaction
             conn.setAutoCommit(false);
 
-            // 1. Delete the "child" records first (the receipt events)
-            try (PreparedStatement stmt = conn.prepareStatement(deleteReceiptsSql)) {
+            // 1. Find all receipt IDs associated with this package
+            List<Integer> receiptIds = new ArrayList<>();
+            try (PreparedStatement stmt = conn.prepareStatement(getReceiptIdsSql)) {
                 stmt.setInt(1, packageId);
-                stmt.executeUpdate();
+                try (ResultSet rs = stmt.executeQuery()) {
+                    while (rs.next()) {
+                        receiptIds.add(rs.getInt("receipt_id"));
+                    }
+                }
             }
 
-            // 2. Now it's safe to delete the "parent" record (the package)
+            // Only proceed if there are receipts to delete
+            if (!receiptIds.isEmpty()) {
+                // 2. Delete all associated Disposition_Info and Device_Status records
+                try (PreparedStatement deleteDispStmt = conn.prepareStatement(deleteDispositionsSql);
+                     PreparedStatement deleteStatusStmt = conn.prepareStatement(deleteStatusesSql)) {
+                    for (Integer receiptId : receiptIds) {
+                        deleteDispStmt.setInt(1, receiptId);
+                        deleteDispStmt.addBatch();
+
+                        deleteStatusStmt.setInt(1, receiptId);
+                        deleteStatusStmt.addBatch();
+                    }
+                    deleteDispStmt.executeBatch();
+                    deleteStatusStmt.executeBatch();
+                }
+
+                // 3. Now it's safe to delete the Receipt_Events
+                try (PreparedStatement stmt = conn.prepareStatement(deleteReceiptsSql)) {
+                    stmt.setInt(1, packageId);
+                    stmt.executeUpdate();
+                }
+            }
+
+            // 4. Finally, it's safe to delete the Package itself
             try (PreparedStatement stmt = conn.prepareStatement(deletePackageSql)) {
                 stmt.setInt(1, packageId);
                 stmt.executeUpdate();
             }
 
-            // 3. If both operations succeeded, commit the transaction
+            // If all operations succeeded, commit the transaction
             conn.commit();
             return true;
 
