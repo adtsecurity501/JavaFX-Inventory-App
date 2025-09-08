@@ -37,9 +37,7 @@ public class DashboardDataService {
                     GROUP BY re.category
                 """, intakeDateClause, statusDateClause, statusDateClause);
 
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql); ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
                 String category = rs.getString("category");
                 if (category == null) continue;
@@ -76,9 +74,7 @@ public class DashboardDataService {
                     ORDER BY model_count DESC LIMIT 10
                 """, dateFilterClause);
 
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql); ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
                 results.add(new TopModelStat(rs.getString("model_number"), rs.getInt("model_count")));
             }
@@ -89,9 +85,7 @@ public class DashboardDataService {
     public List<PieChart.Data> getInventoryOverviewData() throws SQLException {
         List<PieChart.Data> data = new ArrayList<>();
         String sql = "SELECT CASE WHEN ds.status = 'Flag!' THEN 'Flagged for Review' ELSE ds.status END as status_display, COUNT(*) as status_count FROM Device_Status ds JOIN (" + LATEST_RECEIPT_SUBQUERY + ") latest_re ON ds.receipt_id = latest_re.max_receipt_id GROUP BY status_display;";
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql); ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
                 data.add(new PieChart.Data(rs.getString("status_display"), rs.getInt("status_count")));
             }
@@ -101,10 +95,12 @@ public class DashboardDataService {
 
     public List<PieChart.Data> getProcessedBreakdownData(String dateFilterClause) throws SQLException {
         List<PieChart.Data> data = new ArrayList<>();
-        String sql = "SELECT re.category, COUNT(*) as count FROM Device_Status ds JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id JOIN (" + LATEST_RECEIPT_SUBQUERY + ") latest_re ON ds.receipt_id = latest_re.max_receipt_id WHERE ds.status = 'Processed' AND " + dateFilterClause + " GROUP BY re.category ORDER BY count DESC";
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
+        // --- THIS QUERY IS NOW CORRECTED ---
+        // It adds the condition "re.category IS NOT NULL AND re.category != ''" to exclude blank categories.
+        String sql = "SELECT re.category, COUNT(*) as count " + "FROM Device_Status ds " + "JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id " + "JOIN (" + LATEST_RECEIPT_SUBQUERY + ") latest_re ON ds.receipt_id = latest_re.max_receipt_id " + "WHERE ds.status = 'Processed' " + "AND re.category IS NOT NULL AND re.category != '' " + // <-- THE FIX
+                "AND " + dateFilterClause + " " + "GROUP BY re.category " + "ORDER BY count DESC";
+
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql); ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
                 data.add(new PieChart.Data(rs.getString("category"), rs.getInt("count")));
             }
@@ -115,16 +111,27 @@ public class DashboardDataService {
     public XYChart.Series<String, Number> getIntakeVolumeData(String dateFilterClause) throws SQLException {
         XYChart.Series<String, Number> series = new XYChart.Series<>();
         series.setName("Devices Received");
-        String sql = "SELECT FORMATDATETIME(p.receive_date, 'yyyy-MM-dd') as day, COUNT(re.receipt_id) as device_count FROM Receipt_Events re JOIN Packages p ON re.package_id = p.package_id WHERE " + dateFilterClause + " GROUP BY day ORDER BY day ASC;";
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
+
+        // --- THIS IS THE DEFINITIVE FIX ---
+        // The query now explicitly formats the date into a 'YYYY-MM-dd' string,
+        // which is the most reliable format for the BarChart's category axis.
+        // This replaces the CAST operation which was not sufficient.
+        String sql = "SELECT FORMATDATETIME(p.receive_date, 'yyyy-MM-dd') AS day, COUNT(re.receipt_id) AS device_count " + "FROM Receipt_Events re " + "JOIN Packages p ON re.package_id = p.package_id " + "WHERE " + dateFilterClause + " " + "GROUP BY day " + "ORDER BY day ASC;";
+
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql); ResultSet rs = stmt.executeQuery()) {
+
             while (rs.next()) {
-                series.getData().add(new XYChart.Data<>(rs.getString("day"), rs.getInt("device_count")));
+                // Retrieve the formatted date string and the count
+                String day = rs.getString("day");
+                int deviceCount = rs.getInt("device_count");
+
+                // Add the data to the series for the chart
+                series.getData().add(new XYChart.Data<>(day, deviceCount));
             }
         }
         return series;
     }
+
 
     public Map<String, String> getStaticKpis() throws SQLException {
         Map<String, String> kpis = new HashMap<>();
