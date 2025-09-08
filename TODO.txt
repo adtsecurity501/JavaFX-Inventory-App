@@ -1,5 +1,5 @@
 Priority 1:
-- add way to import information into the device_autofill_data table.
+- add way to import information into the device_autofill_data table .
 - When I minimize the window it goes to the bottom left corner and it has no styles
 
 

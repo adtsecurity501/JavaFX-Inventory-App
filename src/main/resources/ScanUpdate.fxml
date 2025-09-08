@@ -4,7 +4,7 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<ScrollPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+<ScrollPane xmlns:fx="http://javafx.com/fxml/1" xmlns="http://javafx.com/javafx/21"
             fx:controller="assettracking.controller.ScanUpdateController"
             fitToWidth="true" prefHeight="700.0" prefWidth="800.0"
             style="-fx-background-color: transparent;">
@@ -30,7 +30,8 @@
                               visible="false" managed="false" selected="true"/>
 
                     <!-- THIS VBOX IS MODIFIED -->
-                    <VBox fx:id="skuSelectionBox" spacing="5" GridPane.rowIndex="3" GridPane.columnIndex="1" visible="false" managed="false">
+                    <VBox fx:id="skuSelectionBox" spacing="5" GridPane.rowIndex="3" GridPane.columnIndex="1"
+                          visible="false" managed="false">
                         <children>
                             <Label text="Label Printer:"/>
                             <ComboBox fx:id="labelPrinterCombo" prefWidth="300.0" promptText="Select Printer..."/>
@@ -40,15 +41,19 @@
 
                             <!-- NEW HBOX WRAPPER -->
                             <HBox spacing="5" alignment="CENTER_LEFT">
-                                <TextField fx:id="selectedSkuField" editable="false" promptText="Selected SKU" HBox.hgrow="ALWAYS"/>
+                                <TextField fx:id="selectedSkuField" editable="false" promptText="Selected SKU"
+                                           HBox.hgrow="ALWAYS"/>
                                 <Button fx:id="clearSkuButton" text="Clear"/>
                             </HBox>
                         </children>
                     </VBox>
 
-                    <Label fx:id="disposalLocationLabel" text="Box ID:" visible="false" managed="false" GridPane.rowIndex="4" GridPane.columnIndex="0"/>
-                    <HBox fx:id="boxIdHBox" spacing="10" alignment="CENTER_LEFT" visible="false" managed="false" GridPane.rowIndex="4" GridPane.columnIndex="1">
-                        <TextField fx:id="disposalLocationField" onAction="#onBoxIdScanned" promptText="Scan Box ID and press Enter..." HBox.hgrow="ALWAYS"/>
+                    <Label fx:id="disposalLocationLabel" text="Box ID:" visible="false" managed="false"
+                           GridPane.rowIndex="4" GridPane.columnIndex="0"/>
+                    <HBox fx:id="boxIdHBox" spacing="10" alignment="CENTER_LEFT" visible="false" managed="false"
+                          GridPane.rowIndex="4" GridPane.columnIndex="1">
+                        <TextField fx:id="disposalLocationField" onAction="#onBoxIdScanned"
+                                   promptText="Scan Box ID and press Enter..." HBox.hgrow="ALWAYS"/>
                         <Button fx:id="clearBoxIdButton" onAction="#handleClearBoxId" text="Clear"/>
                     </HBox>
 
@@ -90,7 +95,9 @@
                                 <TableColumn fx:id="successStatusCol" prefWidth="250.0" text="New Status"/>
                                 <TableColumn fx:id="successTimestampCol" prefWidth="180.0" text="Timestamp"/>
                             </columns>
-                            <columnResizePolicy><TableView fx:constant="CONSTRAINED_RESIZE_POLICY" /></columnResizePolicy>
+                            <columnResizePolicy>
+                                <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
+                            </columnResizePolicy>
                         </TableView>
                     </TitledPane>
                     <TitledPane text="Failed/Unrecognized Scans" collapsible="false">
@@ -101,7 +108,9 @@
                                 <TableColumn fx:id="failedReasonCol" prefWidth="250.0" text="Reason"/>
                                 <TableColumn fx:id="failedTimestampCol" prefWidth="180.0" text="Timestamp"/>
                             </columns>
-                            <columnResizePolicy><TableView fx:constant="CONSTRAINED_RESIZE_POLICY" /></columnResizePolicy>
+                            <columnResizePolicy>
+                                <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
+                            </columnResizePolicy>
                         </TableView>
                     </TitledPane>
                 </SplitPane>

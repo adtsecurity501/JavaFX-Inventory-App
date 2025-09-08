@@ -8,19 +8,23 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+<VBox xmlns:fx="http://javafx.com/fxml/1" xmlns="http://javafx.com/javafx/21"
       fx:controller="assettracking.controller.DashboardController" spacing="15" style="-fx-padding: 15;">
 
     <HBox alignment="CENTER_LEFT" spacing="15" style="-fx-padding: 10; -fx-background-radius: 4;">
         <Label text="Time Range:"/>
         <RadioButton fx:id="todayRadio" text="Today">
-            <toggleGroup><ToggleGroup fx:id="dateRangeToggleGroup"/></toggleGroup>
+            <toggleGroup>
+                <ToggleGroup fx:id="dateRangeToggleGroup"/>
+            </toggleGroup>
         </RadioButton>
         <RadioButton fx:id="days7Radio" text="Last 7 Days" selected="true" toggleGroup="$dateRangeToggleGroup"/>
         <RadioButton fx:id="days30Radio" text="Last 30 Days" toggleGroup="$dateRangeToggleGroup"/>
-        <Region HBox.hgrow="ALWAYS" />
+        <Region HBox.hgrow="ALWAYS"/>
         <!-- THIS IS THE CORRECTED LINE -->
         <Button text="Refresh" onAction="#refreshAllData" styleClass="success"/>
+        <Button fx:id="importDeviceFilesButton" text="Import Device Files..." onAction="#handleImportDeviceFiles"/>
+        <Button fx:id="manageFoldersButton" text="Manage Import Folders..." onAction="#handleManageFolders"/>
         <Button fx:id="importFlagsButton" text="Import Flags..." onAction="#handleImportFlags"/>
         <Button onAction="#handleManageMelRules" text="Update MEL Rules..."/>
     </HBox>
@@ -31,9 +35,11 @@
             <ColumnConstraints fx:id="rightColumn" percentWidth="40"/>
         </columnConstraints>
 
-        <ScrollPane fitToWidth="true" GridPane.columnIndex="0" VBox.vgrow="ALWAYS" style="-fx-background-color: transparent;">
+        <ScrollPane fitToWidth="true" GridPane.columnIndex="0" VBox.vgrow="ALWAYS"
+                    style="-fx-background-color: transparent;">
             <VBox spacing="15">
-                <VBox spacing="5" style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 4;">
+                <VBox spacing="5"
+                      style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 4;">
                     <Label fx:id="timeRangeTitleLabel" styleClass="h4"/>
                     <Separator/>
                     <GridPane hgap="15" vgap="10">
@@ -49,89 +55,118 @@
                         <Label text="Disposed" styleClass="kpi-title" GridPane.columnIndex="3"/>
 
                         <Label text="Laptops" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
-                        <Label fx:id="laptopsIntakenLabel" styleClass="kpi-metric, text-accent" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
-                        <Label fx:id="laptopsProcessedLabel" styleClass="kpi-metric, text-success" GridPane.rowIndex="1" GridPane.columnIndex="2"/>
-                        <Label fx:id="laptopsDisposedLabel" styleClass="kpi-metric, text-danger" GridPane.rowIndex="1" GridPane.columnIndex="3"/>
+                        <Label fx:id="laptopsIntakenLabel" styleClass="kpi-metric, text-accent" GridPane.rowIndex="1"
+                               GridPane.columnIndex="1"/>
+                        <Label fx:id="laptopsProcessedLabel" styleClass="kpi-metric, text-success" GridPane.rowIndex="1"
+                               GridPane.columnIndex="2"/>
+                        <Label fx:id="laptopsDisposedLabel" styleClass="kpi-metric, text-danger" GridPane.rowIndex="1"
+                               GridPane.columnIndex="3"/>
 
                         <Label text="Tablets" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
-                        <Label fx:id="tabletsIntakenLabel" styleClass="kpi-metric, text-accent" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
-                        <Label fx:id="tabletsProcessedLabel" styleClass="kpi-metric, text-success" GridPane.rowIndex="2" GridPane.columnIndex="2"/>
-                        <Label fx:id="tabletsDisposedLabel" styleClass="kpi-metric, text-danger" GridPane.rowIndex="2" GridPane.columnIndex="3"/>
+                        <Label fx:id="tabletsIntakenLabel" styleClass="kpi-metric, text-accent" GridPane.rowIndex="2"
+                               GridPane.columnIndex="1"/>
+                        <Label fx:id="tabletsProcessedLabel" styleClass="kpi-metric, text-success" GridPane.rowIndex="2"
+                               GridPane.columnIndex="2"/>
+                        <Label fx:id="tabletsDisposedLabel" styleClass="kpi-metric, text-danger" GridPane.rowIndex="2"
+                               GridPane.columnIndex="3"/>
 
                         <Label text="Desktops" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
-                        <Label fx:id="desktopsIntakenLabel" styleClass="kpi-metric, text-accent" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
-                        <Label fx:id="desktopsProcessedLabel" styleClass="kpi-metric, text-success" GridPane.rowIndex="3" GridPane.columnIndex="2"/>
-                        <Label fx:id="desktopsDisposedLabel" styleClass="kpi-metric, text-danger" GridPane.rowIndex="3" GridPane.columnIndex="3"/>
+                        <Label fx:id="desktopsIntakenLabel" styleClass="kpi-metric, text-accent" GridPane.rowIndex="3"
+                               GridPane.columnIndex="1"/>
+                        <Label fx:id="desktopsProcessedLabel" styleClass="kpi-metric, text-success"
+                               GridPane.rowIndex="3" GridPane.columnIndex="2"/>
+                        <Label fx:id="desktopsDisposedLabel" styleClass="kpi-metric, text-danger" GridPane.rowIndex="3"
+                               GridPane.columnIndex="3"/>
 
                         <Label text="Monitors" GridPane.rowIndex="4" GridPane.columnIndex="0"/>
-                        <Label fx:id="monitorsIntakenLabel" styleClass="kpi-metric, text-accent" GridPane.rowIndex="4" GridPane.columnIndex="1"/>
-                        <Label fx:id="monitorsProcessedLabel" styleClass="kpi-metric, text-success" GridPane.rowIndex="4" GridPane.columnIndex="2"/>
-                        <Label fx:id="monitorsDisposedLabel" styleClass="kpi-metric, text-danger" GridPane.rowIndex="4" GridPane.columnIndex="3"/>
+                        <Label fx:id="monitorsIntakenLabel" styleClass="kpi-metric, text-accent" GridPane.rowIndex="4"
+                               GridPane.columnIndex="1"/>
+                        <Label fx:id="monitorsProcessedLabel" styleClass="kpi-metric, text-success"
+                               GridPane.rowIndex="4" GridPane.columnIndex="2"/>
+                        <Label fx:id="monitorsDisposedLabel" styleClass="kpi-metric, text-danger" GridPane.rowIndex="4"
+                               GridPane.columnIndex="3"/>
 
                         <Separator GridPane.rowIndex="5" GridPane.columnSpan="4"/>
-                        <Label text="Total Processed:" styleClass="kpi-title" GridPane.rowIndex="6" GridPane.columnIndex="1"/>
-                        <Label fx:id="totalProcessedLabel" styleClass="kpi-metric, text-success" GridPane.rowIndex="6" GridPane.columnIndex="2"/>
+                        <Label text="Total Processed:" styleClass="kpi-title" GridPane.rowIndex="6"
+                               GridPane.columnIndex="1"/>
+                        <Label fx:id="totalProcessedLabel" styleClass="kpi-metric, text-success" GridPane.rowIndex="6"
+                               GridPane.columnIndex="2"/>
                     </GridPane>
                 </VBox>
-                <VBox spacing="5" VBox.vgrow="ALWAYS" style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 4;">
+                <VBox spacing="5" VBox.vgrow="ALWAYS"
+                      style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 4;">
                     <Label fx:id="breakdownTitleLabel" styleClass="h4"/>
                     <PieChart fx:id="deploymentBreakdownChart" animated="true" VBox.vgrow="ALWAYS"/>
                 </VBox>
 
-                <VBox spacing="5" VBox.vgrow="ALWAYS" style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 4;">
+                <VBox spacing="5" VBox.vgrow="ALWAYS"
+                      style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 4;">
                     <Label text="Intake Volume by Day" styleClass="h4"/>
                     <BarChart fx:id="weeklyIntakeChart" animated="true" VBox.vgrow="ALWAYS">
-                        <xAxis><CategoryAxis label="Date"/></xAxis>
-                        <yAxis><NumberAxis side="LEFT" label="Count"/></yAxis>
+                        <xAxis>
+                            <CategoryAxis label="Date"/>
+                        </xAxis>
+                        <yAxis>
+                            <NumberAxis side="LEFT" label="Count"/>
+                        </yAxis>
                     </BarChart>
                 </VBox>
 
-                <VBox spacing="5" VBox.vgrow="ALWAYS" style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 4;">
+                <VBox spacing="5" VBox.vgrow="ALWAYS"
+                      style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 4;">
                     <Label fx:id="topModelsTitleLabel" styleClass="h4"/>
                     <TableView fx:id="topModelsTable" prefHeight="250.0">
                         <columns>
                             <TableColumn fx:id="modelNumberCol" prefWidth="400.0" text="Model / SKU"/>
                             <TableColumn fx:id="modelCountCol" prefWidth="100.0" text="Count"/>
                         </columns>
-                        <columnResizePolicy><TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/></columnResizePolicy>
+                        <columnResizePolicy>
+                            <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
+                        </columnResizePolicy>
                     </TableView>
                 </VBox>
             </VBox>
         </ScrollPane>
 
 
-        <ScrollPane fx:id="rightScrollPane" fitToWidth="true" GridPane.columnIndex="1" VBox.vgrow="ALWAYS" style="-fx-background-color: transparent;">
+        <ScrollPane fx:id="rightScrollPane" fitToWidth="true" GridPane.columnIndex="1" VBox.vgrow="ALWAYS"
+                    style="-fx-background-color: transparent;">
             <VBox spacing="15">
-                <VBox spacing="5" style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 4;">
+                <VBox spacing="5"
+                      style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 4;">
                     <Label fx:id="healthTitleLabel" styleClass="h4"/>
                     <Separator/>
                     <GridPane hgap="15" vgap="15">
                         <columnConstraints>
-                            <ColumnConstraints percentWidth="50"/><ColumnConstraints percentWidth="50"/>
+                            <ColumnConstraints percentWidth="50"/>
+                            <ColumnConstraints percentWidth="50"/>
                         </columnConstraints>
                         <VBox alignment="CENTER" spacing="5" GridPane.columnIndex="0">
                             <Label text="Active Triage/Repair" styleClass="kpi-title"/>
                             <Label fx:id="activeTriageLabel" styleClass="kpi-metric, text-warning">
                                 <tooltip>
-                                    <Tooltip text="Counts devices with a current status of 'Intake' or 'Triage &amp; Repair'."/>
+                                    <Tooltip
+                                            text="Counts devices with a current status of 'Intake' or 'Triage &amp; Repair'."/>
                                 </tooltip>
                             </Label>
                         </VBox>
                         <VBox alignment="CENTER" spacing="5" GridPane.columnIndex="1">
                             <Label text="Avg. Turnaround (30d)" styleClass="kpi-title"/>
-                            <Label fx:id="avgTurnaroundLabel" styleClass="kpi-metric, text-info" />
+                            <Label fx:id="avgTurnaroundLabel" styleClass="kpi-metric, text-info"/>
                         </VBox>
                         <VBox alignment="CENTER" spacing="5" GridPane.columnIndex="0" GridPane.rowIndex="1">
                             <Label text="Awaiting Disposal" styleClass="kpi-title"/>
                             <Label fx:id="awaitingDisposalLabel" styleClass="kpi-metric, text-danger">
                                 <tooltip>
-                                    <Tooltip text="Counts devices with a status of 'Disposed' and a sub-status of:&#10;- Can-Am, Pending Pickup&#10;- Ingram, Pending Pickup&#10;- Ready for Wipe"/>
+                                    <Tooltip
+                                            text="Counts devices with a status of 'Disposed' and a sub-status of:&#10;- Can-Am, Pending Pickup&#10;- Ingram, Pending Pickup&#10;- Ready for Wipe"/>
                                 </tooltip>
                             </Label>
                         </VBox>
                     </GridPane>
                 </VBox>
-                <VBox spacing="5" style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 4;">
+                <VBox spacing="5"
+                      style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 4;">
                     <Label fx:id="pacingTitleLabel" styleClass="h4"/>
                     <Separator/>
                     <GridPane hgap="15" vgap="15">
@@ -157,7 +192,8 @@
                         </VBox>
                     </GridPane>
                 </VBox>
-                <VBox spacing="5" style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 4;">
+                <VBox spacing="5"
+                      style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 4;">
                     <Label text="Set Weekly Goals" styleClass="h4"/>
                     <Separator/>
                     <GridPane hgap="10" vgap="5" alignment="CENTER_LEFT">
@@ -169,14 +205,19 @@
                         <TextField fx:id="deviceGoalField" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
                         <Label text="Monitor Goal:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
                         <TextField fx:id="monitorGoalField" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
-                        <Button text="Apply Goals" onAction="#handleApplyGoals" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+                        <Button text="Apply Goals" onAction="#handleApplyGoals" GridPane.rowIndex="2"
+                                GridPane.columnIndex="1"/>
                     </GridPane>
                 </VBox>
-                <VBox spacing="5" VBox.vgrow="ALWAYS" style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 4;">
+                <VBox spacing="5" VBox.vgrow="ALWAYS"
+                      style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 4;">
                     <Label fx:id="inventoryOverviewTitleLabel" text="Asset Status Overview" styleClass="h4"/>
                     <PieChart fx:id="inventoryPieChart" animated="true" VBox.vgrow="ALWAYS"/>
                 </VBox>
             </VBox>
         </ScrollPane>
     </GridPane>
+    <HBox alignment="CENTER_LEFT" style="-fx-padding: 10 0 0 0;">
+        <Label fx:id="statusLabel" text="Status: Ready" HBox.hgrow="ALWAYS" maxWidth="Infinity"/>
+    </HBox>
 </VBox>

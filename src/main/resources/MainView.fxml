@@ -12,7 +12,7 @@
 <?import javafx.scene.shape.SVGPath?>
 <?import javafx.scene.control.ComboBox?>
 
-<BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+<BorderPane xmlns:fx="http://javafx.com/fxml/1" xmlns="http://javafx.com/javafx/21"
             fx:controller="assettracking.controller.MainViewController">
     <top>
         <HBox fx:id="titleBar" alignment="CENTER_LEFT" styleClass="title-bar" spacing="10">
@@ -23,8 +23,8 @@
             <Region HBox.hgrow="ALWAYS"/>
 
             <!-- NEW THEME SWITCHER -->
-            <Label text="Theme:" styleClass="title-bar-text" />
-            <ComboBox fx:id="themeComboBox" prefWidth="150" />
+            <Label text="Theme:" styleClass="title-bar-text"/>
+            <ComboBox fx:id="themeComboBox" prefWidth="150"/>
             <!-- END NEW -->
 
             <HBox alignment="CENTER_RIGHT">

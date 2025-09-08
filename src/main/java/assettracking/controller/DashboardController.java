@@ -6,6 +6,7 @@ import assettracking.db.DatabaseConnection;
 import assettracking.manager.DashboardDataService;
 import assettracking.manager.StageManager;
 import assettracking.manager.ConfettiManager;
+import assettracking.manager.DeviceImportService;
 import assettracking.ui.FlaggedDeviceImporter;
 import assettracking.ui.MelRulesImporter;
 import javafx.animation.ScaleTransition;
@@ -20,14 +21,13 @@ import javafx.scene.chart.BarChart;
 import javafx.scene.chart.PieChart;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.*;
-import javafx.scene.layout.ColumnConstraints;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.StackPane;
+import javafx.scene.layout.*;
+import javafx.stage.DirectoryChooser;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
-import java.util.List;
-import java.util.Map;
+import java.io.File;
+import java.util.*;
 
 public class DashboardController {
 
@@ -73,10 +73,15 @@ public class DashboardController {
     private TableColumn<TopModelStat, String> modelNumberCol;
     @FXML
     private TableColumn<TopModelStat, Integer> modelCountCol;
+    @FXML
+    private Label statusLabel;
+
     private double weeklyDeviceGoal = 100.0;
     private double weeklyMonitorGoal = 50.0;
     private ConfettiManager confettiManager;
     private boolean goalMetCelebrated = false;
+    @FXML
+    private Button importDeviceFilesButton;
 
     @FXML
     public void initialize() {
@@ -310,6 +315,54 @@ public class DashboardController {
         chart.setData(data);
     }
 
+    private Optional<List<String>> showFolderManagementDialog(List<String> initialFolders) {
+        Dialog<List<String>> dialog = new Dialog<>();
+        dialog.setTitle("Manage Import Folders");
+        dialog.setHeaderText("Add or remove folders that the application will scan for device files.");
+
+        DialogPane dialogPane = dialog.getDialogPane();
+        dialogPane.getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+
+        ListView<String> listView = new ListView<>();
+        listView.getItems().setAll(initialFolders);
+
+        Button addButton = new Button("Add Folder...");
+        Button removeButton = new Button("Remove Selected");
+        removeButton.setDisable(true);
+
+        listView.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> removeButton.setDisable(newVal == null));
+
+        addButton.setOnAction(e -> {
+            DirectoryChooser chooser = new DirectoryChooser();
+            chooser.setTitle("Select a Folder to Scan");
+            File selected = chooser.showDialog(getStage());
+            if (selected != null) {
+                listView.getItems().add(selected.getAbsolutePath());
+            }
+        });
+
+        removeButton.setOnAction(e -> {
+            String selected = listView.getSelectionModel().getSelectedItem();
+            if (selected != null) {
+                listView.getItems().remove(selected);
+            }
+        });
+
+        HBox buttonBox = new HBox(10, addButton, removeButton);
+        VBox content = new VBox(10, listView, buttonBox);
+        dialogPane.setContent(content);
+
+        // This converts the result when the OK button is clicked.
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == ButtonType.OK) {
+                return new ArrayList<>(listView.getItems());
+            }
+            return null;
+        });
+
+        return dialog.showAndWait();
+    }
+
     private void animateLabelUpdate(Label label, String newValue) {
         if (label == null || label.getText().equals(newValue)) return;
         label.setText(newValue);
@@ -322,6 +375,94 @@ public class DashboardController {
         st.setAutoReverse(true);
         st.play();
     }
+
+    @FXML
+    private void handleManageFolders() {
+        AppSettingsDAO settingsDAO = new AppSettingsDAO();
+        final String FOLDERS_KEY = "bulk.import.scan.folders";
+
+        // Get the currently saved folders
+        List<String> currentFolders = new ArrayList<>(settingsDAO.getSetting(FOLDERS_KEY)
+                .map(paths -> Arrays.asList(paths.split(",")))
+                .orElse(List.of()));
+
+        // This method will open a dialog to let the user add/remove folders
+        Optional<List<String>> updatedFoldersOpt = showFolderManagementDialog(currentFolders);
+
+        // If the user confirmed changes, save them
+        updatedFoldersOpt.ifPresent(updatedFolders -> {
+            String pathsToSave = String.join(",", updatedFolders);
+            settingsDAO.saveSetting(FOLDERS_KEY, pathsToSave);
+            StageManager.showAlert(getStage(), Alert.AlertType.INFORMATION, "Settings Saved",
+                    "Your import folder list has been updated.");
+        });
+    }
+
+
+    @FXML
+    private void handleImportDeviceFiles() {
+        AppSettingsDAO settingsDAO = new AppSettingsDAO();
+        final String FOLDERS_KEY = "bulk.import.scan.folders";
+
+        List<String> foldersToScan;
+        Optional<String> savedPathsOpt = settingsDAO.getSetting(FOLDERS_KEY);
+
+        if (savedPathsOpt.isPresent() && !savedPathsOpt.get().isBlank()) {
+            foldersToScan = new ArrayList<>(Arrays.asList(savedPathsOpt.get().split(",")));
+        } else {
+            // --- ONE-TIME SETUP WITH LOOPING DIALOG ---
+            StageManager.showAlert(getStage(), Alert.AlertType.INFORMATION, "Initial Folder Setup",
+                    "Please select the folder(s) where your device files are stored.\nYou can add multiple folders.");
+
+            Optional<List<String>> chosenFoldersOpt = showFolderManagementDialog(new ArrayList<>());
+
+            if (chosenFoldersOpt.isPresent() && !chosenFoldersOpt.get().isEmpty()) {
+                foldersToScan = chosenFoldersOpt.get();
+                String pathsToSave = String.join(",", foldersToScan);
+                settingsDAO.saveSetting(FOLDERS_KEY, pathsToSave);
+                StageManager.showAlert(getStage(), Alert.AlertType.INFORMATION, "Settings Saved",
+                        "Your folder paths have been saved. The import will now begin.");
+            } else {
+                statusLabel.setText("Folder setup cancelled. Import aborted.");
+                return; // User cancelled or selected no folders
+            }
+        }
+
+        // --- The rest of the import logic is unchanged ---
+        DeviceImportService importService = new DeviceImportService();
+
+        Task<String> importTask = new Task<>() {
+            @Override
+            protected String call() throws Exception {
+                return importService.runFolderImport(foldersToScan, this::updateMessage);
+            }
+        };
+
+        importTask.messageProperty().addListener((obs, oldMsg, newMsg) -> statusLabel.setText(newMsg));
+
+        importTask.setOnRunning(e -> {
+            importDeviceFilesButton.setDisable(true);
+            statusLabel.setText("Starting import...");
+        });
+
+        importTask.setOnSucceeded(e -> {
+            importDeviceFilesButton.setDisable(false);
+            StageManager.showAlert(getStage(), Alert.AlertType.INFORMATION, "Import Complete", importTask.getValue());
+            statusLabel.setText("Import finished successfully.");
+            refreshAllData();
+        });
+
+        importTask.setOnFailed(e -> {
+            importDeviceFilesButton.setDisable(false);
+            Throwable ex = importTask.getException();
+            statusLabel.setText("Import failed. See error dialog.");
+            StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Import Failed", "An error occurred: " + ex.getMessage());
+            ex.printStackTrace();
+        });
+
+        new Thread(importTask).start();
+    }
+
 
     @FXML
     private void handleImportFlags() {
@@ -350,6 +491,7 @@ public class DashboardController {
         goalMetCelebrated = false;
         refreshAllData();
     }
+
 
     private Stage getStage() {
         return (Stage) mainGridPane.getScene().getWindow();

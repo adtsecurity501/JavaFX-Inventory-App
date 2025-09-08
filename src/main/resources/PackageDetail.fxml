@@ -4,7 +4,8 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="assettracking.controller.PackageDetailController" prefWidth="900.0" prefHeight="700.0">
+<BorderPane xmlns:fx="http://javafx.com/fxml/1" xmlns="http://javafx.com/javafx/21"
+            fx:controller="assettracking.controller.PackageDetailController" prefWidth="900.0" prefHeight="700.0">
     <top>
         <VBox style="-fx-padding: 10;">
             <Label styleClass="h3" text="Package Details"/>
@@ -15,11 +16,14 @@
                     <ColumnConstraints hgrow="ALWAYS"/>
                 </columnConstraints>
                 <Label text="Tracking Number:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
-                <Label fx:id="trackingNumberLabel" style="-fx-font-weight: bold;" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+                <Label fx:id="trackingNumberLabel" style="-fx-font-weight: bold;" GridPane.rowIndex="0"
+                       GridPane.columnIndex="1"/>
                 <Label text="Sender:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
-                <Label fx:id="senderNameLabel" style="-fx-font-weight: bold;" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+                <Label fx:id="senderNameLabel" style="-fx-font-weight: bold;" GridPane.rowIndex="1"
+                       GridPane.columnIndex="1"/>
                 <Label text="Origin:" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
-                <Label fx:id="senderLocationLabel" style="-fx-font-weight: bold;" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+                <Label fx:id="senderLocationLabel" style="-fx-font-weight: bold;" GridPane.rowIndex="2"
+                       GridPane.columnIndex="1"/>
             </GridPane>
         </VBox>
     </top>
@@ -32,7 +36,9 @@
                     <TableColumn fx:id="assetStatusCol" prefWidth="120.0" text="Status"/>
                     <TableColumn fx:id="assetSubStatusCol" prefWidth="180.0" text="Sub Status"/>
                 </columns>
-                <placeholder><Label text="No devices received in this package."/></placeholder>
+                <placeholder>
+                    <Label text="No devices received in this package."/>
+                </placeholder>
             </TableView>
         </TitledPane>
     </center>

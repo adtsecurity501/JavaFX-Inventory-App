@@ -16,18 +16,20 @@
 <?import javafx.scene.layout.FlowPane?>
 <?import javafx.scene.layout.Region?>
 
-<VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+<VBox xmlns:fx="http://javafx.com/fxml/1" xmlns="http://javafx.com/javafx/21"
       fx:controller="assettracking.controller.DeviceStatusTrackingController"
       spacing="10" fillWidth="true">
     <padding>
-        <Insets top="10" left="10" right="10" bottom="10" />
+        <Insets top="10" left="10" right="10" bottom="10"/>
     </padding>
 
     <!-- Filter and Action Buttons (No changes here) -->
     <VBox spacing="10" VBox.vgrow="NEVER">
-        <FlowPane hgap="10" vgap="10" style="-fx-padding: 10; -fx-background-color: -color-bg-subtle; -fx-background-radius: 4;">
+        <FlowPane hgap="10" vgap="10"
+                  style="-fx-padding: 10; -fx-background-color: -color-bg-subtle; -fx-background-radius: 4;">
             <Label text="Search Serial:"/>
-            <TextField fx:id="serialSearchField" onAction="#onSearchAction" promptText="Enter serial..." HBox.hgrow="ALWAYS"/>
+            <TextField fx:id="serialSearchField" onAction="#onSearchAction" promptText="Enter serial..."
+                       HBox.hgrow="ALWAYS"/>
             <Label text="Status:"/>
             <ComboBox fx:id="statusFilterCombo" prefWidth="150.0"/>
             <Label text="Sub-Status:"/>
@@ -46,43 +48,48 @@
                     <ComboBox fx:id="rowsPerPageCombo" prefWidth="80"/>
                 </children>
             </HBox>
-            <Button onAction="#onClearFiltersAction" text="Clear Filters" />
+            <Button onAction="#onClearFiltersAction" text="Clear Filters"/>
             <Button onAction="#onRefreshAction" text="Refresh" styleClass="success"/>
         </FlowPane>
         <HBox alignment="CENTER_LEFT" spacing="10">
             <padding>
-                <Insets top="5" bottom="5" />
+                <Insets top="5" bottom="5"/>
             </padding>
-            <Button onAction="#onScanUpdateAction" text="Scan Update..." />
-            <Button onAction="#onViewHistoryAction" text="View History" />
-            <Button onAction="#handleExportToCSV" text="Export to CSV..." />
+            <Button onAction="#onScanUpdateAction" text="Scan Update..."/>
+            <Button onAction="#onViewHistoryAction" text="View History"/>
+            <Button onAction="#handleExportToCSV" text="Export to CSV..."/>
             <Button onAction="#handleManageFlags" text="Manage Flags..." styleClass="accent"/>
         </HBox>
     </VBox>
 
     <!-- UPDATE PANEL (MODIFIED) -->
-    <VBox fx:id="updateDetailsPanel" spacing="8" style="-fx-padding: 10; -fx-background-color: -color-bg-subtle; -fx-background-radius: 4;" managed="false" visible="false">
-            <GridPane hgap="10" vgap="8">
-                <columnConstraints>
-                    <ColumnConstraints hgrow="NEVER"/>
-                    <ColumnConstraints hgrow="ALWAYS"/>
-                    <ColumnConstraints hgrow="NEVER"/>
-                    <ColumnConstraints hgrow="ALWAYS"/>
-                    <ColumnConstraints hgrow="NEVER"/>
-                </columnConstraints>
-                <Label text="Selected Serial:" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
-                <TextField fx:id="serialDisplayField" editable="false" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
-                <Label text="New Status:" GridPane.columnIndex="2" GridPane.rowIndex="0"/>
-                <ComboBox fx:id="statusUpdateCombo" prefWidth="200.0" GridPane.columnIndex="3" GridPane.rowIndex="0"/>
-                <Label text="New Sub-Status:" GridPane.columnIndex="2" GridPane.rowIndex="1"/>
-                <ComboBox fx:id="subStatusUpdateCombo" prefWidth="200.0" GridPane.columnIndex="3" GridPane.rowIndex="1"/>
+    <VBox fx:id="updateDetailsPanel" spacing="8"
+          style="-fx-padding: 10; -fx-background-color: -color-bg-subtle; -fx-background-radius: 4;" managed="false"
+          visible="false">
+        <GridPane hgap="10" vgap="8">
+            <columnConstraints>
+                <ColumnConstraints hgrow="NEVER"/>
+                <ColumnConstraints hgrow="ALWAYS"/>
+                <ColumnConstraints hgrow="NEVER"/>
+                <ColumnConstraints hgrow="ALWAYS"/>
+                <ColumnConstraints hgrow="NEVER"/>
+            </columnConstraints>
+            <Label text="Selected Serial:" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+            <TextField fx:id="serialDisplayField" editable="false" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+            <Label text="New Status:" GridPane.columnIndex="2" GridPane.rowIndex="0"/>
+            <ComboBox fx:id="statusUpdateCombo" prefWidth="200.0" GridPane.columnIndex="3" GridPane.rowIndex="0"/>
+            <Label text="New Sub-Status:" GridPane.columnIndex="2" GridPane.rowIndex="1"/>
+            <ComboBox fx:id="subStatusUpdateCombo" prefWidth="200.0" GridPane.columnIndex="3" GridPane.rowIndex="1"/>
 
-                <!-- NEW FIELDS FOR BOX ID -->
-                <Label fx:id="boxIdLabel" text="Box ID:" GridPane.columnIndex="2" GridPane.rowIndex="2" visible="false" managed="false"/>
-                <TextField fx:id="boxIdField" promptText="Box ID is required" GridPane.columnIndex="3" GridPane.rowIndex="2" visible="false" managed="false"/>
-                <Button onAction="#onUpdateDeviceAction" text="Update Selected" styleClass="success" GridPane.columnIndex="4" GridPane.rowIndex="0" GridPane.rowSpan="3"/>
-            </GridPane>
-            <Label fx:id="flagReasonLabel" styleClass="error-label" wrapText="true" maxWidth="Infinity"/>
+            <!-- NEW FIELDS FOR BOX ID -->
+            <Label fx:id="boxIdLabel" text="Box ID:" GridPane.columnIndex="2" GridPane.rowIndex="2" visible="false"
+                   managed="false"/>
+            <TextField fx:id="boxIdField" promptText="Box ID is required" GridPane.columnIndex="3" GridPane.rowIndex="2"
+                       visible="false" managed="false"/>
+            <Button onAction="#onUpdateDeviceAction" text="Update Selected" styleClass="success"
+                    GridPane.columnIndex="4" GridPane.rowIndex="0" GridPane.rowSpan="3"/>
+        </GridPane>
+        <Label fx:id="flagReasonLabel" styleClass="error-label" wrapText="true" maxWidth="Infinity"/>
     </VBox>
 
     <!-- Table and Pagination (No changes here) -->
@@ -98,5 +105,5 @@
             <TableColumn fx:id="notesCol" prefWidth="200.0" text="Notes"/>
         </columns>
     </TableView>
-    <Pagination fx:id="pagination" VBox.vgrow="NEVER" />
+    <Pagination fx:id="pagination" VBox.vgrow="NEVER"/>
 </VBox>

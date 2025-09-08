@@ -33,21 +33,21 @@ public class AppSettingsDAO {
     }
 
     /**
-     * Saves or updates a setting in the database.
+     * Saves or updates a setting in the database using H2's MERGE command.
      *
      * @param key   The name of the setting (e.g., "device_goal").
      * @param value The value to save.
      */
     public void saveSetting(String key, String value) {
-        // This is the standard "UPSERT" syntax for PostgreSQL
-        String sql = "INSERT INTO AppSettings (setting_key, setting_value) VALUES (?, ?) " +
-                "ON CONFLICT (setting_key) DO UPDATE SET setting_value = EXCLUDED.setting_value";
+        // This is the correct "UPSERT" syntax for an H2 database.
+        String sql = "MERGE INTO AppSettings (setting_key, setting_value) KEY(setting_key) VALUES (?, ?)";
         try (Connection conn = DatabaseConnection.getInventoryConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, key);
             stmt.setString(2, value);
             stmt.executeUpdate();
         } catch (SQLException e) {
+            System.err.println("Failed to save setting: " + key);
             e.printStackTrace();
         }
     }
