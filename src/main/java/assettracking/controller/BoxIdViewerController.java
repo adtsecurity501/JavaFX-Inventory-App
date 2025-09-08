@@ -382,6 +382,78 @@ public class BoxIdViewerController {
         };
     }
 
+    @FXML
+    private void handleMoveItems() {
+        List<BoxIdDetail> selectedItems = detailTable.getSelectionModel().getSelectedItems();
+        if (selectedItems.isEmpty()) {
+            StageManager.showAlert(getOwnerWindow(), Alert.AlertType.WARNING, "No Selection", "Please select one or more items to move.");
+            return;
+        }
+
+        BoxIdSummary currentBox = summaryTable.getSelectionModel().getSelectedItem();
+        if (currentBox == null) return; // Should not happen, but a good safeguard
+
+        // Ask the user for the destination box ID
+        Optional<String> result = StageManager.showTextInputDialog(
+                getOwnerWindow(),
+                "Move Items",
+                "Moving " + selectedItems.size() + " item(s) from Box ID: " + currentBox.boxId(),
+                "Enter the destination Box ID:",
+                ""
+        );
+
+        result.ifPresent(newBoxIdRaw -> {
+            String newBoxId = newBoxIdRaw.trim();
+            if (newBoxId.isEmpty() || newBoxId.equalsIgnoreCase(currentBox.boxId())) {
+                return; // Do nothing if the new box is empty or the same as the old one
+            }
+
+            List<String> serialsToMove = selectedItems.stream().map(BoxIdDetail::serialNumber).collect(Collectors.toList());
+            Task<Integer> moveTask = createMoveItemsTask(serialsToMove, newBoxId);
+
+            moveTask.setOnSucceeded(e -> {
+                int updatedCount = moveTask.getValue();
+                statusLabel.getStyleClass().setAll("status-label-success");
+                statusLabel.setText(String.format("Moved %d item(s) to Box ID '%s'.", updatedCount, newBoxId));
+                refreshAllData(); // Refresh the entire view to show updated counts
+            });
+            moveTask.setOnFailed(e -> StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Move Failed", "A database error occurred while moving the items."));
+            new Thread(moveTask).start();
+        });
+    }
+
+    // Add this new helper method to create the background task
+    private Task<Integer> createMoveItemsTask(List<String> serials, String newBoxId) {
+        return new Task<>() {
+            @Override
+            protected Integer call() throws Exception {
+                String placeholders = String.join(",", Collections.nCopies(serials.size(), "?"));
+
+                // This SQL is designed to only update the MOST RECENT status record for each serial number
+                String sql = String.format("""
+                UPDATE Device_Status SET box_id = ?
+                WHERE receipt_id IN (
+                    SELECT MAX(re.receipt_id)
+                    FROM Receipt_Events re
+                    WHERE re.serial_number IN (%s)
+                    GROUP BY re.serial_number
+                )
+            """, placeholders);
+
+                try (Connection conn = DatabaseConnection.getInventoryConnection();
+                     PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+                    stmt.setString(1, newBoxId);
+                    int i = 2; // Parameter index starts at 2
+                    for (String serial : serials) {
+                        stmt.setString(i++, serial);
+                    }
+                    return stmt.executeUpdate();
+                }
+            }
+        };
+    }
+
     private Task<Void> createRemoveItemsTask(List<String> serials) {
         return new Task<>() {
             @Override

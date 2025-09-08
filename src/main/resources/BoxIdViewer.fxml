@@ -37,6 +37,9 @@
                     <contextMenu>
                         <ContextMenu>
                             <items>
+                                <!-- ADD THE NEW MENU ITEM HERE -->
+                                <MenuItem text="Move Selected Item(s) to another Box..." onAction="#handleMoveItems"/>
+                                <SeparatorMenuItem />
                                 <MenuItem text="Remove Selected Item(s) from Box" onAction="#handleRemoveItems"/>
                             </items>
                         </ContextMenu>
