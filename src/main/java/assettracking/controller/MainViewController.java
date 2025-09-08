@@ -15,11 +15,16 @@ import javafx.util.Callback;
 
 public class MainViewController {
 
-    @FXML private HBox titleBar;
-    @FXML private Button minimizeButton;
-    @FXML private Button maximizeButton;
-    @FXML private Button closeButton;
-    @FXML private ComboBox<Theme> themeComboBox;
+    @FXML
+    private HBox titleBar;
+    @FXML
+    private Button minimizeButton;
+    @FXML
+    private Button maximizeButton;
+    @FXML
+    private Button closeButton;
+    @FXML
+    private ComboBox<Theme> themeComboBox;
 
     private double xOffset = 0;
     private double yOffset = 0;

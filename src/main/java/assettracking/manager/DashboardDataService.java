@@ -21,21 +21,21 @@ public class DashboardDataService {
     public Map<String, Integer> getGranularMetrics(String intakeDateClause, String statusDateClause) throws SQLException {
         Map<String, Integer> metrics = new HashMap<>();
         String sql = String.format("""
-            SELECT
-                re.category,
-                SUM(CASE WHEN %s THEN 1 ELSE 0 END) as IntakenCount,
-                SUM(CASE WHEN ds.status = 'Processed' AND %s THEN 1 ELSE 0 END) as ProcessedCount,
-                SUM(CASE WHEN ds.status = 'Disposed' AND %s THEN 1 ELSE 0 END) as DisposedCount
-            FROM Receipt_Events re
-            LEFT JOIN Packages p ON re.package_id = p.package_id
-            LEFT JOIN Device_Status ds ON re.receipt_id = ds.receipt_id
-            WHERE
-                re.category LIKE '%%%%Laptop%%%%' OR
-                re.category LIKE '%%%%Tablet%%%%' OR
-                re.category LIKE '%%%%Desktop%%%%' OR
-                re.category LIKE '%%%%Monitor%%%%'
-            GROUP BY re.category
-        """, intakeDateClause, statusDateClause, statusDateClause);
+                    SELECT
+                        re.category,
+                        SUM(CASE WHEN %s THEN 1 ELSE 0 END) as IntakenCount,
+                        SUM(CASE WHEN ds.status = 'Processed' AND %s THEN 1 ELSE 0 END) as ProcessedCount,
+                        SUM(CASE WHEN ds.status = 'Disposed' AND %s THEN 1 ELSE 0 END) as DisposedCount
+                    FROM Receipt_Events re
+                    LEFT JOIN Packages p ON re.package_id = p.package_id
+                    LEFT JOIN Device_Status ds ON re.receipt_id = ds.receipt_id
+                    WHERE
+                        re.category LIKE '%%%%Laptop%%%%' OR
+                        re.category LIKE '%%%%Tablet%%%%' OR
+                        re.category LIKE '%%%%Desktop%%%%' OR
+                        re.category LIKE '%%%%Monitor%%%%'
+                    GROUP BY re.category
+                """, intakeDateClause, statusDateClause, statusDateClause);
 
         try (Connection conn = DatabaseConnection.getInventoryConnection();
              PreparedStatement stmt = conn.prepareStatement(sql);
@@ -68,13 +68,13 @@ public class DashboardDataService {
     public List<TopModelStat> getTopModels(String dateFilterClause) throws SQLException {
         List<TopModelStat> results = new ArrayList<>();
         String sql = String.format("""
-            SELECT re.model_number, COUNT(re.receipt_id) as model_count
-            FROM Device_Status ds JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id
-            WHERE ds.status = 'Processed' AND %s
-            GROUP BY re.model_number
-            HAVING re.model_number IS NOT NULL AND re.model_number != ''
-            ORDER BY model_count DESC LIMIT 10
-        """, dateFilterClause);
+                    SELECT re.model_number, COUNT(re.receipt_id) as model_count
+                    FROM Device_Status ds JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id
+                    WHERE ds.status = 'Processed' AND %s
+                    GROUP BY re.model_number
+                    HAVING re.model_number IS NOT NULL AND re.model_number != ''
+                    ORDER BY model_count DESC LIMIT 10
+                """, dateFilterClause);
 
         try (Connection conn = DatabaseConnection.getInventoryConnection();
              PreparedStatement stmt = conn.prepareStatement(sql);

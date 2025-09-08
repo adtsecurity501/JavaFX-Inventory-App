@@ -17,25 +17,26 @@ import java.util.stream.Collectors;
 
 public class FlagManagementDialogController {
 
-    // A simple record to represent a row in our table
-    public record FlaggedDevice(SimpleStringProperty serialNumber, SimpleStringProperty reason) {
-        public String getSerialNumber() { return serialNumber.get(); }
-        public String getReason() { return reason.get(); }
-        public void setReason(String value) { reason.set(value); }
-    }
-
-    @FXML private TextField searchField;
-    @FXML private TableView<FlaggedDevice> flagsTable;
-    @FXML private TableColumn<FlaggedDevice, String> serialCol;
-    @FXML private TableColumn<FlaggedDevice, String> reasonCol;
-    @FXML private TextField serialField;
-    @FXML private TextField reasonField;
-    @FXML private Button saveButton;
-    @FXML private Button removeButton;
-    @FXML private Button closeButton;
-
     private final FlaggedDeviceDAO flaggedDeviceDAO = new FlaggedDeviceDAO();
     private final ObservableList<FlaggedDevice> flaggedDeviceList = FXCollections.observableArrayList();
+    @FXML
+    private TextField searchField;
+    @FXML
+    private TableView<FlaggedDevice> flagsTable;
+    @FXML
+    private TableColumn<FlaggedDevice, String> serialCol;
+    @FXML
+    private TableColumn<FlaggedDevice, String> reasonCol;
+    @FXML
+    private TextField serialField;
+    @FXML
+    private TextField reasonField;
+    @FXML
+    private Button saveButton;
+    @FXML
+    private Button removeButton;
+    @FXML
+    private Button closeButton;
     private Runnable onSaveCallback;
 
     @FXML
@@ -131,5 +132,20 @@ public class FlagManagementDialogController {
 
     private void closeStage() {
         getStage().close();
+    }
+
+    // A simple record to represent a row in our table
+    public record FlaggedDevice(SimpleStringProperty serialNumber, SimpleStringProperty reason) {
+        public String getSerialNumber() {
+            return serialNumber.get();
+        }
+
+        public String getReason() {
+            return reason.get();
+        }
+
+        public void setReason(String value) {
+            reason.set(value);
+        }
     }
 }

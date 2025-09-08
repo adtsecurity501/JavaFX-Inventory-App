@@ -16,6 +16,10 @@ import java.util.Map;
 
 public class MainApp extends Application {
 
+    public static void main(String[] args) {
+        launch(args);
+    }
+
     @Override
     public void start(Stage primaryStage) throws IOException {
         primaryStage.setOnCloseRequest(event -> {
@@ -44,9 +48,5 @@ public class MainApp extends Application {
         primaryStage.setTitle("Inventory and Package Management System");
         primaryStage.setScene(scene);
         primaryStage.show();
-    }
-
-    public static void main(String[] args) {
-        launch(args);
     }
 }

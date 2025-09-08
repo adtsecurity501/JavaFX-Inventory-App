@@ -1,4 +1,5 @@
 package assettracking.manager;
+
 import assettracking.controller.DeviceStatusTrackingController;
 import assettracking.dao.DeviceStatusDAO;
 import assettracking.data.DeviceStatusView;
@@ -12,8 +13,8 @@ import javafx.scene.control.Label;
 public class DeviceStatusManager {
     private final DeviceStatusTrackingController controller;
     private final ObservableList<DeviceStatusView> deviceStatusList = FXCollections.observableArrayList();
-    private int rowsPerPage = 200;
     private final DeviceStatusDAO deviceStatusDAO;
+    private int rowsPerPage = 200;
 
     public DeviceStatusManager(DeviceStatusTrackingController controller) {
         this.controller = controller;

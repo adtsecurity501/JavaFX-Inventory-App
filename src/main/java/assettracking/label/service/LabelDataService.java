@@ -2,6 +2,7 @@
 package assettracking.label.service;
 
 import assettracking.db.DatabaseConnection;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -16,16 +17,16 @@ public class LabelDataService {
     public Optional<Map<String, String>> getLabelDataBySerial(String serialNumber) {
         // This query joins the tables to get SKU (model_number), description, serial, and IMEI.
         String sql = """
-            SELECT
-                re.model_number,
-                re.description,
-                re.serial_number,
-                re.IMEI
-            FROM Receipt_Events re
-            WHERE re.serial_number = ?
-            ORDER BY re.receipt_id DESC
-            LIMIT 1
-        """;
+                    SELECT
+                        re.model_number,
+                        re.description,
+                        re.serial_number,
+                        re.IMEI
+                    FROM Receipt_Events re
+                    WHERE re.serial_number = ?
+                    ORDER BY re.receipt_id DESC
+                    LIMIT 1
+                """;
 
         try (Connection conn = DatabaseConnection.getInventoryConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {

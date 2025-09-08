@@ -18,7 +18,7 @@ public class FlaggedDeviceDAO {
      * If not, it inserts a new record.
      *
      * @param serialNumber The device's serial number.
-     * @param reason The reason for the flag.
+     * @param reason       The reason for the flag.
      * @return true if the operation was successful, false otherwise.
      */
     public boolean flagDevice(String serialNumber, String reason) {
@@ -42,6 +42,7 @@ public class FlaggedDeviceDAO {
 
     /**
      * Retrieves all flagged devices from the database.
+     *
      * @return A list of pairs, where each pair contains a serial number and its flag reason.
      */
     public List<AbstractMap.SimpleEntry<String, String>> getAllFlags() {
@@ -62,6 +63,7 @@ public class FlaggedDeviceDAO {
 
     /**
      * Removes a flag for a specific device.
+     *
      * @param serialNumber The serial number of the device to un-flag.
      * @return true if the operation was successful, false otherwise.
      */

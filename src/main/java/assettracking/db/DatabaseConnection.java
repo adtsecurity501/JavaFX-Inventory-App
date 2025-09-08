@@ -10,11 +10,10 @@ import java.util.concurrent.ExecutionException;
 
 public class DatabaseConnection {
 
+    private static final CompletableFuture<Void> initializationFuture = new CompletableFuture<>();
+    // --- END MODIFICATION ---
     // --- MODIFICATION 1: Make the data source accessible ---
     private static volatile HikariDataSource dataSource;
-    // --- END MODIFICATION ---
-
-    private static final CompletableFuture<Void> initializationFuture = new CompletableFuture<>();
 
     static {
         initializePoolInBackground();
@@ -62,6 +61,7 @@ public class DatabaseConnection {
     }
 
     // --- NEW METHOD ---
+
     /**
      * Gracefully evicts all idle connections from the pool.
      * The next time a connection is requested, the pool will have to create a new, fresh one.
@@ -73,6 +73,7 @@ public class DatabaseConnection {
             System.out.println("Connection pool refreshed.");
         }
     }
+
     /**
      * Closes the connection pool. This should be called on application shutdown.
      */

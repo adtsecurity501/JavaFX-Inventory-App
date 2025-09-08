@@ -24,6 +24,9 @@ import java.util.List;
 
 public class PackageManagementController {
 
+    // --- DAO and UI State ---
+    private final PackageDAO packageDAO = new PackageDAO();
+    private final ObservableList<Package> packageList = FXCollections.observableArrayList();
     // --- FXML Fields ---
     @FXML
     private Pagination pagination;
@@ -51,10 +54,6 @@ public class PackageManagementController {
     private TableColumn<Package, String> stateCol;
     @FXML
     private TableColumn<Package, String> zipCodeCol;
-
-    // --- DAO and UI State ---
-    private final PackageDAO packageDAO = new PackageDAO();
-    private final ObservableList<Package> packageList = FXCollections.observableArrayList();
     private int rowsPerPage = 200;
     private final ChangeListener<Object> filterChangeListener = (obs, oldVal, newVal) -> resetPagination();
 

@@ -27,29 +27,52 @@ public class LabelPrintingController {
     private final ZplPrinterService printerService = new ZplPrinterService();
 
     // --- FXML Components ---
-    @FXML private ComboBox<String> printerNameField, assetPrinterNameField;
-    @FXML private Label statusLabel;
-    @FXML private ToggleGroup menuGroup;
-    @FXML private StackPane mainStackPane;
-    @FXML private Pane welcomePane;
-    @FXML private ToggleButton menuDeployDevice, menuPrintSingle, menuPrintMultiple, menuPrintSerial, menuPrintAssetTag, menuPrintBarcode, menuImageLabels;
-    @FXML private ScrollPane deployDevicePane, printSinglePane, printMultiplePane, printSerialPane, printAssetTagPane, printBarcodePane, imageLabelsPane;
-    @FXML private TextField deploySkuSearchField, deploySkuField, deployDescriptionField, deploySerialField;
-    @FXML private ListView<String> deploySkuListView;
-    @FXML private TextField singleSkuSearchField, singleSkuField;
-    @FXML private ListView<String> singleSkuListView;
-    @FXML private TextField multiSkuSearchField, multiSkuField, multiCopiesField;
-    @FXML private ListView<String> multiSkuListView;
-    @FXML private TextField serialSkuSearchField, serialSkuField, serialSerialField;
-    @FXML private ListView<String> serialSkuListView;
-    @FXML private ToggleGroup assetTagTypeGroup;
-    @FXML private RadioButton assetTagStandardRadio;
-    @FXML private VBox assetStandardPane;
-    @FXML private TextField assetSerialField, assetImeiField;
-    @FXML private CheckBox assetImeiCheckbox;
-    @FXML private TextField genericBarcodeField;
-    @FXML private TextField imageSkuField, imageDeviceSkuField, imagePrefixField, imageCopiesField;
-    @FXML private RadioButton barcodeFullRadio, barcode14Radio, barcode20Radio;
+    @FXML
+    private ComboBox<String> printerNameField, assetPrinterNameField;
+    @FXML
+    private Label statusLabel;
+    @FXML
+    private ToggleGroup menuGroup;
+    @FXML
+    private StackPane mainStackPane;
+    @FXML
+    private Pane welcomePane;
+    @FXML
+    private ToggleButton menuDeployDevice, menuPrintSingle, menuPrintMultiple, menuPrintSerial, menuPrintAssetTag, menuPrintBarcode, menuImageLabels;
+    @FXML
+    private ScrollPane deployDevicePane, printSinglePane, printMultiplePane, printSerialPane, printAssetTagPane, printBarcodePane, imageLabelsPane;
+    @FXML
+    private TextField deploySkuSearchField, deploySkuField, deployDescriptionField, deploySerialField;
+    @FXML
+    private ListView<String> deploySkuListView;
+    @FXML
+    private TextField singleSkuSearchField, singleSkuField;
+    @FXML
+    private ListView<String> singleSkuListView;
+    @FXML
+    private TextField multiSkuSearchField, multiSkuField, multiCopiesField;
+    @FXML
+    private ListView<String> multiSkuListView;
+    @FXML
+    private TextField serialSkuSearchField, serialSkuField, serialSerialField;
+    @FXML
+    private ListView<String> serialSkuListView;
+    @FXML
+    private ToggleGroup assetTagTypeGroup;
+    @FXML
+    private RadioButton assetTagStandardRadio;
+    @FXML
+    private VBox assetStandardPane;
+    @FXML
+    private TextField assetSerialField, assetImeiField;
+    @FXML
+    private CheckBox assetImeiCheckbox;
+    @FXML
+    private TextField genericBarcodeField;
+    @FXML
+    private TextField imageSkuField, imageDeviceSkuField, imagePrefixField, imageCopiesField;
+    @FXML
+    private RadioButton barcodeFullRadio, barcode14Radio, barcode20Radio;
 
     // --- NEW: References to popups ---
     private AutoCompletePopup imageSkuPopup;
@@ -123,6 +146,7 @@ public class LabelPrintingController {
         setupSearchableSkuField(multiSkuSearchField, multiSkuListView, multiSkuField, null, multiCopiesField);
         setupSearchableSkuField(serialSkuSearchField, serialSkuListView, serialSkuField, null, serialSerialField);
     }
+
     private void setupSearchableSkuField(TextField searchField, ListView<String> listView, TextField targetSkuField, TextField targetDescriptionField, Control nextFocusTarget) {
         searchField.textProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal == null || newVal.trim().isEmpty()) {
@@ -151,7 +175,9 @@ public class LabelPrintingController {
             }
         });
     }
-    @FXML private void handlePrintGenericBarcode() {
+
+    @FXML
+    private void handlePrintGenericBarcode() {
         String fullBarcode = genericBarcodeField.getText().trim();
         if (fullBarcode.isEmpty()) return;
         String barcodeToPrint;
@@ -170,12 +196,14 @@ public class LabelPrintingController {
             updateStatus("Failed to send barcode to printer.", true);
         }
     }
+
     private void updateStatus(String message, boolean isError) {
         Platform.runLater(() -> {
             statusLabel.setText("Status: " + message);
             statusLabel.setStyle(isError ? "-fx-text-fill: red;" : "-fx-text-fill: green;");
         });
     }
+
     private void showAlert(Alert.AlertType type, String title, String content) {
         Alert alert = new Alert(type);
         alert.setTitle(title);
@@ -183,7 +211,9 @@ public class LabelPrintingController {
         alert.setContentText(content);
         alert.showAndWait();
     }
-    @FXML private void handleDeploySerialScan() {
+
+    @FXML
+    private void handleDeploySerialScan() {
         String sku = deploySkuField.getText().trim();
         String serial = deploySerialField.getText().trim();
         if (sku.isEmpty()) {
@@ -207,7 +237,9 @@ public class LabelPrintingController {
             updateStatus("Print failed for S/N: " + serial, true);
         }
     }
-    @FXML private void handlePrintSingle() {
+
+    @FXML
+    private void handlePrintSingle() {
         String sku = singleSkuField.getText().trim();
         if (sku.isEmpty()) {
             showAlert(Alert.AlertType.WARNING, "Input Missing", "Please search and select a SKU to print.");
@@ -222,9 +254,11 @@ public class LabelPrintingController {
             updateStatus("Failed to print label for SKU: " + sku, true);
         }
     }
-    @FXML private void handlePrintMultiple() {
+
+    @FXML
+    private void handlePrintMultiple() {
         String sku = multiSkuField.getText().trim();
-        if (sku.isEmpty()){
+        if (sku.isEmpty()) {
             showAlert(Alert.AlertType.WARNING, "Input Missing", "Please select a SKU.");
             return;
         }
@@ -245,10 +279,12 @@ public class LabelPrintingController {
         }
         updateStatus("Printed " + successCount + " of " + copies + " labels for SKU: " + sku, successCount != copies);
     }
-    @FXML private void handlePrintSerial() {
+
+    @FXML
+    private void handlePrintSerial() {
         String sku = serialSkuField.getText().trim();
         String serial = serialSerialField.getText().trim();
-        if (sku.isEmpty() || serial.isEmpty()){
+        if (sku.isEmpty() || serial.isEmpty()) {
             showAlert(Alert.AlertType.WARNING, "Input Missing", "Please select a SKU and scan a serial.");
             return;
         }
@@ -261,7 +297,9 @@ public class LabelPrintingController {
             updateStatus("Failed to print serial label.", true);
         }
     }
-    @FXML private void handlePrintAssetTag() {
+
+    @FXML
+    private void handlePrintAssetTag() {
         String serial;
         String imei = null;
         if (assetTagStandardRadio.isSelected()) {
@@ -286,7 +324,9 @@ public class LabelPrintingController {
             updateStatus("Failed to print asset tag.", true);
         }
     }
-    @FXML private void handlePrintImageLabels() {
+
+    @FXML
+    private void handlePrintImageLabels() {
         String imageSku = imageSkuField.getText().trim();
         String deviceSku = imageDeviceSkuField.getText().trim();
         if (imageSku.isEmpty() || deviceSku.isEmpty()) {
@@ -308,6 +348,7 @@ public class LabelPrintingController {
         }
         updateStatus("Printed " + successCount + " of " + copies + " image labels.", successCount != copies);
     }
+
     private void populatePrinterComboBoxes() {
         List<String> printerNames = new ArrayList<>();
         for (PrintService printService : PrintServiceLookup.lookupPrintServices(null, null)) {

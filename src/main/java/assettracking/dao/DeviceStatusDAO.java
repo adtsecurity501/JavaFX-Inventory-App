@@ -116,13 +116,18 @@ public class DeviceStatusDAO {
         } catch (SQLException e) {
             StageManager.showAlert(null, Alert.AlertType.ERROR, "Update Failed", "Failed to update device statuses in the database: " + e.getMessage());
             if (conn != null) {
-                try { conn.rollback(); } catch (SQLException ex) {
+                try {
+                    conn.rollback();
+                } catch (SQLException ex) {
                     StageManager.showAlert(null, Alert.AlertType.ERROR, "Rollback Failed", "Failed to rollback database changes: " + ex.getMessage());
                 }
             }
         } finally {
             if (conn != null) {
-                try { conn.setAutoCommit(true); conn.close(); } catch (SQLException e) {
+                try {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                } catch (SQLException e) {
                     StageManager.showAlert(null, Alert.AlertType.ERROR, "Connection Error", "Failed to close database connection: " + e.getMessage());
                 }
             }

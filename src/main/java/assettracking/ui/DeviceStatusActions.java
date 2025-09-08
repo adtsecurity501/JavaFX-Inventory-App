@@ -27,9 +27,6 @@ public class DeviceStatusActions {
 
     private final DeviceStatusTrackingController controller;
 
-    // This record is used by the DAO but defined here for historical reasons.
-    public record QueryAndParams(String sql, List<Object> params) {}
-
     public DeviceStatusActions(DeviceStatusTrackingController controller) {
         this.controller = controller;
     }
@@ -49,6 +46,7 @@ public class DeviceStatusActions {
 
     /**
      * Creates and displays a custom window showing the historical events for a given serial number.
+     *
      * @param serialNumber The serial number to look up.
      */
     public void openDeviceHistoryWindow(String serialNumber) {
@@ -160,5 +158,9 @@ public class DeviceStatusActions {
      */
     private Window getOwnerWindow() {
         return controller.statusTable.getScene().getWindow();
+    }
+
+    // This record is used by the DAO but defined here for historical reasons.
+    public record QueryAndParams(String sql, List<Object> params) {
     }
 }

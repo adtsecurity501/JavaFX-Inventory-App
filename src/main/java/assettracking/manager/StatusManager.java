@@ -60,10 +60,12 @@ public final class StatusManager {
     /**
      * Private constructor to prevent instantiation.
      */
-    private StatusManager() {}
+    private StatusManager() {
+    }
 
     /**
      * Gets an unmodifiable list of the main status categories.
+     *
      * @return A List of status strings.
      */
     public static List<String> getStatuses() {
@@ -72,6 +74,7 @@ public final class StatusManager {
 
     /**
      * Gets an unmodifiable list of sub-statuses for a given main status.
+     *
      * @param status The main status category.
      * @return A List of sub-status strings, or an empty list if the status is not found.
      */

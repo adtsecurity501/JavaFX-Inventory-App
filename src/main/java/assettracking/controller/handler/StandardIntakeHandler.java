@@ -37,8 +37,7 @@ public class StandardIntakeHandler {
             applyMelRule(asset.getModelNumber(), asset.getDescription());
         });
 
-        try (Connection conn = controller.getDbConnection();
-             PreparedStatement flagStmt = conn.prepareStatement("SELECT flag_reason FROM Flag_Devices WHERE serial_number = ?")) { // Query no longer needs sub_status
+        try (Connection conn = controller.getDbConnection(); PreparedStatement flagStmt = conn.prepareStatement("SELECT flag_reason FROM Flag_Devices WHERE serial_number = ?")) { // Query no longer needs sub_status
             flagStmt.setString(1, serialToLookup);
             ResultSet rs = flagStmt.executeQuery();
             if (rs.next()) {

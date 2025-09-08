@@ -33,36 +33,60 @@ import java.util.Optional;
 
 public class DeviceStatusTrackingController {
 
-    @FXML public Pagination pagination;
-    @FXML public TextField serialSearchField;
-    @FXML public TableView<DeviceStatusView> statusTable;
-    @FXML public TableColumn<DeviceStatusView, String> serialNumberCol;
-    @FXML public TableColumn<DeviceStatusView, String> categoryCol;
-    @FXML public TableColumn<DeviceStatusView, String> makeCol;
-    @FXML public TableColumn<DeviceStatusView, String> descriptionCol;
-    @FXML public TableColumn<DeviceStatusView, String> statusCol;
-    @FXML public TableColumn<DeviceStatusView, String> subStatusCol;
-    @FXML public TableColumn<DeviceStatusView, String> lastUpdateCol;
-    @FXML public TableColumn<DeviceStatusView, String> notesCol;
-    @FXML public VBox updateDetailsPanel;
-    @FXML public TextField serialDisplayField;
-    @FXML public ComboBox<String> statusUpdateCombo;
-    @FXML public ComboBox<String> subStatusUpdateCombo;
-    @FXML public ComboBox<String> statusFilterCombo;
-    @FXML public ComboBox<String> subStatusFilterCombo;
-    @FXML public ComboBox<String> categoryFilterCombo;
-    @FXML public ComboBox<String> groupByCombo;
-    @FXML public DatePicker fromDateFilter;
-    @FXML public DatePicker toDateFilter;
-    @FXML public ComboBox<Integer> rowsPerPageCombo;
-    @FXML public Label flagReasonLabel;
-    @FXML private Label boxIdLabel;
-    @FXML private TextField boxIdField;
-
+    private static List<String> cachedCategories = null;
+    private final AssetDAO assetDAO = new AssetDAO(); // <-- THIS LINE IS ADDED
+    @FXML
+    public Pagination pagination;
+    @FXML
+    public TextField serialSearchField;
+    @FXML
+    public TableView<DeviceStatusView> statusTable;
+    @FXML
+    public TableColumn<DeviceStatusView, String> serialNumberCol;
+    @FXML
+    public TableColumn<DeviceStatusView, String> categoryCol;
+    @FXML
+    public TableColumn<DeviceStatusView, String> makeCol;
+    @FXML
+    public TableColumn<DeviceStatusView, String> descriptionCol;
+    @FXML
+    public TableColumn<DeviceStatusView, String> statusCol;
+    @FXML
+    public TableColumn<DeviceStatusView, String> subStatusCol;
+    @FXML
+    public TableColumn<DeviceStatusView, String> lastUpdateCol;
+    @FXML
+    public TableColumn<DeviceStatusView, String> notesCol;
+    @FXML
+    public VBox updateDetailsPanel;
+    @FXML
+    public TextField serialDisplayField;
+    @FXML
+    public ComboBox<String> statusUpdateCombo;
+    @FXML
+    public ComboBox<String> subStatusUpdateCombo;
+    @FXML
+    public ComboBox<String> statusFilterCombo;
+    @FXML
+    public ComboBox<String> subStatusFilterCombo;
+    @FXML
+    public ComboBox<String> categoryFilterCombo;
+    @FXML
+    public ComboBox<String> groupByCombo;
+    @FXML
+    public DatePicker fromDateFilter;
+    @FXML
+    public DatePicker toDateFilter;
+    @FXML
+    public ComboBox<Integer> rowsPerPageCombo;
+    @FXML
+    public Label flagReasonLabel;
+    @FXML
+    private Label boxIdLabel;
+    @FXML
+    private TextField boxIdField;
     private DeviceStatusManager deviceStatusManager;
     private DeviceStatusActions deviceStatusActions;
-    private final AssetDAO assetDAO = new AssetDAO(); // <-- THIS LINE IS ADDED
-    private static List<String> cachedCategories = null;
 
     @FXML
     public void initialize() {
@@ -368,10 +392,20 @@ public class DeviceStatusTrackingController {
                     } else {
                         String status = currentItem.getStatus() != null ? currentItem.getStatus() : "";
                         switch (status) {
-                            case "WIP": row.getStyleClass().add("wip-row"); break;
-                            case "Disposal/EOL": case "Disposed": row.getStyleClass().add("disposal-row"); break;
-                            case "Processed": row.getStyleClass().add("processed-row"); break;
-                            case "Everon": case "Phone": row.getStyleClass().add("shipped-row"); break;
+                            case "WIP":
+                                row.getStyleClass().add("wip-row");
+                                break;
+                            case "Disposal/EOL":
+                            case "Disposed":
+                                row.getStyleClass().add("disposal-row");
+                                break;
+                            case "Processed":
+                                row.getStyleClass().add("processed-row");
+                                break;
+                            case "Everon":
+                            case "Phone":
+                                row.getStyleClass().add("shipped-row");
+                                break;
                         }
                     }
                 }
@@ -429,12 +463,42 @@ public class DeviceStatusTrackingController {
         toDateFilter.setValue(null);
     }
 
-    @FXML private void onRefreshAction() { refreshData(); }
-    @FXML private void onClearFiltersAction() { clearFilterInputs(); deviceStatusManager.resetPagination(); }
-    @FXML private void onViewHistoryAction() { handleViewHistory(); }
-    @FXML private void onSearchAction() { deviceStatusManager.resetPagination(); }
-    @FXML private void handleExportToCSV() { deviceStatusActions.exportToCSV(); }
-    @FXML private void onScanUpdateAction() { deviceStatusActions.openScanUpdateWindow(); }
-    public void refreshData() { deviceStatusManager.resetPagination(); }
-    private Window getOwnerWindow() { return statusTable.getScene().getWindow(); }
+    @FXML
+    private void onRefreshAction() {
+        refreshData();
+    }
+
+    @FXML
+    private void onClearFiltersAction() {
+        clearFilterInputs();
+        deviceStatusManager.resetPagination();
+    }
+
+    @FXML
+    private void onViewHistoryAction() {
+        handleViewHistory();
+    }
+
+    @FXML
+    private void onSearchAction() {
+        deviceStatusManager.resetPagination();
+    }
+
+    @FXML
+    private void handleExportToCSV() {
+        deviceStatusActions.exportToCSV();
+    }
+
+    @FXML
+    private void onScanUpdateAction() {
+        deviceStatusActions.openScanUpdateWindow();
+    }
+
+    public void refreshData() {
+        deviceStatusManager.resetPagination();
+    }
+
+    private Window getOwnerWindow() {
+        return statusTable.getScene().getWindow();
+    }
 }

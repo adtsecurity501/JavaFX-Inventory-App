@@ -19,19 +19,23 @@ import java.util.Optional;
 
 public class SelectPackageDialogController {
 
-    @FXML private TextField searchField;
-    @FXML private TableView<Package> packageTable;
-    @FXML private TableColumn<Package, String> trackingNumberCol;
-    @FXML private TableColumn<Package, String> senderNameCol;
-    @FXML private TableColumn<Package, LocalDate> receiveDateCol;
-    @FXML private Button selectButton;
-    @FXML private Button createNewButton;
-
     private final PackageDAO packageDAO = new PackageDAO();
     private final ObservableList<Package> packageList = FXCollections.observableArrayList();
+    @FXML
+    private TextField searchField;
+    @FXML
+    private TableView<Package> packageTable;
+    @FXML
+    private TableColumn<Package, String> trackingNumberCol;
+    @FXML
+    private TableColumn<Package, String> senderNameCol;
+    @FXML
+    private TableColumn<Package, LocalDate> receiveDateCol;
+    @FXML
+    private Button selectButton;
+    @FXML
+    private Button createNewButton;
     private SelectionResult result;
-
-    public record SelectionResult(Package selectedPackage, boolean createNew) {}
 
     @FXML
     public void initialize() {
@@ -76,5 +80,8 @@ public class SelectPackageDialogController {
 
     private void closeStage() {
         ((Stage) selectButton.getScene().getWindow()).close();
+    }
+
+    public record SelectionResult(Package selectedPackage, boolean createNew) {
     }
 }

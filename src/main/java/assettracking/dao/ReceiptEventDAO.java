@@ -1,4 +1,3 @@
-
 package assettracking.dao;
 
 import assettracking.db.DatabaseConnection;
@@ -73,6 +72,7 @@ public class ReceiptEventDAO {
         }
         return -1;
     }
+
     public Optional<Integer> findMostRecentReceiptId(String serialNumber) {
         String sql = "SELECT receipt_id FROM Receipt_Events WHERE serial_number = ? ORDER BY receipt_id DESC LIMIT 1";
         try (Connection conn = DatabaseConnection.getInventoryConnection();

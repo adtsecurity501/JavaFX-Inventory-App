@@ -1,4 +1,3 @@
-
 package assettracking.data;
 
 public class ReceiptEvent {
@@ -24,28 +23,68 @@ public class ReceiptEvent {
     }
 
     // Getters and Setters
-    public int getReceiptId() { return receiptId; }
-    public void setReceiptId(int receiptId) { this.receiptId = receiptId; }
+    public int getReceiptId() {
+        return receiptId;
+    }
 
-    public String getSerialNumber() { return serialNumber; }
-    public void setSerialNumber(String serialNumber) { this.serialNumber = serialNumber; }
+    public void setReceiptId(int receiptId) {
+        this.receiptId = receiptId;
+    }
 
-    public int getPackageId() { return packageId; }
-    public void setPackageId(int packageId) { this.packageId = packageId; }
+    public String getSerialNumber() {
+        return serialNumber;
+    }
 
-    public String getCategory() { return category; }
-    public void setCategory(String category) { this.category = category; }
+    public void setSerialNumber(String serialNumber) {
+        this.serialNumber = serialNumber;
+    }
 
-    public String getMake() { return make; }
-    public void setMake(String make) { this.make = make; }
+    public int getPackageId() {
+        return packageId;
+    }
 
-    public String getModelNumber() { return modelNumber; }
-    public void setModelNumber(String modelNumber) { this.modelNumber = modelNumber; }
+    public void setPackageId(int packageId) {
+        this.packageId = packageId;
+    }
 
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
+    public String getCategory() {
+        return category;
+    }
 
-    public String getImei() { return imei; }
-    public void setImei(String imei) { this.imei = imei; }
+    public void setCategory(String category) {
+        this.category = category;
+    }
+
+    public String getMake() {
+        return make;
+    }
+
+    public void setMake(String make) {
+        this.make = make;
+    }
+
+    public String getModelNumber() {
+        return modelNumber;
+    }
+
+    public void setModelNumber(String modelNumber) {
+        this.modelNumber = modelNumber;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public String getImei() {
+        return imei;
+    }
+
+    public void setImei(String imei) {
+        this.imei = imei;
+    }
 }
 

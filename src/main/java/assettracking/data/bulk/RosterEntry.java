@@ -19,12 +19,29 @@ public class RosterEntry {
     }
 
     // Getters
-    public String getFirstName() { return firstName; }
-    public String getLastName() { return lastName; }
-    public String getEmail() { return email; }
-    public String getSnReferenceNumber() { return snReferenceNumber; }
-    public String getDepotOrderNumber() { return depotOrderNumber; }
-    public String getCountry() { return country; } // NEW GETTER
+    public String getFirstName() {
+        return firstName;
+    }
+
+    public String getLastName() {
+        return lastName;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public String getSnReferenceNumber() {
+        return snReferenceNumber;
+    }
+
+    public String getDepotOrderNumber() {
+        return depotOrderNumber;
+    }
+
+    public String getCountry() {
+        return country;
+    } // NEW GETTER
 
     @Override
     public String toString() {

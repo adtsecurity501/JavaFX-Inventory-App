@@ -1,6 +1,7 @@
 package assettracking.dao;
 
 import assettracking.db.DatabaseConnection;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -11,6 +12,7 @@ public class AppSettingsDAO {
 
     /**
      * Retrieves a setting value from the database.
+     *
      * @param key The name of the setting to retrieve (e.g., "device_goal").
      * @return An Optional containing the value if found, otherwise empty.
      */
@@ -32,7 +34,8 @@ public class AppSettingsDAO {
 
     /**
      * Saves or updates a setting in the database.
-     * @param key The name of the setting (e.g., "device_goal").
+     *
+     * @param key   The name of the setting (e.g., "device_goal").
      * @param value The value to save.
      */
     public void saveSetting(String key, String value) {

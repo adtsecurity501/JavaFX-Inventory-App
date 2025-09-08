@@ -12,33 +12,79 @@ public class AssetInfo {
     private String capacity;
 
     // Default constructor is essential for this fix
-    public AssetInfo() {}
+    public AssetInfo() {
+    }
 
     // Getters and Setters
-    public String getSerialNumber() { return serialNumber; }
-    public void setSerialNumber(String serialNumber) { this.serialNumber = serialNumber; }
+    public String getSerialNumber() {
+        return serialNumber;
+    }
 
-    public String getSkuNumber() { return skuNumber; }
-    public void setSkuNumber(String skuNumber) { this.skuNumber = skuNumber; }
+    public void setSerialNumber(String serialNumber) {
+        this.serialNumber = serialNumber;
+    }
 
-    public String getMake() { return make; }
-    public void setMake(String make) { this.make = make; }
+    public String getSkuNumber() {
+        return skuNumber;
+    }
 
-    public String getModelNumber() { return modelNumber; }
-    public void setModelNumber(String modelNumber) { this.modelNumber = modelNumber; }
+    public void setSkuNumber(String skuNumber) {
+        this.skuNumber = skuNumber;
+    }
 
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
+    public String getMake() {
+        return make;
+    }
 
-    public String getCategory() { return category; }
-    public void setCategory(String category) { this.category = category; }
+    public void setMake(String make) {
+        this.make = make;
+    }
 
-    public String getImei() { return imei; }
-    public void setImei(String imei) { this.imei = imei; }
+    public String getModelNumber() {
+        return modelNumber;
+    }
 
-    public boolean isEveronSerial() { return everonSerial; }
-    public void setEveronSerial(boolean everonSerial) { this.everonSerial = everonSerial; }
+    public void setModelNumber(String modelNumber) {
+        this.modelNumber = modelNumber;
+    }
 
-    public String getCapacity() { return capacity; }
-    public void setCapacity(String capacity) { this.capacity = capacity; }
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    public void setCategory(String category) {
+        this.category = category;
+    }
+
+    public String getImei() {
+        return imei;
+    }
+
+    public void setImei(String imei) {
+        this.imei = imei;
+    }
+
+    public boolean isEveronSerial() {
+        return everonSerial;
+    }
+
+    public void setEveronSerial(boolean everonSerial) {
+        this.everonSerial = everonSerial;
+    }
+
+    public String getCapacity() {
+        return capacity;
+    }
+
+    public void setCapacity(String capacity) {
+        this.capacity = capacity;
+    }
 }

@@ -49,12 +49,6 @@ public class StagedDevice {
 
     }
 
-    // --- SETTERS FOR NEW AND EXISTING FIELDS ---
-    public void setSim(String newSim) { this.sim.set(newSim); }
-    public void setCarrier(String newCarrier) { this.carrier.set(newCarrier); }
-    public void setCarrierAccountNumber(String newAccountNumber) { this.carrierAccountNumber.set(newAccountNumber); }
-
-
     public boolean isWasAutoSetToTmobile() {
         return wasAutoSetToTmobile;
     }
@@ -64,24 +58,89 @@ public class StagedDevice {
     }
 
     // Getters for TableView columns
-    public String getFirstName() { return firstName.get(); }
-    public String getLastName() { return lastName.get(); }
-    public String getSerialNumber() { return serialNumber.get(); }
-    public String getImei() { return imei.get(); }
-    public String getSim() { return sim.get(); }
-    public String getSnReferenceNumber() { return snReferenceNumber.get(); }
-    public String getEmployeeEmail() { return employeeEmail.get(); }
-    public String getDepotOrderNumber() { return depotOrderNumber.get(); }
-    public String getCarrier() { return carrier.get(); } // <-- NEW
-    public String getCarrierAccountNumber() { return carrierAccountNumber.get(); } // <-- NEW
+    public String getFirstName() {
+        return firstName.get();
+    }
+
+    public String getLastName() {
+        return lastName.get();
+    }
+
+    public String getSerialNumber() {
+        return serialNumber.get();
+    }
+
+    public String getImei() {
+        return imei.get();
+    }
+
+    public String getSim() {
+        return sim.get();
+    }
+
+    // --- SETTERS FOR NEW AND EXISTING FIELDS ---
+    public void setSim(String newSim) {
+        this.sim.set(newSim);
+    }
+
+    public String getSnReferenceNumber() {
+        return snReferenceNumber.get();
+    }
+
+    public String getEmployeeEmail() {
+        return employeeEmail.get();
+    }
+
+    public String getDepotOrderNumber() {
+        return depotOrderNumber.get();
+    }
+
+    public String getCarrier() {
+        return carrier.get();
+    } // <-- NEW
+
+    public void setCarrier(String newCarrier) {
+        this.carrier.set(newCarrier);
+    }
+
+    public String getCarrierAccountNumber() {
+        return carrierAccountNumber.get();
+    } // <-- NEW
+
+    public void setCarrierAccountNumber(String newAccountNumber) {
+        this.carrierAccountNumber.set(newAccountNumber);
+    }
 
     // Property Getters for JavaFX
-    public SimpleStringProperty firstNameProperty() { return firstName; }
-    public SimpleStringProperty lastNameProperty() { return lastName; }
-    public SimpleStringProperty serialNumberProperty() { return serialNumber; }
-    public SimpleStringProperty imeiProperty() { return imei; }
-    public SimpleStringProperty simProperty() { return sim; }
-    public SimpleStringProperty snReferenceNumberProperty() { return snReferenceNumber; }
-    public SimpleStringProperty carrierProperty() { return carrier; } // <-- NEW
-    public SimpleStringProperty carrierAccountNumberProperty() { return carrierAccountNumber; } // <-- NEW
+    public SimpleStringProperty firstNameProperty() {
+        return firstName;
+    }
+
+    public SimpleStringProperty lastNameProperty() {
+        return lastName;
+    }
+
+    public SimpleStringProperty serialNumberProperty() {
+        return serialNumber;
+    }
+
+    public SimpleStringProperty imeiProperty() {
+        return imei;
+    }
+
+    public SimpleStringProperty simProperty() {
+        return sim;
+    }
+
+    public SimpleStringProperty snReferenceNumberProperty() {
+        return snReferenceNumber;
+    }
+
+    public SimpleStringProperty carrierProperty() {
+        return carrier;
+    } // <-- NEW
+
+    public SimpleStringProperty carrierAccountNumberProperty() {
+        return carrierAccountNumber;
+    } // <-- NEW
 }

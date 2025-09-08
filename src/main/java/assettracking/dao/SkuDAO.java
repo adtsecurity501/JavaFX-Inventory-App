@@ -2,6 +2,7 @@ package assettracking.dao;
 
 import assettracking.data.Sku;
 import assettracking.db.DatabaseConnection;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -89,6 +90,7 @@ public class SkuDAO {
     /**
      * Finds SKUs where the SKU number or description matches the given fragment.
      * Returns a list of formatted strings "SKU - Description" for display in suggestions.
+     *
      * @param fragment The text typed by the user.
      * @return A list of matching SKU suggestions.
      */
@@ -131,6 +133,7 @@ public class SkuDAO {
     /**
      * Finds SKUs that have a non-empty sku_number, specifically for label printing.
      * Returns a list of formatted strings "SKU - Description" for display in suggestions.
+     *
      * @param fragment The text typed by the user.
      * @return A list of matching SKU suggestions.
      */
@@ -187,6 +190,7 @@ public class SkuDAO {
         }
         return suggestions;
     }
+
     private Sku mapRowToSku(ResultSet rs) throws SQLException {
         Sku sku = new Sku();
         sku.setSkuNumber(rs.getString("sku_number"));

@@ -16,8 +16,6 @@ import java.util.List;
  */
 public class ScanUpdateService {
 
-    public enum UpdateResult { SUCCESS, NOT_FOUND }
-
     public UpdateResult updateBySerial(String serial, String newStatus, String newSubStatus, String note, String boxId) throws SQLException {
         try (Connection conn = DatabaseConnection.getInventoryConnection()) {
 
@@ -53,9 +51,9 @@ public class ScanUpdateService {
     public List<Integer> findDeviceReceiptsByLocation(String location) throws SQLException {
         List<Integer> receiptIds = new ArrayList<>();
         String findSql = """
-        SELECT ds.receipt_id FROM Device_Status ds
-        WHERE ds.box_id = ?
-    """;
+                    SELECT ds.receipt_id FROM Device_Status ds
+                    WHERE ds.box_id = ?
+                """;
         try (Connection conn = DatabaseConnection.getInventoryConnection();
              PreparedStatement stmt = conn.prepareStatement(findSql)) {
             stmt.setString(1, location);
@@ -88,4 +86,6 @@ public class ScanUpdateService {
             return stmt.executeUpdate();
         }
     }
+
+    public enum UpdateResult {SUCCESS, NOT_FOUND}
 }

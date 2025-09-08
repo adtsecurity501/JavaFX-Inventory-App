@@ -3,6 +3,7 @@ package assettracking.manager;
 import assettracking.controller.ScanUpdateController.ScanResult;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
@@ -25,10 +26,21 @@ public class ScanResultManager {
         failedList.add(0, new ScanResult(serial, reason, timestamp));
     }
 
-    public ObservableList<ScanResult> getSuccessList() { return successList; }
-    public ObservableList<ScanResult> getFailedList() { return failedList; }
-    public boolean hasFailedScans() { return !failedList.isEmpty(); }
-    public void clearFailedScans() { failedList.clear(); }
+    public ObservableList<ScanResult> getSuccessList() {
+        return successList;
+    }
+
+    public ObservableList<ScanResult> getFailedList() {
+        return failedList;
+    }
+
+    public boolean hasFailedScans() {
+        return !failedList.isEmpty();
+    }
+
+    public void clearFailedScans() {
+        failedList.clear();
+    }
 
     public List<String> getFailedSerials() {
         return failedList.stream()

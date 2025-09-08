@@ -1,7 +1,9 @@
 package assettracking.dao.bulk;
+
 import assettracking.data.bulk.BulkDevice;
 import assettracking.data.bulk.StagedDevice;
 import assettracking.db.DatabaseConnection;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;

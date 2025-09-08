@@ -20,23 +20,65 @@ public class Sku {
     }
 
     // Getters for values
-    public String getSkuNumber() { return skuNumber.get(); }
-    public String getModelNumber() { return modelNumber.get(); }
-    public String getCategory() { return category.get(); }
-    public String getManufacturer() { return manufacturer.get(); }
-    public String getDescription() { return description.get(); }
-
-    // Getters for JavaFX properties
-    public StringProperty skuNumberProperty() { return skuNumber; }
-    public StringProperty modelNumberProperty() { return modelNumber; }
-    public StringProperty categoryProperty() { return category; }
-    public StringProperty manufacturerProperty() { return manufacturer; }
-    public StringProperty descriptionProperty() { return description; }
+    public String getSkuNumber() {
+        return skuNumber.get();
+    }
 
     // Setters
-    public void setSkuNumber(String skuNumber) { this.skuNumber.set(skuNumber); }
-    public void setModelNumber(String modelNumber) { this.modelNumber.set(modelNumber); }
-    public void setCategory(String category) { this.category.set(category); }
-    public void setManufacturer(String manufacturer) { this.manufacturer.set(manufacturer); }
-    public void setDescription(String description) { this.description.set(description); }
+    public void setSkuNumber(String skuNumber) {
+        this.skuNumber.set(skuNumber);
+    }
+
+    public String getModelNumber() {
+        return modelNumber.get();
+    }
+
+    public void setModelNumber(String modelNumber) {
+        this.modelNumber.set(modelNumber);
+    }
+
+    public String getCategory() {
+        return category.get();
+    }
+
+    public void setCategory(String category) {
+        this.category.set(category);
+    }
+
+    public String getManufacturer() {
+        return manufacturer.get();
+    }
+
+    public void setManufacturer(String manufacturer) {
+        this.manufacturer.set(manufacturer);
+    }
+
+    public String getDescription() {
+        return description.get();
+    }
+
+    public void setDescription(String description) {
+        this.description.set(description);
+    }
+
+    // Getters for JavaFX properties
+    public StringProperty skuNumberProperty() {
+        return skuNumber;
+    }
+
+    public StringProperty modelNumberProperty() {
+        return modelNumber;
+    }
+
+    public StringProperty categoryProperty() {
+        return category;
+    }
+
+    public StringProperty manufacturerProperty() {
+        return manufacturer;
+    }
+
+    public StringProperty descriptionProperty() {
+        return description;
+    }
 }

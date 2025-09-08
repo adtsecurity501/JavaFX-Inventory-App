@@ -36,6 +36,24 @@ public class TemplateService {
         createDefaultTemplatesIfNotExists();
     }
 
+    private static TextElement createText(String text, int x, int y, int size) {
+        TextElement element = new TextElement();
+        element.setText(text);
+        element.setX(x);
+        element.setY(y);
+        element.setFontSize(size);
+        return element;
+    }
+
+    private static BarcodeElement createBarcode(String content, int x, int y, int height) {
+        BarcodeElement element = new BarcodeElement();
+        element.setContent(content);
+        element.setX(x);
+        element.setY(y);
+        element.setHeight(height);
+        return element;
+    }
+
     public void saveTemplate(LabelTemplate template) throws IOException {
         String fileName = template.getName().replaceAll("[^a-zA-Z0-9.-]", "_") + ".json";
         File file = templatesDirectory.resolve(fileName).toFile();
@@ -93,7 +111,6 @@ public class TemplateService {
         }
     }
 
-
     private void createAssetTagWithImeiTemplate() {
         String templateName = "Asset_Tag_with_IMEI.json";
         File templateFile = templatesDirectory.resolve(templateName).toFile();
@@ -127,23 +144,5 @@ public class TemplateService {
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }
-
-    private static TextElement createText(String text, int x, int y, int size) {
-        TextElement element = new TextElement();
-        element.setText(text);
-        element.setX(x);
-        element.setY(y);
-        element.setFontSize(size);
-        return element;
-    }
-
-    private static BarcodeElement createBarcode(String content, int x, int y, int height) {
-        BarcodeElement element = new BarcodeElement();
-        element.setContent(content);
-        element.setX(x);
-        element.setY(y);
-        element.setHeight(height);
-        return element;
     }
 }

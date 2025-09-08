@@ -8,8 +8,8 @@ import javafx.scene.control.TextField;
 
 public class SerialLookupTableCell extends TableCell<AssetEntry, String> {
 
-    private TextField textField;
     private final AssetDAO assetDAO;
+    private TextField textField;
 
     public SerialLookupTableCell(AssetDAO assetDAO) {
         this.assetDAO = assetDAO;

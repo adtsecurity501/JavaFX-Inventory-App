@@ -13,28 +13,40 @@ import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
+
 import java.util.List;
 import java.util.Optional;
 
 public class SkuManagementController {
 
-    @FXML private TableView<Sku> skuTable;
-    @FXML private TableColumn<Sku, String> skuNumberCol;
-    @FXML private TableColumn<Sku, String> modelNumberCol;
-    @FXML private TableColumn<Sku, String> categoryCol;
-    @FXML private TableColumn<Sku, String> manufacturerCol;
-    @FXML private TableColumn<Sku, String> descriptionCol;
-    @FXML private TextField searchField;
-    @FXML private TextField skuNumberField;
-    @FXML private TextField modelNumberField;
-    @FXML private TextField categoryField;
-    @FXML private TextField manufacturerField;
-    @FXML private TextField descriptionField;
-    @FXML private Label statusLabel;
-
     private final SkuDAO skuDAO = new SkuDAO();
     private final ObservableList<Sku> skuList = FXCollections.observableArrayList();
-
+    @FXML
+    private TableView<Sku> skuTable;
+    @FXML
+    private TableColumn<Sku, String> skuNumberCol;
+    @FXML
+    private TableColumn<Sku, String> modelNumberCol;
+    @FXML
+    private TableColumn<Sku, String> categoryCol;
+    @FXML
+    private TableColumn<Sku, String> manufacturerCol;
+    @FXML
+    private TableColumn<Sku, String> descriptionCol;
+    @FXML
+    private TextField searchField;
+    @FXML
+    private TextField skuNumberField;
+    @FXML
+    private TextField modelNumberField;
+    @FXML
+    private TextField categoryField;
+    @FXML
+    private TextField manufacturerField;
+    @FXML
+    private TextField descriptionField;
+    @FXML
+    private Label statusLabel;
     // --- NEW: References to the autocomplete popups ---
     private AutoCompletePopup categoryPopup;
     private AutoCompletePopup manufacturerPopup;
@@ -50,9 +62,11 @@ public class SkuManagementController {
             if (newValue == null || newValue.isEmpty()) return true;
             String lowerCaseFilter = newValue.toLowerCase();
             if (sku.getSkuNumber() != null && sku.getSkuNumber().toLowerCase().contains(lowerCaseFilter)) return true;
-            if (sku.getModelNumber() != null && sku.getModelNumber().toLowerCase().contains(lowerCaseFilter)) return true;
+            if (sku.getModelNumber() != null && sku.getModelNumber().toLowerCase().contains(lowerCaseFilter))
+                return true;
             if (sku.getCategory() != null && sku.getCategory().toLowerCase().contains(lowerCaseFilter)) return true;
-            if (sku.getManufacturer() != null && sku.getManufacturer().toLowerCase().contains(lowerCaseFilter)) return true;
+            if (sku.getManufacturer() != null && sku.getManufacturer().toLowerCase().contains(lowerCaseFilter))
+                return true;
             return sku.getDescription() != null && sku.getDescription().toLowerCase().contains(lowerCaseFilter);
         }));
 

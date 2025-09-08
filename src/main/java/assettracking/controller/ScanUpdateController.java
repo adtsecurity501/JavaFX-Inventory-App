@@ -34,31 +34,43 @@ import java.util.stream.Collectors;
 
 public class ScanUpdateController {
 
-    // --- FXML Fields ---
-    @FXML private ComboBox<String> statusCombo, subStatusCombo;
-    @FXML private TextField changeLogField, scanSerialField, disposalLocationField, scanLocationField;
-    @FXML private Label feedbackLabel, disposalLocationLabel;
-    @FXML private TableView<ScanResult> successTable, failedTable;
-    @FXML private TableColumn<ScanResult, String> successSerialCol, successStatusCol, successTimestampCol;
-    @FXML private TableColumn<ScanResult, String> failedSerialCol, failedReasonCol, failedTimestampCol;
-    @FXML private HBox boxIdHBox;
-    @FXML private CheckBox printLabelsToggle;
-    @FXML private Button clearSkuButton;
-
-
-    // --- NEW FXML FIELDS FOR SKU SELECTION & PRINTER ---
-    @FXML private VBox skuSelectionBox;
-    @FXML private TextField skuSearchField;
-    @FXML private ListView<String> skuListView;
-    @FXML private TextField selectedSkuField;
-    @FXML private ComboBox<String> labelPrinterCombo;
-
     // --- Services and Managers ---
     private final ScanUpdateService updateService = new ScanUpdateService();
     private final ScanResultManager resultManager = new ScanResultManager();
     private final AssetDAO assetDAO = new AssetDAO();
+    private final PackageDAO packageDAO = new PackageDAO();
     private final SkuDAO skuDAO = new SkuDAO();
     private final ZplPrinterService printerService = new ZplPrinterService();
+    // --- FXML Fields ---
+    @FXML
+    private ComboBox<String> statusCombo, subStatusCombo;
+    @FXML
+    private TextField changeLogField, scanSerialField, disposalLocationField, scanLocationField;
+    @FXML
+    private Label feedbackLabel, disposalLocationLabel;
+    @FXML
+    private TableView<ScanResult> successTable, failedTable;
+    @FXML
+    private TableColumn<ScanResult, String> successSerialCol, successStatusCol, successTimestampCol;
+    @FXML
+    private TableColumn<ScanResult, String> failedSerialCol, failedReasonCol, failedTimestampCol;
+    @FXML
+    private HBox boxIdHBox;
+    @FXML
+    private CheckBox printLabelsToggle;
+    @FXML
+    private Button clearSkuButton;
+    // --- NEW FXML FIELDS FOR SKU SELECTION & PRINTER ---
+    @FXML
+    private VBox skuSelectionBox;
+    @FXML
+    private TextField skuSearchField;
+    @FXML
+    private ListView<String> skuListView;
+    @FXML
+    private TextField selectedSkuField;
+    @FXML
+    private ComboBox<String> labelPrinterCombo;
     private DeviceStatusTrackingController parentController;
 
     public void setParentController(DeviceStatusTrackingController parentController) {
@@ -82,16 +94,11 @@ public class ScanUpdateController {
     }
 
     private void populatePrinters() {
-        List<String> printerNames = Arrays.stream(PrintServiceLookup.lookupPrintServices(null, null))
-                .map(PrintService::getName)
-                .collect(Collectors.toList());
+        List<String> printerNames = Arrays.stream(PrintServiceLookup.lookupPrintServices(null, null)).map(PrintService::getName).collect(Collectors.toList());
         labelPrinterCombo.setItems(FXCollections.observableArrayList(printerNames));
 
         // Try to set a sensible default, like a Zebra GX printer
-        printerNames.stream()
-                .filter(n -> n.toLowerCase().contains("gx"))
-                .findFirst()
-                .ifPresent(labelPrinterCombo::setValue);
+        printerNames.stream().filter(n -> n.toLowerCase().contains("gx")).findFirst().ifPresent(labelPrinterCombo::setValue);
     }
 
     private void setupSkuSearch() {
@@ -172,7 +179,7 @@ public class ScanUpdateController {
         updateTask.setOnSucceeded(event -> {
             switch (updateTask.getValue()) {
                 case SUCCESS:
-                    setFeedback("âœ” Success: " + serial, Color.GREEN);
+                    setFeedback("\u2713 Success: " + serial, Color.GREEN);
                     resultManager.addSuccess(serial, newStatus + " / " + newSubStatus);
                     if (parentController != null) parentController.refreshData();
                     if (printLabelsToggle.isVisible() && printLabelsToggle.isSelected()) {
@@ -180,7 +187,7 @@ public class ScanUpdateController {
                     }
                     break;
                 case NOT_FOUND:
-                    setFeedback("â Œ Not Found: " + serial, Color.RED);
+                    setFeedback("\u2716 Not Found: " + serial, Color.RED);
                     resultManager.addFailure(serial, "Not Found in Database");
                     break;
             }
@@ -309,12 +316,12 @@ public class ScanUpdateController {
             };
             bulkUpdateTask.setOnSucceeded(e -> {
                 int count = bulkUpdateTask.getValue();
-                setFeedback(String.format("âœ” Successfully updated %d devices in '%s'.", count, location), Color.GREEN);
+                setFeedback(String.format("\u2713 Successfully updated %d devices in '%s'.", count, location), Color.GREEN); // Checkmark ✓
                 resultManager.addSuccess("Box ID: " + location, String.format("Updated %d devices", count));
                 if (parentController != null) parentController.refreshData();
                 scanLocationField.clear();
             });
-            bulkUpdateTask.setOnFailed(e -> setFeedback("â Œ Bulk update failed: " + e.getSource().getException().getMessage(), Color.RED));
+            bulkUpdateTask.setOnFailed(e -> setFeedback("\u2716 Bulk update failed: " + e.getSource().getException().getMessage(), Color.RED)); // X mark ✗
             new Thread(bulkUpdateTask).start();
         }
     }
@@ -338,7 +345,8 @@ public class ScanUpdateController {
                 if (result.createNew()) {
                     // User chose to create a new package
                     String trackingNumber = "FAILED_SCANS_" + new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-                    int packageId = new PackageDAO().addPackage(trackingNumber, "SYSTEM", "GENERATED", "DEPOT", "UT", "84660", java.time.LocalDate.now());
+                    // Use the class field 'packageDAO' instead of creating a new instance
+                    int packageId = packageDAO.addPackage(trackingNumber, "SYSTEM", "GENERATED", "DEPOT", "UT", "84660", java.time.LocalDate.now());
 
                     if (packageId != -1) {
                         Package newPackage = new Package(packageId, trackingNumber, "SYSTEM", "GENERATED", "DEPOT", "UT", "84660", java.time.LocalDate.now());
@@ -356,6 +364,7 @@ public class ScanUpdateController {
             showAlert("Error", "Could not open the package selection dialog.");
         }
     }
+
     private void openAddAssetDialogForFailedScans(Package targetPackage) {
         List<AssetEntry> failedEntries = new ArrayList<>();
         resultManager.getFailedSerials().forEach(serial -> failedEntries.add(new AssetEntry(serial, "", "", "", "", "", "")));
@@ -378,18 +387,55 @@ public class ScanUpdateController {
             showAlert("Error", "Could not open the 'Add Asset' window.");
         }
     }
-    @FXML private void onBoxIdScanned() { scanSerialField.requestFocus(); }
-    @FXML private void handleClearBoxId() { disposalLocationField.clear(); changeLogField.clear(); disposalLocationField.requestFocus(); }
-    private void setFeedback(String message, Color color) { feedbackLabel.setText(message); feedbackLabel.setTextFill(color); }
-    private void showAlert(String title, String content) { StageManager.showAlert(getStage(), Alert.AlertType.WARNING, title, content); }
-    private Optional<String> findPrinter(String hint) { return Arrays.stream(PrintServiceLookup.lookupPrintServices(null, null)).map(PrintService::getName).filter(n -> n.toLowerCase().contains(hint.toLowerCase())).findFirst(); }
-    private Stage getStage() { return (Stage) scanSerialField.getScene().getWindow(); }
+
+    @FXML
+    private void onBoxIdScanned() {
+        scanSerialField.requestFocus();
+    }
+
+    @FXML
+    private void handleClearBoxId() {
+        disposalLocationField.clear();
+        changeLogField.clear();
+        disposalLocationField.requestFocus();
+    }
+
+    private void setFeedback(String message, Color color) {
+        feedbackLabel.setText(message);
+        feedbackLabel.setTextFill(color);
+    }
+
+    private void showAlert(String title, String content) {
+        StageManager.showAlert(getStage(), Alert.AlertType.WARNING, title, content);
+    }
+
+    private Optional<String> findPrinter(String hint) {
+        return Arrays.stream(PrintServiceLookup.lookupPrintServices(null, null)).map(PrintService::getName).filter(n -> n.toLowerCase().contains(hint.toLowerCase())).findFirst();
+    }
+
+    private Stage getStage() {
+        return (Stage) scanSerialField.getScene().getWindow();
+    }
 
     public static class ScanResult {
         private final SimpleStringProperty serial, status, timestamp;
-        public ScanResult(String serial, String status, String timestamp) { this.serial = new SimpleStringProperty(serial); this.status = new SimpleStringProperty(status); this.timestamp = new SimpleStringProperty(timestamp); }
-        public String getSerial() { return serial.get(); }
-        public String getStatus() { return status.get(); }
-        public String getTimestamp() { return timestamp.get(); }
+
+        public ScanResult(String serial, String status, String timestamp) {
+            this.serial = new SimpleStringProperty(serial);
+            this.status = new SimpleStringProperty(status);
+            this.timestamp = new SimpleStringProperty(timestamp);
+        }
+
+        public String getSerial() {
+            return serial.get();
+        }
+
+        public String getStatus() {
+            return status.get();
+        }
+
+        public String getTimestamp() {
+            return timestamp.get();
+        }
     }
 }

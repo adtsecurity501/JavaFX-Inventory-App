@@ -19,15 +19,21 @@ import java.sql.SQLException;
 
 public class DeviceHistoryController {
 
-    @FXML private Label headerLabel;
-    @FXML private TableView<DeviceStatusView> historyTable;
-    @FXML private TableColumn<DeviceStatusView, String> receiveDateCol;
-    @FXML private TableColumn<DeviceStatusView, String> statusCol;
-    @FXML private TableColumn<DeviceStatusView, String> subStatusCol;
-    @FXML private TableColumn<DeviceStatusView, String> lastUpdateCol;
-    @FXML private TableColumn<DeviceStatusView, String> notesCol;
-
     private final ObservableList<DeviceStatusView> historyList = FXCollections.observableArrayList();
+    @FXML
+    private Label headerLabel;
+    @FXML
+    private TableView<DeviceStatusView> historyTable;
+    @FXML
+    private TableColumn<DeviceStatusView, String> receiveDateCol;
+    @FXML
+    private TableColumn<DeviceStatusView, String> statusCol;
+    @FXML
+    private TableColumn<DeviceStatusView, String> subStatusCol;
+    @FXML
+    private TableColumn<DeviceStatusView, String> lastUpdateCol;
+    @FXML
+    private TableColumn<DeviceStatusView, String> notesCol;
 
     @FXML
     public void initialize() {

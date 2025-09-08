@@ -42,39 +42,55 @@ import assettracking.ui.SerialLookupTableCell;
 
 public class AddAssetDialogController {
 
-    // --- FXML Fields ---
-    @FXML private RadioButton standardIntakeRadio, monitorIntakeRadio, refurbRadioButton, newRadioButton;
-    @FXML private ToggleGroup intakeModeToggleGroup;
-    @FXML private VBox standardModePane, monitorModePane;
-    @FXML private ComboBox<String> monitorPrinterCombo, categoryBox, sellScrapStatusCombo, sellScrapSubStatusCombo;
-    @FXML private TextField monitorSerialField, monitorModelField, monitorDescriptionField, monitorSkuSearchField, monitorSelectedSkuField;
-    @FXML private ListView<String> monitorSkuListView;
-    @FXML private Label monitorFeedbackLabel, probableCauseLabel, melActionLabel, feedbackLabel;
-    @FXML private CheckBox standardMonitorCheckBox, bulkAddCheckBox, sellScrapCheckBox;
-    @FXML private GridPane standardMonitorPane, manualMonitorPane;
-    @FXML private TextField manualSerialField, manualDescriptionField, serialField, makeField, modelField, descriptionField, imeiField;
-    @FXML private TextField disqualificationField, boxIdField;
-    @FXML private Button functioningButton, saveButton, closeButton;
-    @FXML private BorderPane textModePane, tableModePane;
-    @FXML private ToggleButton multiSerialToggle;
-    @FXML private TextArea serialArea;
-    @FXML private TableView<AssetEntry> deviceTable;
-    @FXML private TableColumn<AssetEntry, String> serialCol, imeiCol, categoryCol, makeCol, modelCol, descriptionCol, causeCol;
-    @FXML private Label sellScrapStatusLabel, sellScrapSubStatusLabel, disqualificationLabel, boxIdLabel;
-
-    private AutoCompletePopup descriptionPopup;
-    private AutoCompletePopup modelPopup;
-    private AutoCompletePopup monitorDescriptionPopup;
-    private AutoCompletePopup monitorModelPopup;
-
-    private Package currentPackage;
-    private PackageDetailController parentController;
-    private final ObservableList<AssetEntry> assetEntries = FXCollections.observableArrayList();
     private static Set<String> cachedCategories = null;
+    private final ObservableList<AssetEntry> assetEntries = FXCollections.observableArrayList();
     private final AssetDAO assetDAO = new AssetDAO();
     private final SkuDAO skuDAO = new SkuDAO();
     private final ReceiptEventDAO receiptEventDAO = new ReceiptEventDAO();
     private final ZplPrinterService printerService = new ZplPrinterService();
+    // --- FXML Fields ---
+    @FXML
+    private RadioButton standardIntakeRadio, monitorIntakeRadio, refurbRadioButton, newRadioButton;
+    @FXML
+    private ToggleGroup intakeModeToggleGroup;
+    @FXML
+    private VBox standardModePane, monitorModePane;
+    @FXML
+    private ComboBox<String> monitorPrinterCombo, categoryBox, sellScrapStatusCombo, sellScrapSubStatusCombo;
+    @FXML
+    private TextField monitorSerialField, monitorModelField, monitorDescriptionField, monitorSkuSearchField, monitorSelectedSkuField;
+    @FXML
+    private ListView<String> monitorSkuListView;
+    @FXML
+    private Label monitorFeedbackLabel, probableCauseLabel, melActionLabel, feedbackLabel;
+    @FXML
+    private CheckBox standardMonitorCheckBox, bulkAddCheckBox, sellScrapCheckBox;
+    @FXML
+    private GridPane standardMonitorPane, manualMonitorPane;
+    @FXML
+    private TextField manualSerialField, manualDescriptionField, serialField, makeField, modelField, descriptionField, imeiField;
+    @FXML
+    private TextField disqualificationField, boxIdField;
+    @FXML
+    private Button functioningButton, saveButton, closeButton;
+    @FXML
+    private BorderPane textModePane, tableModePane;
+    @FXML
+    private ToggleButton multiSerialToggle;
+    @FXML
+    private TextArea serialArea;
+    @FXML
+    private TableView<AssetEntry> deviceTable;
+    @FXML
+    private TableColumn<AssetEntry, String> serialCol, imeiCol, categoryCol, makeCol, modelCol, descriptionCol, causeCol;
+    @FXML
+    private Label sellScrapStatusLabel, sellScrapSubStatusLabel, disqualificationLabel, boxIdLabel;
+    private AutoCompletePopup descriptionPopup;
+    private AutoCompletePopup modelPopup;
+    private AutoCompletePopup monitorDescriptionPopup;
+    private AutoCompletePopup monitorModelPopup;
+    private Package currentPackage;
+    private PackageDetailController parentController;
     private StandardIntakeHandler standardIntakeHandler;
     private MonitorIntakeHandler monitorIntakeHandler;
     private boolean isEditMode = false;
@@ -149,8 +165,7 @@ public class AddAssetDialogController {
 
     // --- MODIFIED to sanitize each line ---
     public String[] getSerialsFromArea() {
-        return Arrays.stream(serialArea.getText().trim().split("\\r?\\n"))
-                .map(this::sanitizeSerialNumber) // Sanitize each line
+        return Arrays.stream(serialArea.getText().trim().split("\\r?\\n")).map(this::sanitizeSerialNumber) // Sanitize each line
                 .filter(s -> !s.isEmpty())       // Remove any lines that are now blank
                 .toArray(String[]::new);
     }
@@ -158,13 +173,8 @@ public class AddAssetDialogController {
     // --- UNCHANGED METHODS BELOW ---
 
     private void setupAutocomplete() {
-        descriptionPopup = new AutoCompletePopup(descriptionField, () -> assetDAO.findDescriptionsLike(descriptionField.getText()))
-                .setOnSuggestionSelected(selectedValue ->
-                        assetDAO.findSkuDetails(selectedValue, "description").ifPresent(this::populateFieldsFromSku)
-                );
-        modelPopup = new AutoCompletePopup(modelField, () -> assetDAO.findModelNumbersLike(modelField.getText()))
-                .setOnSuggestionSelected(selectedValue ->
-                        assetDAO.findSkuDetails(selectedValue, "model_number").ifPresent(this::populateFieldsFromSku));
+        descriptionPopup = new AutoCompletePopup(descriptionField, () -> assetDAO.findDescriptionsLike(descriptionField.getText())).setOnSuggestionSelected(selectedValue -> assetDAO.findSkuDetails(selectedValue, "description").ifPresent(this::populateFieldsFromSku));
+        modelPopup = new AutoCompletePopup(modelField, () -> assetDAO.findModelNumbersLike(modelField.getText())).setOnSuggestionSelected(selectedValue -> assetDAO.findSkuDetails(selectedValue, "model_number").ifPresent(this::populateFieldsFromSku));
     }
 
     public void initDataForEdit(AssetInfo assetInfo, Runnable onSaveCallback) {
@@ -228,18 +238,11 @@ public class AddAssetDialogController {
             functioningButton.setDisable(!isStandard);
         });
 
-        monitorDescriptionPopup = new AutoCompletePopup(monitorDescriptionField, () -> assetDAO.findDescriptionsLike(monitorDescriptionField.getText()))
-                .setOnSuggestionSelected(selectedValue ->
-                        assetDAO.findSkuDetails(selectedValue, "description").ifPresent(this::populateMonitorFieldsFromSku)
-                );
+        monitorDescriptionPopup = new AutoCompletePopup(monitorDescriptionField, () -> assetDAO.findDescriptionsLike(monitorDescriptionField.getText())).setOnSuggestionSelected(selectedValue -> assetDAO.findSkuDetails(selectedValue, "description").ifPresent(this::populateMonitorFieldsFromSku));
 
-        monitorModelPopup = new AutoCompletePopup(monitorModelField, () -> assetDAO.findModelNumbersLike(monitorModelField.getText()))
-                .setOnSuggestionSelected(selectedValue ->
-                        assetDAO.findSkuDetails(selectedValue, "model_number").ifPresent(this::populateMonitorFieldsFromSku)
-                );
+        monitorModelPopup = new AutoCompletePopup(monitorModelField, () -> assetDAO.findModelNumbersLike(monitorModelField.getText())).setOnSuggestionSelected(selectedValue -> assetDAO.findSkuDetails(selectedValue, "model_number").ifPresent(this::populateMonitorFieldsFromSku));
 
-        List<String> printerNames = Arrays.stream(PrintServiceLookup.lookupPrintServices(null, null))
-                .map(PrintService::getName).collect(Collectors.toList());
+        List<String> printerNames = Arrays.stream(PrintServiceLookup.lookupPrintServices(null, null)).map(PrintService::getName).collect(Collectors.toList());
         monitorPrinterCombo.setItems(FXCollections.observableArrayList(printerNames));
         printerNames.stream().filter(n -> n.toLowerCase().contains("gx")).findFirst().ifPresent(monitorPrinterCombo::setValue);
     }
@@ -259,23 +262,74 @@ public class AddAssetDialogController {
         });
     }
 
-    public String getMonitorSerial() { return monitorSerialField.getText().trim(); }
-    public String getMonitorModel() { return monitorModelField.getText().trim(); }
-    public String getMonitorDescription() { return monitorDescriptionField.getText().trim(); }
-    public String getMonitorPrinter() { return monitorPrinterCombo.getValue(); }
-    public String getMonitorSelectedSku() { return monitorSelectedSkuField.getText().trim(); }
-    public boolean isStandardMonitor() { return standardMonitorCheckBox.isSelected(); }
-    public String getManualSerial() { return manualSerialField.getText().trim(); }
-    public String getManualDescription() { return manualDescriptionField.getText().trim(); }
-    public String getSerial() { return serialField.getText().trim(); }
-    public boolean isMultiSerialMode() { return multiSerialToggle.isSelected(); }
-    public boolean isBulkAddMode() { return bulkAddCheckBox.isSelected(); }
-    public boolean isNewCondition() { return newRadioButton.isSelected(); }
-    public boolean isSellScrap() { return sellScrapCheckBox.isSelected(); }
-    public String getScrapStatus() { return sellScrapStatusCombo.getValue(); }
-    public String getScrapSubStatus() { return sellScrapSubStatusCombo.getValue(); }
-    public String getScrapReason() { return disqualificationField.getText().trim(); }
-    public String getBoxId() { return boxIdField.getText().trim(); }
+    public String getMonitorSerial() {
+        return monitorSerialField.getText().trim();
+    }
+
+    public String getMonitorModel() {
+        return monitorModelField.getText().trim();
+    }
+
+    public String getMonitorDescription() {
+        return monitorDescriptionField.getText().trim();
+    }
+
+    public String getMonitorPrinter() {
+        return monitorPrinterCombo.getValue();
+    }
+
+    public String getMonitorSelectedSku() {
+        return monitorSelectedSkuField.getText().trim();
+    }
+
+    public boolean isStandardMonitor() {
+        return standardMonitorCheckBox.isSelected();
+    }
+
+    public String getManualSerial() {
+        return manualSerialField.getText().trim();
+    }
+
+    public String getManualDescription() {
+        return manualDescriptionField.getText().trim();
+    }
+
+    public String getSerial() {
+        return serialField.getText().trim();
+    }
+
+    public boolean isMultiSerialMode() {
+        return multiSerialToggle.isSelected();
+    }
+
+    public boolean isBulkAddMode() {
+        return bulkAddCheckBox.isSelected();
+    }
+
+    public boolean isNewCondition() {
+        return newRadioButton.isSelected();
+    }
+
+    public boolean isSellScrap() {
+        return sellScrapCheckBox.isSelected();
+    }
+
+    public String getScrapStatus() {
+        return sellScrapStatusCombo.getValue();
+    }
+
+    public String getScrapSubStatus() {
+        return sellScrapSubStatusCombo.getValue();
+    }
+
+    public String getScrapReason() {
+        return disqualificationField.getText().trim();
+    }
+
+    public String getBoxId() {
+        return boxIdField.getText().trim();
+    }
+
     public AssetInfo getAssetDetailsFromForm() {
         AssetInfo details = new AssetInfo();
         details.setMake(makeField.getText());
@@ -285,7 +339,11 @@ public class AddAssetDialogController {
         details.setImei(imeiField.getText());
         return details;
     }
-    public void updateMonitorFeedback(String message) { Platform.runLater(() -> monitorFeedbackLabel.setText(message)); }
+
+    public void updateMonitorFeedback(String message) {
+        Platform.runLater(() -> monitorFeedbackLabel.setText(message));
+    }
+
     public void clearMonitorFieldsAndFocus() {
         monitorSerialField.clear();
         monitorModelField.clear();
@@ -295,9 +353,19 @@ public class AddAssetDialogController {
         monitorSkuListView.getItems().clear();
         monitorSerialField.requestFocus();
     }
-    public void updateStandardIntakeFeedback(String message) { feedbackLabel.setText(message); }
-    public void setProbableCause(String text) { probableCauseLabel.setText(text); }
-    public void setMelAction(String text) { melActionLabel.setText(text); }
+
+    public void updateStandardIntakeFeedback(String message) {
+        feedbackLabel.setText(message);
+    }
+
+    public void setProbableCause(String text) {
+        probableCauseLabel.setText(text);
+    }
+
+    public void setMelAction(String text) {
+        melActionLabel.setText(text);
+    }
+
     public void setDispositionFieldsForDispose() {
         sellScrapCheckBox.setSelected(true);
         sellScrapStatusCombo.setValue("Disposed");
@@ -305,6 +373,7 @@ public class AddAssetDialogController {
         disqualificationField.clear();
         boxIdField.requestFocus();
     }
+
     public void setFlaggedDeviceFields() {
         probableCauseLabel.setText("Flagged Device");
         sellScrapCheckBox.setSelected(true);
@@ -313,6 +382,7 @@ public class AddAssetDialogController {
         sellScrapStatusCombo.setDisable(true);
         sellScrapSubStatusCombo.setDisable(true);
     }
+
     public void setFormAssetDetails(AssetInfo asset) {
         Platform.runLater(() -> {
             imeiField.setText(asset.getImei());
@@ -322,22 +392,30 @@ public class AddAssetDialogController {
             descriptionField.setText(asset.getDescription());
         });
     }
+
     public void disableSaveButton(boolean disable) {
         saveButton.setDisable(disable);
         closeButton.setDisable(disable);
     }
+
     public void initData(Package pkg, PackageDetailController parent) {
         this.currentPackage = pkg;
         this.parentController = parent;
         loadCategories();
     }
+
     public void initDataForBulkAdd(Package pkg, List<AssetEntry> entries) {
         this.currentPackage = pkg;
         loadCategories();
         bulkAddCheckBox.setSelected(true);
         assetEntries.setAll(entries);
     }
-    @FXML private void handleLookupSerial() { standardIntakeHandler.handleLookupSerial(); }
+
+    @FXML
+    private void handleLookupSerial() {
+        standardIntakeHandler.handleLookupSerial();
+    }
+
     @FXML
     private void handleSave() {
         if (isEditMode) {
@@ -367,20 +445,68 @@ public class AddAssetDialogController {
             standardIntakeHandler.handleSave();
         }
     }
-    @FXML private void handleFunctioningButton() { monitorIntakeHandler.handleFunctioningButton(); }
-    @FXML private void handleBrokenButton() { monitorIntakeHandler.handleBrokenButton(); }
-    @FXML private void handleAddRow() { assetEntries.add(new AssetEntry("", "", "", "", "", "", "")); }
-    @FXML private void handleRemoveRow() { assetEntries.remove(deviceTable.getSelectionModel().getSelectedItem()); }
-    @FXML public void handleClose() { ((Stage) closeButton.getScene().getWindow()).close(); }
-    public AssetDAO getAssetDAO() { return assetDAO; }
-    public SkuDAO getSkuDAO() { return skuDAO; }
-    public ReceiptEventDAO getReceiptEventDAO() { return receiptEventDAO; }
-    public ZplPrinterService getPrinterService() { return printerService; }
-    public Connection getDbConnection() throws SQLException { return DatabaseConnection.getInventoryConnection(); }
-    public Stage getOwnerWindow() { return (Stage) standardModePane.getScene().getWindow(); }
-    public Package getCurrentPackage() { return currentPackage; }
-    public PackageDetailController getParentController() { return parentController; }
-    public ObservableList<AssetEntry> getAssetEntries() { return assetEntries; }
+
+    @FXML
+    private void handleFunctioningButton() {
+        monitorIntakeHandler.handleFunctioningButton();
+    }
+
+    @FXML
+    private void handleBrokenButton() {
+        monitorIntakeHandler.handleBrokenButton();
+    }
+
+    @FXML
+    private void handleAddRow() {
+        assetEntries.add(new AssetEntry("", "", "", "", "", "", ""));
+    }
+
+    @FXML
+    private void handleRemoveRow() {
+        assetEntries.remove(deviceTable.getSelectionModel().getSelectedItem());
+    }
+
+    @FXML
+    public void handleClose() {
+        ((Stage) closeButton.getScene().getWindow()).close();
+    }
+
+    public AssetDAO getAssetDAO() {
+        return assetDAO;
+    }
+
+    public SkuDAO getSkuDAO() {
+        return skuDAO;
+    }
+
+    public ReceiptEventDAO getReceiptEventDAO() {
+        return receiptEventDAO;
+    }
+
+    public ZplPrinterService getPrinterService() {
+        return printerService;
+    }
+
+    public Connection getDbConnection() throws SQLException {
+        return DatabaseConnection.getInventoryConnection();
+    }
+
+    public Stage getOwnerWindow() {
+        return (Stage) standardModePane.getScene().getWindow();
+    }
+
+    public Package getCurrentPackage() {
+        return currentPackage;
+    }
+
+    public PackageDetailController getParentController() {
+        return parentController;
+    }
+
+    public ObservableList<AssetEntry> getAssetEntries() {
+        return assetEntries;
+    }
+
     private void loadCategories() {
         if (cachedCategories != null) {
             categoryBox.setItems(FXCollections.observableArrayList(cachedCategories));
@@ -398,6 +524,7 @@ public class AddAssetDialogController {
         });
         new Thread(loadCategoriesTask).start();
     }
+
     private void setupMonitorSkuSearch() {
         monitorSkuSearchField.textProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal == null || newVal.trim().isEmpty()) {
@@ -418,6 +545,7 @@ public class AddAssetDialogController {
             }
         });
     }
+
     private void setupViewToggles() {
         intakeModeToggleGroup.selectedToggleProperty().addListener((obs, oldVal, newVal) -> {
             boolean isMonitorMode = newVal == monitorIntakeRadio;
@@ -441,9 +569,11 @@ public class AddAssetDialogController {
             serialField.setManaged(!newVal);
             serialArea.setVisible(newVal);
             serialArea.setManaged(newVal);
-            if (newVal) serialArea.requestFocus(); else serialField.requestFocus();
+            if (newVal) serialArea.requestFocus();
+            else serialField.requestFocus();
         });
     }
+
     private void setupDispositionControls() {
         sellScrapStatusLabel.setDisable(true);
         sellScrapStatusCombo.setDisable(true);
@@ -492,6 +622,7 @@ public class AddAssetDialogController {
             boxIdField.setDisable(!newVal);
         });
     }
+
     private void setupTable() {
         // Serial Number Column with Autofill on Enter
         serialCol.setCellValueFactory(new PropertyValueFactory<>("serialNumber"));

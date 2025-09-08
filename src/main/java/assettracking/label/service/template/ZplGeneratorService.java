@@ -28,7 +28,7 @@ public class ZplGeneratorService {
                 matcher.appendReplacement(finalElementZpl, Matcher.quoteReplacement(value));
             }
             matcher.appendTail(finalElementZpl);
-            zpl.append(finalElementZpl.toString());
+            zpl.append(finalElementZpl);
         }
 
         zpl.append("^XZ");

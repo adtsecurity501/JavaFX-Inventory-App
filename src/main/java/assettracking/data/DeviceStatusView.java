@@ -33,28 +33,92 @@ public class DeviceStatusView {
     }
 
     // Getters
-    public int getReceiptId() { return receiptId.get(); }
-    public String getSerialNumber() { return serialNumber.get(); }
-    public String getCategory() { return category.get(); }
-    public String getMake() { return make.get(); }
-    public String getDescription() { return description.get(); }
-    public String getStatus() { return status.get(); }
-    public String getSubStatus() { return subStatus.get(); }
-    public String getLastUpdate() { return lastUpdate.get(); }
-    public String getReceiveDate() { return receiveDate.get(); } // New Getter
-    public String getChangeNote() { return changeNote.get(); }
-    public boolean isIsFlagged() { return isFlagged.get(); }
+    public int getReceiptId() {
+        return receiptId.get();
+    }
+
+    public String getSerialNumber() {
+        return serialNumber.get();
+    }
+
+    public String getCategory() {
+        return category.get();
+    }
+
+    public String getMake() {
+        return make.get();
+    }
+
+    public String getDescription() {
+        return description.get();
+    }
+
+    public String getStatus() {
+        return status.get();
+    }
+
+    public String getSubStatus() {
+        return subStatus.get();
+    }
+
+    public String getLastUpdate() {
+        return lastUpdate.get();
+    }
+
+    public String getReceiveDate() {
+        return receiveDate.get();
+    } // New Getter
+
+    public String getChangeNote() {
+        return changeNote.get();
+    }
+
+    public boolean isIsFlagged() {
+        return isFlagged.get();
+    }
 
     // Property Getters
-    public SimpleIntegerProperty receiptIdProperty() { return receiptId; }
-    public SimpleStringProperty serialNumberProperty() { return serialNumber; }
-    public SimpleStringProperty categoryProperty() { return category; }
-    public SimpleStringProperty makeProperty() { return make; }
-    public SimpleStringProperty descriptionProperty() { return description; }
-    public SimpleStringProperty statusProperty() { return status; }
-    public SimpleStringProperty subStatusProperty() { return subStatus; }
-    public SimpleStringProperty lastUpdateProperty() { return lastUpdate; }
-    public SimpleStringProperty receiveDateProperty() { return receiveDate; } // New Property Getter
-    public SimpleStringProperty changeNoteProperty() { return changeNote; }
-    public SimpleBooleanProperty isFlaggedProperty() { return isFlagged; }
+    public SimpleIntegerProperty receiptIdProperty() {
+        return receiptId;
+    }
+
+    public SimpleStringProperty serialNumberProperty() {
+        return serialNumber;
+    }
+
+    public SimpleStringProperty categoryProperty() {
+        return category;
+    }
+
+    public SimpleStringProperty makeProperty() {
+        return make;
+    }
+
+    public SimpleStringProperty descriptionProperty() {
+        return description;
+    }
+
+    public SimpleStringProperty statusProperty() {
+        return status;
+    }
+
+    public SimpleStringProperty subStatusProperty() {
+        return subStatus;
+    }
+
+    public SimpleStringProperty lastUpdateProperty() {
+        return lastUpdate;
+    }
+
+    public SimpleStringProperty receiveDateProperty() {
+        return receiveDate;
+    } // New Property Getter
+
+    public SimpleStringProperty changeNoteProperty() {
+        return changeNote;
+    }
+
+    public SimpleBooleanProperty isFlaggedProperty() {
+        return isFlagged;
+    }
 }

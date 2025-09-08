@@ -22,17 +22,24 @@ import java.sql.SQLException;
 
 public class PackageDetailController {
 
-    @FXML private Label trackingNumberLabel;
-    @FXML private Label senderNameLabel;
-    @FXML private Label senderLocationLabel;
-    @FXML private TableView<DeviceStatusView> assetsTable;
-    @FXML private TableColumn<DeviceStatusView, String> assetSerialCol;
-    @FXML private TableColumn<DeviceStatusView, String> assetCategoryCol;
-    @FXML private TableColumn<DeviceStatusView, String> assetStatusCol;
-    @FXML private TableColumn<DeviceStatusView, String> assetSubStatusCol;
-
-    private Package currentPackage;
     private final ObservableList<DeviceStatusView> assetsList = FXCollections.observableArrayList();
+    @FXML
+    private Label trackingNumberLabel;
+    @FXML
+    private Label senderNameLabel;
+    @FXML
+    private Label senderLocationLabel;
+    @FXML
+    private TableView<DeviceStatusView> assetsTable;
+    @FXML
+    private TableColumn<DeviceStatusView, String> assetSerialCol;
+    @FXML
+    private TableColumn<DeviceStatusView, String> assetCategoryCol;
+    @FXML
+    private TableColumn<DeviceStatusView, String> assetStatusCol;
+    @FXML
+    private TableColumn<DeviceStatusView, String> assetSubStatusCol;
+    private Package currentPackage;
 
     @FXML
     public void initialize() {

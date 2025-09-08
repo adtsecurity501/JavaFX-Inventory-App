@@ -2,14 +2,15 @@ package assettracking.ui;
 
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TextField;
+
 import java.util.List;
 import java.util.function.Supplier;
 
 public class AutoCompleteTableCell<S> extends TableCell<S, String> {
 
+    private final Supplier<List<String>> suggestionProvider;
     private TextField textField;
     private AutoCompletePopup popup;
-    private final Supplier<List<String>> suggestionProvider;
 
     public AutoCompleteTableCell(Supplier<List<String>> suggestionProvider) {
         this.suggestionProvider = suggestionProvider;

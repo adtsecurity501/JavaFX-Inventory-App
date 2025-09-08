@@ -10,9 +10,6 @@ import java.util.List;
 
 public class PackageDAO {
 
-    // A private record to bundle query details, keeping it internal to the DAO.
-    private record QueryAndParams(String sql, List<Object> params) {}
-
     public int addPackage(Package pkg) {
         return addPackage(pkg.getTrackingNumber(), pkg.getFirstName(), pkg.getLastName(), pkg.getCity(), pkg.getState(), pkg.getZipCode(), pkg.getReceiveDate());
     }
@@ -114,20 +111,21 @@ public class PackageDAO {
         }
         return packageList;
     }
+
     public int getAssetCountForPackage(int packageId) throws SQLException {
         // This new query is much smarter. It only counts devices in the package
         // whose most recent status is NOT 'Deleted (Mistake)'.
         String sql = """
-        SELECT COUNT(re.serial_number)
-        FROM Receipt_Events re
-        JOIN (
-            SELECT serial_number, MAX(receipt_id) as max_receipt_id
-            FROM Receipt_Events
-            GROUP BY serial_number
-        ) latest ON re.serial_number = latest.serial_number AND re.receipt_id = latest.max_receipt_id
-        JOIN Device_Status ds ON re.receipt_id = ds.receipt_id
-        WHERE re.package_id = ? AND (ds.sub_status IS NULL OR ds.sub_status != 'Deleted (Mistake)')
-    """;
+                    SELECT COUNT(re.serial_number)
+                    FROM Receipt_Events re
+                    JOIN (
+                        SELECT serial_number, MAX(receipt_id) as max_receipt_id
+                        FROM Receipt_Events
+                        GROUP BY serial_number
+                    ) latest ON re.serial_number = latest.serial_number AND re.receipt_id = latest.max_receipt_id
+                    JOIN Device_Status ds ON re.receipt_id = ds.receipt_id
+                    WHERE re.package_id = ? AND (ds.sub_status IS NULL OR ds.sub_status != 'Deleted (Mistake)')
+                """;
 
         try (Connection conn = DatabaseConnection.getInventoryConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -248,7 +246,7 @@ public class PackageDAO {
 
         String fullQuery = selectClause + fromClause;
         if (!whereClause.isEmpty()) {
-            fullQuery += " WHERE" + whereClause.toString();
+            fullQuery += " WHERE" + whereClause;
         }
 
         if (!forCount) {
@@ -256,5 +254,9 @@ public class PackageDAO {
         }
 
         return new QueryAndParams(fullQuery, params);
+    }
+
+    // A private record to bundle query details, keeping it internal to the DAO.
+    private record QueryAndParams(String sql, List<Object> params) {
     }
 }

@@ -42,6 +42,9 @@ import java.util.stream.Collectors;
 
 public class BoxIdViewerController {
 
+    private final ObservableList<BoxIdSummary> summaryList = FXCollections.observableArrayList();
+    private final ObservableList<BoxIdDetail> detailList = FXCollections.observableArrayList();
+    private final ZplPrinterService printerService = new ZplPrinterService();
     @FXML
     private TextField searchField;
     @FXML
@@ -68,10 +71,6 @@ public class BoxIdViewerController {
     private Button updateStatusButton;
     @FXML
     private Label statusLabel;
-
-    private final ObservableList<BoxIdSummary> summaryList = FXCollections.observableArrayList();
-    private final ObservableList<BoxIdDetail> detailList = FXCollections.observableArrayList();
-    private final ZplPrinterService printerService = new ZplPrinterService();
 
     @FXML
     public void initialize() {
@@ -429,14 +428,14 @@ public class BoxIdViewerController {
 
                 // This SQL is designed to only update the MOST RECENT status record for each serial number
                 String sql = String.format("""
-                UPDATE Device_Status SET box_id = ?
-                WHERE receipt_id IN (
-                    SELECT MAX(re.receipt_id)
-                    FROM Receipt_Events re
-                    WHERE re.serial_number IN (%s)
-                    GROUP BY re.serial_number
-                )
-            """, placeholders);
+                            UPDATE Device_Status SET box_id = ?
+                            WHERE receipt_id IN (
+                                SELECT MAX(re.receipt_id)
+                                FROM Receipt_Events re
+                                WHERE re.serial_number IN (%s)
+                                GROUP BY re.serial_number
+                            )
+                        """, placeholders);
 
                 try (Connection conn = DatabaseConnection.getInventoryConnection();
                      PreparedStatement stmt = conn.prepareStatement(sql)) {

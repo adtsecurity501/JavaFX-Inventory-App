@@ -25,17 +25,25 @@ import java.util.Arrays;
 
 public class PackageIntakeController {
 
-    @FXML private TextField trackingField;
-    @FXML private TextField firstNameField;
-    @FXML private TextField lastNameField;
-    @FXML private TextField zipField;
-    @FXML private TextField cityField;
-    @FXML private TextField stateField;
-    @FXML private Button startButton;
-    @FXML private Label trackingErrorLabel;
-    @FXML private Label zipErrorLabel;
-
     private final PackageDAO packageDAO = new PackageDAO();
+    @FXML
+    private TextField trackingField;
+    @FXML
+    private TextField firstNameField;
+    @FXML
+    private TextField lastNameField;
+    @FXML
+    private TextField zipField;
+    @FXML
+    private TextField cityField;
+    @FXML
+    private TextField stateField;
+    @FXML
+    private Button startButton;
+    @FXML
+    private Label trackingErrorLabel;
+    @FXML
+    private Label zipErrorLabel;
 
     @FXML
     private void initialize() {

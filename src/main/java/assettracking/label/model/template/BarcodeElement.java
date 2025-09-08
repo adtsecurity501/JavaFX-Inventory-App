@@ -4,10 +4,21 @@ public class BarcodeElement extends LabelElement {
     private String content = "${serial}"; // Default content
     private int height = 50;
 
-    public String getContent() { return content; }
-    public void setContent(String content) { this.content = content; }
-    public int getHeight() { return height; }
-    public void setHeight(int height) { this.height = height; }
+    public String getContent() {
+        return content;
+    }
+
+    public void setContent(String content) {
+        this.content = content;
+    }
+
+    public int getHeight() {
+        return height;
+    }
+
+    public void setHeight(int height) {
+        this.height = height;
+    }
 
     @Override
     public String toZpl() {

@@ -23,12 +23,6 @@ import java.util.function.Function;
 
 public class MelRulesImporter {
 
-    // A simple record to hold data from each row of the Excel file
-    private record MelRuleData(String model, String description, String action, String notes, String mfg, String threshold) {}
-
-    // A record to hold the results of parsing, including skipped rows for better feedback
-    private record ParseResult(List<MelRuleData> rules, int skippedRowCount) {}
-
     public void importFromFile(Stage owner) {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Select MEL Rules Excel File");
@@ -183,5 +177,14 @@ public class MelRulesImporter {
             return "";
         }
         return new DataFormatter().formatCellValue(cell).trim();
+    }
+
+    // A simple record to hold data from each row of the Excel file
+    private record MelRuleData(String model, String description, String action, String notes, String mfg,
+                               String threshold) {
+    }
+
+    // A record to hold the results of parsing, including skipped rows for better feedback
+    private record ParseResult(List<MelRuleData> rules, int skippedRowCount) {
     }
 }

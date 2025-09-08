@@ -21,18 +21,45 @@ public class BulkDevice {
     }
 
     // Getters
-    public String getSerialNumber() { return serialNumber.get(); }
-    public String getImei() { return imei.get(); }
-    public String getIccid() { return iccid.get(); }
-    public String getCapacity() { return capacity.get(); }
-    public String getDeviceName() { return deviceName.get(); }
-    public String getLastImportDate() { return lastImportDate.get(); }
+    public String getSerialNumber() {
+        return serialNumber.get();
+    }
+
+    public String getImei() {
+        return imei.get();
+    }
+
+    public String getIccid() {
+        return iccid.get();
+    }
 
     // Setters
-    public void setIccid(String iccid) { this.iccid.set(iccid); }
+    public void setIccid(String iccid) {
+        this.iccid.set(iccid);
+    }
+
+    public String getCapacity() {
+        return capacity.get();
+    }
+
+    public String getDeviceName() {
+        return deviceName.get();
+    }
+
+    public String getLastImportDate() {
+        return lastImportDate.get();
+    }
 
     // JavaFX Property Getters
-    public SimpleStringProperty serialNumberProperty() { return serialNumber; }
-    public SimpleStringProperty imeiProperty() { return imei; }
-    public SimpleStringProperty iccidProperty() { return iccid; }
+    public SimpleStringProperty serialNumberProperty() {
+        return serialNumber;
+    }
+
+    public SimpleStringProperty imeiProperty() {
+        return imei;
+    }
+
+    public SimpleStringProperty iccidProperty() {
+        return iccid;
+    }
 }

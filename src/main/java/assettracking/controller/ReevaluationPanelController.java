@@ -13,8 +13,10 @@ import java.sql.SQLException;
 
 public class ReevaluationPanelController {
 
-    @FXML private TextField serialField;
-    @FXML private Label infoLabel;
+    @FXML
+    private TextField serialField;
+    @FXML
+    private Label infoLabel;
 
     @FXML
     private void handleSearch() {
@@ -46,14 +48,13 @@ public class ReevaluationPanelController {
                 stmt.setInt(1, receiptId);
                 ResultSet rs = stmt.executeQuery();
                 if (rs.next()) {
-                    StringBuilder sb = new StringBuilder();
-                    sb.append("Disposition Info for Receipt ID: ").append(receiptId).append("\n\n");
-                    sb.append("Is Everon: ").append(rs.getBoolean("is_everon") ? "Yes" : "No").append("\n");
-                    sb.append("Is Under Capacity: ").append(rs.getBoolean("is_under_capacity") ? "Yes" : "No").append("\n");
-                    sb.append("Is End of Life: ").append(rs.getBoolean("is_end_of_life") ? "Yes" : "No").append("\n");
-                    sb.append("Is Phone: ").append(rs.getBoolean("is_phone") ? "Yes" : "No").append("\n");
-                    sb.append("Other Disqualification: ").append(rs.getString("other_disqualification") != null ? rs.getString("other_disqualification") : "None");
-                    infoLabel.setText(sb.toString());
+                    String sb = "Disposition Info for Receipt ID: " + receiptId + "\n\n" +
+                            "Is Everon: " + (rs.getBoolean("is_everon") ? "Yes" : "No") + "\n" +
+                            "Is Under Capacity: " + (rs.getBoolean("is_under_capacity") ? "Yes" : "No") + "\n" +
+                            "Is End of Life: " + (rs.getBoolean("is_end_of_life") ? "Yes" : "No") + "\n" +
+                            "Is Phone: " + (rs.getBoolean("is_phone") ? "Yes" : "No") + "\n" +
+                            "Other Disqualification: " + (rs.getString("other_disqualification") != null ? rs.getString("other_disqualification") : "None");
+                    infoLabel.setText(sb);
                 } else {
                     infoLabel.setText("No disposition info found for the most recent receipt of this serial.");
                 }

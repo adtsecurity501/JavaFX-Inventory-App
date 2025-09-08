@@ -15,18 +15,24 @@ import java.util.Optional;
 
 public class MonitorDisposalDialogController {
 
-    @FXML private Label headerLabel;
-    @FXML private ComboBox<String> statusCombo;
-    @FXML private ComboBox<String> subStatusCombo;
-    @FXML private TextField reasonField;
-    @FXML private Label boxIdLabel;
-    @FXML private TextField boxIdField;
-    @FXML private Button confirmButton;
-    @FXML private Button cancelButton;
+    @FXML
+    private Label headerLabel;
+    @FXML
+    private ComboBox<String> statusCombo;
+    @FXML
+    private ComboBox<String> subStatusCombo;
+    @FXML
+    private TextField reasonField;
+    @FXML
+    private Label boxIdLabel;
+    @FXML
+    private TextField boxIdField;
+    @FXML
+    private Button confirmButton;
+    @FXML
+    private Button cancelButton;
 
     private DisposalResult result;
-
-    public record DisposalResult(String status, String subStatus, String reason, String boxId) {}
 
     @FXML
     public void initialize() {
@@ -73,7 +79,7 @@ public class MonitorDisposalDialogController {
             String subStatus = subStatusCombo.getValue();
             if (!"Ready for Wipe".equals(subStatus) && boxIdField.getText().trim().isEmpty()) {
                 StageManager.showAlert(
-                        (Stage) confirmButton.getScene().getWindow(),
+                        confirmButton.getScene().getWindow(),
                         Alert.AlertType.WARNING,
                         "Input Required",
                         "A Box ID is required for this disposed status. It is optional only for 'Ready for Wipe'."
@@ -97,5 +103,8 @@ public class MonitorDisposalDialogController {
 
     private void closeStage() {
         ((Stage) confirmButton.getScene().getWindow()).close();
+    }
+
+    public record DisposalResult(String status, String subStatus, String reason, String boxId) {
     }
 }

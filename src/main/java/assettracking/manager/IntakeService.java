@@ -53,7 +53,9 @@ public class IntakeService {
             return String.format("Successfully processed %d receipts.", successCount);
 
         } catch (SQLException e) {
-            try { if (conn != null) conn.rollback(); } catch (SQLException ex) {
+            try {
+                if (conn != null) conn.rollback();
+            } catch (SQLException ex) {
                 // Log rollback failure
                 System.err.println("Critical Error: Failed to rollback transaction.");
                 ex.printStackTrace(); // Keep this for critical failures
@@ -113,7 +115,9 @@ public class IntakeService {
             return result;
 
         } catch (SQLException e) {
-            try { if (conn != null) conn.rollback(); } catch (SQLException ex) {
+            try {
+                if (conn != null) conn.rollback();
+            } catch (SQLException ex) {
                 // Log rollback failure
                 System.err.println("Critical Error: Failed to rollback transaction.");
                 ex.printStackTrace(); // Keep this for critical failures
