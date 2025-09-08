@@ -1,6 +1,7 @@
 package assettracking.controller;
 
 import assettracking.dao.AssetDAO; // <-- IMPORT ADDED
+import assettracking.dao.ReceiptEventDAO;
 import assettracking.data.AssetInfo;
 import assettracking.data.DeviceStatusView;
 import assettracking.db.DatabaseConnection;
@@ -204,17 +205,21 @@ public class DeviceStatusTrackingController {
         ObservableList<DeviceStatusView> selectedDevices = statusTable.getSelectionModel().getSelectedItems();
         String newStatus = statusUpdateCombo.getValue();
         String newSubStatus = subStatusUpdateCombo.getValue();
-        String note = null;
+
+        // Create two separate variables for the note and the box ID
+        String boxId = null;
+        String note = ""; // Default to an empty note
+
         boolean needsBoxId = "Disposed".equals(newStatus) && !"Ready for Wipe".equals(newSubStatus);
         if (needsBoxId) {
-            String boxId = boxIdField.getText().trim();
+            boxId = boxIdField.getText().trim();
             if (boxId.isEmpty()) {
                 StageManager.showAlert(getOwnerWindow(), Alert.AlertType.WARNING, "Box ID Required", "A Box ID is required for this disposed status. The update was cancelled.");
                 return;
             }
-            note = "Box ID: " + boxId;
         }
-        deviceStatusManager.updateDeviceStatus(selectedDevices, newStatus, newSubStatus, note);
+        // Call the manager with the new boxId parameter
+        deviceStatusManager.updateDeviceStatus(selectedDevices, newStatus, newSubStatus, note, boxId);
         boxIdField.clear();
         refreshData();
     }
@@ -296,15 +301,58 @@ public class DeviceStatusTrackingController {
         return "Reason not found.";
     }
 
+    @FXML
+    private void handleReassignPackage() {
+        DeviceStatusView selectedDevice = statusTable.getSelectionModel().getSelectedItem();
+        if (selectedDevice == null) {
+            StageManager.showAlert(getOwnerWindow(), Alert.AlertType.WARNING, "No Selection", "Please select a device to reassign.");
+            return;
+        }
+
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/SelectPackageDialog.fxml"));
+            Parent root = loader.load();
+            SelectPackageDialogController dialogController = loader.getController();
+            Stage stage = StageManager.createCustomStage(getOwnerWindow(), "Select New Package for " + selectedDevice.getSerialNumber(), root);
+            stage.showAndWait();
+
+            dialogController.getResult().ifPresent(result -> {
+                if (!result.createNew() && result.selectedPackage() != null) {
+                    assettracking.data.Package newPackage = result.selectedPackage(); // Use the fully qualified name to avoid conflict
+
+                    // You will need to create this DAO method
+                    boolean success = new assettracking.dao.ReceiptEventDAO().updatePackageId(selectedDevice.getReceiptId(), newPackage.getPackageId());
+
+                    if (success) {
+                        StageManager.showAlert(getOwnerWindow(), Alert.AlertType.INFORMATION, "Success", "Device was successfully moved to package " + newPackage.getTrackingNumber());
+                        refreshData();
+                    } else {
+                        StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Error", "Failed to update the package in the database.");
+                    }
+                }
+            });
+        } catch (IOException e) {
+            e.printStackTrace();
+            StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Error", "Could not open package selection dialog.");
+        }
+    }
+
     private void configureTableRowFactory() {
         ContextMenu contextMenu = new ContextMenu();
         MenuItem historyMenuItem = new MenuItem("View Full History");
         historyMenuItem.setOnAction(event -> handleViewHistory());
         MenuItem editMenuItem = new MenuItem("Edit Selected Device...");
         editMenuItem.setOnAction(event -> handleEditDevice());
+
+        // --- ADD THESE TWO LINES ---
+        MenuItem reassignMenuItem = new MenuItem("Reassign Package...");
+        reassignMenuItem.setOnAction(event -> handleReassignPackage());
+
         MenuItem deleteMenuItem = new MenuItem("Delete Selected Device...");
         deleteMenuItem.setOnAction(event -> handleDeleteDevice());
-        contextMenu.getItems().addAll(historyMenuItem, new SeparatorMenuItem(), editMenuItem, deleteMenuItem);
+
+        // --- UPDATE THIS LINE TO INCLUDE THE NEW ITEM ---
+        contextMenu.getItems().addAll(historyMenuItem, new SeparatorMenuItem(), reassignMenuItem, editMenuItem, deleteMenuItem);
         statusTable.setRowFactory(tv -> {
             TableRow<DeviceStatusView> row = new TableRow<>();
             row.contextMenuProperty().bind(
@@ -339,8 +387,10 @@ public class DeviceStatusTrackingController {
             return;
         }
         if (StageManager.showDeleteConfirmationDialog(getOwnerWindow(), "device", selectedDevice.getSerialNumber())) {
-            deviceStatusManager.updateDeviceStatus(FXCollections.observableArrayList(selectedDevice), "Disposed", "Deleted (Mistake)", "Entry deleted by user.");
+            // Add null for the boxId parameter
+            deviceStatusManager.updateDeviceStatus(FXCollections.observableArrayList(selectedDevice), "Disposed", "Deleted (Mistake)", "Entry deleted by user.", null);
             refreshData();
+
         }
     }
 

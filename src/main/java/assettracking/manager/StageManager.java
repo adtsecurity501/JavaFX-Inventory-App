@@ -91,41 +91,60 @@ public final class StageManager {
     }
 
     public static boolean showDeleteConfirmationDialog(Window owner, String objectType, String objectName) {
-        Dialog<String> dialog = new Dialog<>();
-        Stage stage = (Stage) dialog.getDialogPane().getScene().getWindow();
-        // We can reuse our custom stage creation to get our styled title bar!
-        StageManager.createCustomStage(owner, "Confirm Deletion", dialog.getDialogPane());
+        // Use a boolean array to hold the result, as it needs to be effectively final for the lambda
+        final boolean[] result = {false};
 
-        dialog.setHeaderText("Are you absolutely sure you want to delete this " + objectType + "?");
-        dialog.setContentText("This action cannot be undone. To confirm, please type DELETE into the box below.\n\n" + objectName);
+        // 1. Create the UI components for the dialog
+        Label headerLabel = new Label("Are you absolutely sure you want to delete this " + objectType + "?");
+        headerLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 1.1em;");
 
-        DialogPane dialogPane = dialog.getDialogPane();
-        dialogPane.getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+        Label contentLabel = new Label("This action cannot be undone. To confirm, please type DELETE into the box below.\n\n" + objectName);
+        contentLabel.setWrapText(true);
+        contentLabel.setMaxWidth(450);
 
-        TextField input = new TextField();
-        input.setPromptText("DELETE");
+        TextField inputField = new TextField();
+        inputField.setPromptText("DELETE");
 
-        // Disable the OK button initially
-        Node okButton = dialogPane.lookupButton(ButtonType.OK);
-        okButton.setDisable(true);
+        Button okButton = new Button("Confirm Deletion");
+        okButton.getStyleClass().add("danger"); // Use danger style for a delete button
+        okButton.setDefaultButton(true);
+        okButton.setDisable(true); // Start disabled
 
-        // Add a listener to enable the OK button only when "DELETE" is typed
-        input.textProperty().addListener((observable, oldValue, newValue) -> {
+        Button cancelButton = new Button("Cancel");
+        cancelButton.setCancelButton(true);
+
+        // 2. Add listener to enable the OK button only when "DELETE" is typed
+        inputField.textProperty().addListener((observable, oldValue, newValue) -> {
             okButton.setDisable(!newValue.trim().equals("DELETE"));
         });
 
-        dialogPane.setExpandableContent(new VBox(8, input));
-        dialogPane.setExpanded(true);
+        // 3. Arrange components in the layout
+        HBox buttonBar = new HBox(10, cancelButton, okButton);
+        buttonBar.setAlignment(Pos.CENTER_RIGHT);
 
-        dialog.setResultConverter(dialogButton -> {
-            if (dialogButton == ButtonType.OK) {
-                return input.getText();
-            }
-            return null;
+        VBox layout = new VBox(20, headerLabel, new Separator(), contentLabel, inputField, buttonBar);
+        layout.setPadding(new Insets(20));
+
+        // 4. Create a STAGE, which we can fully style, instead of a Dialog
+        Stage dialogStage = createCustomStage(owner, "Confirm Deletion", layout);
+
+        // 5. Set the actions for the buttons
+        okButton.setOnAction(e -> {
+            result[0] = true;
+            dialogStage.close();
+        });
+        cancelButton.setOnAction(e -> {
+            result[0] = false;
+            dialogStage.close();
         });
 
-        Optional<String> result = dialog.showAndWait();
-        return result.isPresent() && result.get().equals("DELETE");
+        // Set focus to the input field after the stage is shown
+        Platform.runLater(inputField::requestFocus);
+
+        // 6. Show the stage and wait for it to be closed
+        dialogStage.showAndWait();
+
+        return result[0];
     }
 
     // --- THIS IS THE CORRECTED METHOD ---

@@ -1,7 +1,6 @@
 Priority 1:
 - add way to import information into the device_autofill_data table.
 - When I minimize the window it goes to the bottom left corner and it has no styles
-- update DB
 
 
 
@@ -136,7 +135,7 @@ device is a:Optiplex 3000
 - the autofill in prodcess failed scans for package lost isn't correctly giving me the suggestinos. 
 - I have a box id at the top of the list that is blank and says there are 2 devices in side but when I click on it it shows alot more than 2, what is going on?
 - on scan update the sizing is off between succesful scans and failed/unrefnized scans windwos. The sucess. scans windows is smaller and i think it's because it doesn't have the process failed scans button
-
+- update DB
 
 
 

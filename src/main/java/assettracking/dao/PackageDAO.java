@@ -115,13 +115,27 @@ public class PackageDAO {
         return packageList;
     }
     public int getAssetCountForPackage(int packageId) throws SQLException {
-        String sql = "SELECT COUNT(*) FROM Receipt_Events WHERE package_id = ?";
+        // This new query is much smarter. It only counts devices in the package
+        // whose most recent status is NOT 'Deleted (Mistake)'.
+        String sql = """
+        SELECT COUNT(re.serial_number)
+        FROM Receipt_Events re
+        JOIN (
+            SELECT serial_number, MAX(receipt_id) as max_receipt_id
+            FROM Receipt_Events
+            GROUP BY serial_number
+        ) latest ON re.serial_number = latest.serial_number AND re.receipt_id = latest.max_receipt_id
+        JOIN Device_Status ds ON re.receipt_id = ds.receipt_id
+        WHERE re.package_id = ? AND (ds.sub_status IS NULL OR ds.sub_status != 'Deleted (Mistake)')
+    """;
+
         try (Connection conn = DatabaseConnection.getInventoryConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, packageId);
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next()) {
-                return rs.getInt(1);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
             }
         }
         return 0;

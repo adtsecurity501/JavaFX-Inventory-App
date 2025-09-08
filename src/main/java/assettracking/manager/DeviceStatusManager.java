@@ -61,8 +61,8 @@ public class DeviceStatusManager {
         resetPagination();
     }
 
-    public void updateDeviceStatus(ObservableList<DeviceStatusView> selectedDevices, String newStatus, String newSubStatus, String note) {
-        deviceStatusDAO.updateDeviceStatus(selectedDevices, newStatus, newSubStatus, note);
+    public void updateDeviceStatus(ObservableList<DeviceStatusView> selectedDevices, String newStatus, String newSubStatus, String note, String boxId) {
+        deviceStatusDAO.updateDeviceStatus(selectedDevices, newStatus, newSubStatus, note, boxId);
     }
 
     public int getRowsPerPage() {

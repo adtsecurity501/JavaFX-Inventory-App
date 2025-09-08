@@ -37,6 +37,19 @@ public class ReceiptEventDAO {
         return -1;
     }
 
+    public boolean updatePackageId(int receiptId, int newPackageId) {
+        String sql = "UPDATE Receipt_Events SET package_id = ? WHERE receipt_id = ?";
+        try (Connection conn = DatabaseConnection.getInventoryConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, newPackageId);
+            stmt.setInt(2, receiptId);
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
     // New method that operates within an existing transaction
     public int addReceiptEvent(Connection conn, ReceiptEvent event) throws SQLException {
         String sql = "INSERT INTO Receipt_Events (serial_number, package_id, IMEI, category, make, model_number, description) VALUES (?, ?, ?, ?, ?, ?, ?)";

@@ -72,13 +72,13 @@ public class DeviceStatusDAO {
         }
     }
 
-    public void updateDeviceStatus(ObservableList<DeviceStatusView> selectedDevices, String newStatus, String newSubStatus, String note) {
+    public void updateDeviceStatus(ObservableList<DeviceStatusView> selectedDevices, String newStatus, String newSubStatus, String note, String boxId) {
         if (selectedDevices == null || selectedDevices.isEmpty()) {
             StageManager.showAlert(null, Alert.AlertType.WARNING, "No Selection", "Please select one or more devices to update.");
             return;
         }
 
-        String updateStatusSql = "UPDATE Device_Status SET status = ?, sub_status = ?, last_update = CURRENT_TIMESTAMP, change_log = ?, box_id = CASE WHEN ? = 'Deleted (Mistake)' THEN NULL ELSE box_id END WHERE receipt_id = ?";
+        String updateStatusSql = "UPDATE Device_Status SET status = ?, sub_status = ?, last_update = CURRENT_TIMESTAMP, change_log = ?, box_id = ? WHERE receipt_id = ?";
         String deleteFlagSql = "DELETE FROM Flag_Devices WHERE serial_number = ?";
 
         Connection conn = null;
@@ -88,11 +88,19 @@ public class DeviceStatusDAO {
 
             try (PreparedStatement updateStmt = conn.prepareStatement(updateStatusSql);
                  PreparedStatement deleteStmt = conn.prepareStatement(deleteFlagSql)) {
+
                 for (DeviceStatusView device : selectedDevices) {
                     updateStmt.setString(1, newStatus);
                     updateStmt.setString(2, newSubStatus);
-                    updateStmt.setString(3, note);
-                    updateStmt.setString(4, newSubStatus); // Pass sub-status to the CASE statement
+                    updateStmt.setString(3, note.isEmpty() ? null : note);
+
+                    // If this is a deletion, force box_id to null. Otherwise, use the provided boxId.
+                    if ("Deleted (Mistake)".equals(newSubStatus)) {
+                        updateStmt.setNull(4, java.sql.Types.VARCHAR);
+                    } else {
+                        updateStmt.setString(4, (boxId != null && !boxId.isEmpty()) ? boxId : null);
+                    }
+
                     updateStmt.setInt(5, device.getReceiptId());
                     updateStmt.addBatch();
 
