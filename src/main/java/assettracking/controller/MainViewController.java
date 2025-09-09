@@ -17,6 +17,7 @@ import javafx.util.Callback;
 public class MainViewController {
 
     public VBox dashboard;
+    public Button closeButton;
     @FXML
     private HBox titleBar;
     @FXML

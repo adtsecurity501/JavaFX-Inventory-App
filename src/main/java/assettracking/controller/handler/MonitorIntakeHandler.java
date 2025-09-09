@@ -3,7 +3,7 @@ package assettracking.controller.handler;
 import assettracking.controller.AddAssetDialogController;
 import assettracking.controller.MonitorDisposalDialogController;
 import assettracking.data.AssetInfo;
-import assettracking.label.service.ZplPrinterService; // Make sure this import is present
+import assettracking.label.service.ZplPrinterService;
 import assettracking.manager.IntakeService;
 import assettracking.manager.StageManager;
 import javafx.concurrent.Task;

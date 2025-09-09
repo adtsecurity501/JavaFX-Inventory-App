@@ -32,7 +32,7 @@ public class ReevaluationPanelController {
         String dispositionQuery = "SELECT * FROM Disposition_Info WHERE receipt_id = ?";
 
         try (Connection conn = DatabaseConnection.getInventoryConnection()) {
-            int receiptId = -1;
+            int receiptId;
             try (PreparedStatement stmt = conn.prepareStatement(receiptQuery)) {
                 stmt.setString(1, serial);
                 ResultSet rs = stmt.executeQuery();
@@ -60,7 +60,7 @@ public class ReevaluationPanelController {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Service error: " + e.getMessage());
             showAlert("Database Error", "Error retrieving data: " + e.getMessage());
         }
     }

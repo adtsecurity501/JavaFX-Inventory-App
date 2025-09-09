@@ -3,7 +3,6 @@ package assettracking.manager;
 import assettracking.controller.DeviceStatusTrackingController;
 import assettracking.dao.DeviceStatusDAO;
 import assettracking.data.DeviceStatusView;
-import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;

@@ -1,8 +1,8 @@
 package assettracking.dao;
 
-import assettracking.db.DatabaseConnection;
 import assettracking.data.AssetInfo;
 import assettracking.data.MelRule;
+import assettracking.db.DatabaseConnection;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;

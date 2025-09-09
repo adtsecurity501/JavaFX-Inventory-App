@@ -1,8 +1,8 @@
 package assettracking.controller;
 
-import assettracking.db.DatabaseConnection;
-import assettracking.data.Package;
 import assettracking.dao.PackageDAO;
+import assettracking.data.Package;
+import assettracking.db.DatabaseConnection;
 import assettracking.manager.StageManager;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -177,7 +177,7 @@ public class PackageIntakeController {
             Stage stage = StageManager.createCustomStage(getOwnerWindow(), "Package Details", root);
             stage.show();
         } catch (IOException e) {
-            e.printStackTrace();
+            System.err.println("Service error: " + e.getMessage());
             showAlert(Alert.AlertType.ERROR, "Error", "Could not open package detail window.");
         }
     }

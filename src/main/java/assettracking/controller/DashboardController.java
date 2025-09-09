@@ -3,10 +3,10 @@ package assettracking.controller;
 import assettracking.dao.AppSettingsDAO;
 import assettracking.data.TopModelStat;
 import assettracking.db.DatabaseConnection;
-import assettracking.manager.DashboardDataService;
-import assettracking.manager.StageManager;
 import assettracking.manager.ConfettiManager;
+import assettracking.manager.DashboardDataService;
 import assettracking.manager.DeviceImportService;
+import assettracking.manager.StageManager;
 import assettracking.ui.FlaggedDeviceImporter;
 import assettracking.ui.MelRulesImporter;
 import javafx.animation.ScaleTransition;
@@ -36,6 +36,7 @@ public class DashboardController {
     private final AppSettingsDAO appSettingsDAO = new AppSettingsDAO();
     // --- State and UI Helpers ---
     private final ObservableList<TopModelStat> topModelsList = FXCollections.observableArrayList();
+    public Button manageFoldersButton;
     // --- FXML Fields ---
     @FXML
     private BarChart<String, Number> weeklyIntakeChart;
@@ -137,8 +138,7 @@ public class DashboardController {
         initialLoadTask.setOnFailed(e -> {
             // Proper error handling if the database connection fails.
             Platform.runLater(() -> {
-                StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Database Connection Failed",
-                        "Could not connect to the database. Please ensure the H2 server is running and the network is accessible.\\n\\nError: " + initialLoadTask.getException().getMessage());
+                StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Database Connection Failed", "Could not connect to the database. Please ensure the H2 server is running and the network is accessible.\\n\\nError: " + initialLoadTask.getException().getMessage());
             });
         });
 
@@ -222,6 +222,7 @@ public class DashboardController {
         new Thread(task).start();
     }
 
+    @SuppressWarnings("unchecked")
     private void loadDynamicCharts() {
         Task<List<PieChart.Data>> inventoryTask = new Task<>() {
             @Override
@@ -382,9 +383,7 @@ public class DashboardController {
         final String FOLDERS_KEY = "bulk.import.scan.folders";
 
         // Get the currently saved folders
-        List<String> currentFolders = new ArrayList<>(settingsDAO.getSetting(FOLDERS_KEY)
-                .map(paths -> Arrays.asList(paths.split(",")))
-                .orElse(List.of()));
+        List<String> currentFolders = new ArrayList<>(settingsDAO.getSetting(FOLDERS_KEY).map(paths -> Arrays.asList(paths.split(","))).orElse(List.of()));
 
         // This method will open a dialog to let the user add/remove folders
         Optional<List<String>> updatedFoldersOpt = showFolderManagementDialog(currentFolders);
@@ -393,8 +392,7 @@ public class DashboardController {
         updatedFoldersOpt.ifPresent(updatedFolders -> {
             String pathsToSave = String.join(",", updatedFolders);
             settingsDAO.saveSetting(FOLDERS_KEY, pathsToSave);
-            StageManager.showAlert(getStage(), Alert.AlertType.INFORMATION, "Settings Saved",
-                    "Your import folder list has been updated.");
+            StageManager.showAlert(getStage(), Alert.AlertType.INFORMATION, "Settings Saved", "Your import folder list has been updated.");
         });
     }
 
@@ -411,8 +409,7 @@ public class DashboardController {
             foldersToScan = new ArrayList<>(Arrays.asList(savedPathsOpt.get().split(",")));
         } else {
             // --- ONE-TIME SETUP WITH LOOPING DIALOG ---
-            StageManager.showAlert(getStage(), Alert.AlertType.INFORMATION, "Initial Folder Setup",
-                    "Please select the folder(s) where your device files are stored.\nYou can add multiple folders.");
+            StageManager.showAlert(getStage(), Alert.AlertType.INFORMATION, "Initial Folder Setup", "Please select the folder(s) where your device files are stored.\nYou can add multiple folders.");
 
             Optional<List<String>> chosenFoldersOpt = showFolderManagementDialog(new ArrayList<>());
 
@@ -420,8 +417,7 @@ public class DashboardController {
                 foldersToScan = chosenFoldersOpt.get();
                 String pathsToSave = String.join(",", foldersToScan);
                 settingsDAO.saveSetting(FOLDERS_KEY, pathsToSave);
-                StageManager.showAlert(getStage(), Alert.AlertType.INFORMATION, "Settings Saved",
-                        "Your folder paths have been saved. The import will now begin.");
+                StageManager.showAlert(getStage(), Alert.AlertType.INFORMATION, "Settings Saved", "Your folder paths have been saved. The import will now begin.");
             } else {
                 statusLabel.setText("Folder setup cancelled. Import aborted.");
                 return; // User cancelled or selected no folders

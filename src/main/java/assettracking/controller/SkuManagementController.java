@@ -1,9 +1,9 @@
 package assettracking.controller;
 
-import assettracking.data.Sku;
 import assettracking.dao.SkuDAO;
+import assettracking.data.Sku;
 import assettracking.manager.StageManager;
-import assettracking.ui.AutoCompletePopup; // <-- IMPORT AutoCompletePopup
+import assettracking.ui.AutoCompletePopup;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -107,7 +107,6 @@ public class SkuManagementController {
         });
         loadSkusTask.setOnFailed(e -> {
             Throwable ex = loadSkusTask.getException();
-            ex.printStackTrace(); // <-- Check removed
             statusLabel.setText("Error: Failed to load SKU data. See log for details.");
         });
         new Thread(loadSkusTask).start();

@@ -27,7 +27,7 @@ public class AppSettingsDAO {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Database error: " + e.getMessage());
         }
         return Optional.empty();
     }
@@ -47,9 +47,8 @@ public class AppSettingsDAO {
             stmt.setString(2, value);
             stmt.executeUpdate();
         } catch (SQLException e) {
-            System.err.println("Failed to save setting: " + key);
-            // You could even show an alert here if it's critical
-            // StageManager.showAlert(null, Alert.AlertType.ERROR, "DB Error", "Could not save setting: " + key);
+            // Replaced printStackTrace with a more descriptive log
+            System.err.println("Database error while saving setting '" + key + "': " + e.getMessage());
         }
     }
 }

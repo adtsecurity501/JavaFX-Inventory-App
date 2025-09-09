@@ -1,7 +1,7 @@
 package assettracking.dao;
 
-import assettracking.db.DatabaseConnection;
 import assettracking.data.ReceiptEvent;
+import assettracking.db.DatabaseConnection;
 
 import java.sql.*;
 import java.util.Optional;
@@ -31,7 +31,7 @@ public class ReceiptEventDAO {
             }
         } catch (SQLException e) {
             System.err.println("Error adding receipt event: " + e.getMessage());
-            e.printStackTrace();
+            System.err.println("Database error: " + e.getMessage());
         }
         return -1;
     }
@@ -44,7 +44,7 @@ public class ReceiptEventDAO {
             stmt.setInt(2, receiptId);
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Database error: " + e.getMessage());
             return false;
         }
     }
@@ -85,7 +85,7 @@ public class ReceiptEventDAO {
             }
         } catch (SQLException e) {
             System.err.println("Error finding most recent receipt for serial '" + serialNumber + "': " + e.getMessage());
-            e.printStackTrace();
+            System.err.println("Database error: " + e.getMessage());
         }
         return Optional.empty();
     }

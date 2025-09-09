@@ -7,20 +7,14 @@ import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
 import javafx.scene.shape.SVGPath;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.stage.Window;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.Dialog;
-import javafx.scene.control.DialogPane;
 
+import java.util.Objects;
 import java.util.Optional;
 
 public final class StageManager {
@@ -68,7 +62,10 @@ public final class StageManager {
         root.setStyle("-fx-background-color: -color-bg-default;");
 
         Scene scene = new Scene(root);
-        scene.getStylesheets().addAll(Application.getUserAgentStylesheet(), StageManager.class.getResource("/style.css").toExternalForm());
+        scene.getStylesheets().addAll(
+                Application.getUserAgentStylesheet(),
+                Objects.requireNonNull(StageManager.class.getResource("/style.css")).toExternalForm()
+        );
 
         stage.setScene(scene);
         stage.sizeToScene();
@@ -114,9 +111,7 @@ public final class StageManager {
         cancelButton.setCancelButton(true);
 
         // 2. Add listener to enable the OK button only when "DELETE" is typed
-        inputField.textProperty().addListener((observable, oldValue, newValue) -> {
-            okButton.setDisable(!newValue.trim().equals("DELETE"));
-        });
+        inputField.textProperty().addListener((observable, oldValue, newValue) -> okButton.setDisable(!newValue.trim().equals("DELETE")));
 
         // 3. Arrange components in the layout
         HBox buttonBar = new HBox(10, cancelButton, okButton);

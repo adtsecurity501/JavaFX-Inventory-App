@@ -1,7 +1,7 @@
 package assettracking.controller;
 
-import assettracking.dao.AssetDAO;
 import assettracking.dao.SkuDAO;
+import assettracking.data.Sku;
 import assettracking.label.service.ZplPrinterService;
 import assettracking.ui.AutoCompletePopup;
 import javafx.application.Platform;
@@ -23,8 +23,8 @@ public class LabelPrintingController {
 
     // --- Services and DAO ---
     private final SkuDAO skuDAO = new SkuDAO();
-    private final AssetDAO assetDAO = new AssetDAO();
     private final ZplPrinterService printerService = new ZplPrinterService();
+    public ToggleGroup barcodeLengthGroup;
 
     // --- FXML Components ---
     @FXML
@@ -245,7 +245,7 @@ public class LabelPrintingController {
             showAlert(Alert.AlertType.WARNING, "Input Missing", "Please search and select a SKU to print.");
             return;
         }
-        String description = skuDAO.findSkuByNumber(sku).map(s -> s.getDescription()).orElse("Description not found");
+        String description = skuDAO.findSkuByNumber(sku).map(Sku::getDescription).orElse("Description not found");
         String zpl = ZplPrinterService.getAdtLabelZpl(sku, description);
         if (printerService.sendZplToPrinter(printerNameField.getValue(), zpl)) {
             updateStatus("Printed label for SKU: " + sku, false);
@@ -269,7 +269,7 @@ public class LabelPrintingController {
             showAlert(Alert.AlertType.WARNING, "Invalid Input", "Number of copies must be a positive number.");
             return;
         }
-        String description = skuDAO.findSkuByNumber(sku).map(s -> s.getDescription()).orElse("Description not found");
+        String description = skuDAO.findSkuByNumber(sku).map(Sku::getDescription).orElse("Description not found");
         String zpl = ZplPrinterService.getAdtLabelZpl(sku, description);
         int successCount = 0;
         for (int i = 0; i < copies; i++) {
@@ -340,7 +340,7 @@ public class LabelPrintingController {
             showAlert(Alert.AlertType.WARNING, "Invalid Input", "Copies must be a positive number.");
             return;
         }
-        String description = skuDAO.findSkuByNumber(imageSku).map(s -> s.getDescription()).orElse("Description not found");
+        String description = skuDAO.findSkuByNumber(imageSku).map(Sku::getDescription).orElse("Description not found");
         String zpl = ZplPrinterService.getImageLabelZpl(description, deviceSku, imagePrefixField.getText().trim());
         int successCount = 0;
         for (int i = 0; i < copies; i++) {
@@ -361,8 +361,8 @@ public class LabelPrintingController {
         printerNameField.setItems(FXCollections.observableArrayList(printerNames));
         assetPrinterNameField.setItems(FXCollections.observableArrayList(printerNames));
         Optional<String> skuPrinter = printerNames.stream().filter(n -> n.toLowerCase().contains("gx")).findFirst();
-        printerNameField.setValue(skuPrinter.orElse(printerNames.get(0)));
+        printerNameField.setValue(skuPrinter.orElse(printerNames.getFirst()));
         Optional<String> assetPrinter = printerNames.stream().filter(n -> n.toLowerCase().contains("zd")).findFirst();
-        assetPrinterNameField.setValue(assetPrinter.orElse(printerNames.get(0)));
+        assetPrinterNameField.setValue(assetPrinter.orElse(printerNames.getFirst()));
     }
 }

@@ -3,8 +3,6 @@
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-<?import javafx.scene.text.Text?>
-
 <BorderPane xmlns:fx="http://javafx.com/fxml/1" xmlns="http://javafx.com/javafx/21"
             fx:controller="assettracking.controller.LabelPrintingController">
     <top>
@@ -140,17 +138,15 @@
                     <VBox spacing="5">
                         <Label text="Barcode Length Options:"/>
                         <HBox spacing="20" alignment="CENTER_LEFT" style="-fx-padding: 5 0 0 0;">
-                            <children>
-                                <RadioButton fx:id="barcodeFullRadio" text="Print Entire Barcode" selected="true">
-                                    <toggleGroup>
-                                        <ToggleGroup fx:id="barcodeLengthGroup"/>
-                                    </toggleGroup>
-                                </RadioButton>
-                                <RadioButton fx:id="barcode14Radio" text="Last 14 Characters"
-                                             toggleGroup="$barcodeLengthGroup"/>
-                                <RadioButton fx:id="barcode20Radio" text="Last 20 Characters"
-                                             toggleGroup="$barcodeLengthGroup"/>
-                            </children>
+                            <RadioButton fx:id="barcodeFullRadio" text="Print Entire Barcode" selected="true">
+                                <toggleGroup>
+                                    <ToggleGroup fx:id="barcodeLengthGroup"/>
+                                </toggleGroup>
+                            </RadioButton>
+                            <RadioButton fx:id="barcode14Radio" text="Last 14 Characters"
+                                         toggleGroup="$barcodeLengthGroup"/>
+                            <RadioButton fx:id="barcode20Radio" text="Last 20 Characters"
+                                         toggleGroup="$barcodeLengthGroup"/>
                         </HBox>
                     </VBox>
                     <TextField fx:id="genericBarcodeField" onAction="#handlePrintGenericBarcode"

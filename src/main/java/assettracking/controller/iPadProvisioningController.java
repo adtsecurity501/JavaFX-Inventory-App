@@ -60,6 +60,9 @@ public class iPadProvisioningController {
     private TableColumn<BulkDevice, String> dbSerialCol, dbImeiCol, dbSimCol, dbDeviceNameCol;
     @FXML
     private ToggleButton bulkModeToggle;
+    @FXML
+    private Button clearStagingButton;
+
     private FilteredList<RosterEntry> filteredRosterList;
     private boolean isDeviceListLoaded = false;
     private boolean isRosterLoaded = false;
@@ -127,6 +130,18 @@ public class iPadProvisioningController {
         dbSearchField.setOnAction(event -> handleDbSearch());
     }
 
+    @FXML
+    private void handleClearStaging() {
+        if (!stagedDeviceList.isEmpty()) {
+            boolean confirmed = StageManager.showConfirmationDialog(getStage(), "Confirm Clear", "Are you sure you want to remove all " + stagedDeviceList.size() + " devices from the staging area?", "This action cannot be undone.");
+            if (confirmed) {
+                stagedDeviceList.clear();
+                updateWorkflowControls();
+                statusLabel.setText("Staging area cleared.");
+            }
+        }
+    }
+
     private void checkInitialDeviceState() {
         Task<Integer> dbCheckTask = new Task<>() {
             @Override
@@ -145,14 +160,22 @@ public class iPadProvisioningController {
     }
 
     private void updateWorkflowControls() {
+        boolean isStagingEmpty = stagedDeviceList.isEmpty(); // Calculate once for efficiency
+
         boolean assignmentReady = isDeviceListLoaded && isRosterLoaded && bulkModeToggle.isSelected();
         serialScanField.setDisable(!isDeviceListLoaded);
         stageUnassignedButton.setDisable(!isDeviceListLoaded);
         bulkModeToggle.setDisable(!isDeviceListLoaded);
         snRefFilterField.setDisable(!assignmentReady);
         rosterTable.setDisable(!assignmentReady);
-        exportButton.setDisable(stagedDeviceList.isEmpty());
-        if (isDeviceListLoaded) serialScanField.requestFocus();
+
+        // This now correctly enables/disables BOTH buttons based on the list's state
+        exportButton.setDisable(isStagingEmpty);
+        clearStagingButton.setDisable(isStagingEmpty);
+
+        if (isDeviceListLoaded) {
+            serialScanField.requestFocus();
+        }
     }
 
     @FXML

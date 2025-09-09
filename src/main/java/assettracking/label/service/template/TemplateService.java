@@ -30,7 +30,7 @@ public class TemplateService {
             Files.createDirectories(templatesDirectory);
         } catch (IOException e) {
             System.err.println("Could not create templates directory: " + e.getMessage());
-            e.printStackTrace();
+            System.err.println("Database error: " + e.getMessage());
         }
 
         createDefaultTemplatesIfNotExists();
@@ -45,10 +45,10 @@ public class TemplateService {
         return element;
     }
 
-    private static BarcodeElement createBarcode(String content, int x, int y, int height) {
+    private static BarcodeElement createBarcode(String content, int y, int height) {
         BarcodeElement element = new BarcodeElement();
         element.setContent(content);
-        element.setX(x);
+        element.setX(15);
         element.setY(y);
         element.setHeight(height);
         return element;
@@ -102,12 +102,12 @@ public class TemplateService {
         template.getElements().add(createText("1-877-238-4357", 318, 43, 18));
         template.getElements().add(createText("S/N:", 14, 60, 27));
         template.getElements().add(createText("${serial}", 81, 60, 27));
-        template.getElements().add(createBarcode("${serial}", 15, 113, 41));
+        template.getElements().add(createBarcode("${serial}", 113, 41));
 
         try {
             saveTemplate(template);
         } catch (IOException e) {
-            e.printStackTrace();
+            System.err.println("Database error: " + e.getMessage());
         }
     }
 
@@ -130,19 +130,19 @@ public class TemplateService {
         template.getElements().add(createText("S/N:", 14, 64, 27));
         template.getElements().add(createText("${serial}", 81, 64, 27));
         // S/N Barcode is moved UP significantly to tighten the layout
-        template.getElements().add(createBarcode("${serial}", 15, 92, 40)); // Was Y=117, H=41
+        template.getElements().add(createBarcode("${serial}", 92, 40)); // Was Y=117, H=41
 
         // IMEI Section
         // IMEI text is moved UP to follow the S/N barcode
         template.getElements().add(createText("IMEI:", 14, 135, 27)); // Was Y=146
         template.getElements().add(createText("${imei}", 101, 135, 27)); // Was Y=146
         // IMEI barcode is moved UP to fit on the label
-        template.getElements().add(createBarcode("${imei}", 15, 163, 40)); // Was Y=198, H=41
+        template.getElements().add(createBarcode("${imei}", 163, 40)); // Was Y=198, H=41
 
         try {
             saveTemplate(template);
         } catch (IOException e) {
-            e.printStackTrace();
+            System.err.println("Database error: " + e.getMessage());
         }
     }
 }

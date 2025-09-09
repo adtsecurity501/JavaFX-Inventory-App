@@ -58,7 +58,6 @@ public class IntakeService {
             } catch (SQLException ex) {
                 // Log rollback failure
                 System.err.println("Critical Error: Failed to rollback transaction.");
-                ex.printStackTrace(); // Keep this for critical failures
             }
             // Log the original error
             System.err.println("Error in processFromTextArea: " + e.getMessage());
@@ -71,7 +70,7 @@ public class IntakeService {
                     conn.close();
                 }
             } catch (SQLException e) {
-                e.printStackTrace();
+                System.err.println("Database error: " + e.getMessage());
             }
         }
     }
@@ -120,7 +119,6 @@ public class IntakeService {
             } catch (SQLException ex) {
                 // Log rollback failure
                 System.err.println("Critical Error: Failed to rollback transaction.");
-                ex.printStackTrace(); // Keep this for critical failures
             }
             // Log the original error
             System.err.println("Error in processFromTable: " + e.getMessage());
@@ -133,7 +131,7 @@ public class IntakeService {
                     conn.close();
                 }
             } catch (SQLException e) {
-                e.printStackTrace();
+                System.err.println("Database error: " + e.getMessage());
             }
         }
     }

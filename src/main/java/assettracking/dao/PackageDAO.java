@@ -1,7 +1,7 @@
 package assettracking.dao;
 
-import assettracking.db.DatabaseConnection;
 import assettracking.data.Package;
+import assettracking.db.DatabaseConnection;
 
 import java.sql.*;
 import java.time.LocalDate;
@@ -203,10 +203,10 @@ public class PackageDAO {
                 try {
                     conn.rollback();
                 } catch (SQLException ex) {
-                    ex.printStackTrace();
+                    System.err.println("Database error: " + e.getMessage());
                 }
             }
-            e.printStackTrace();
+            System.err.println("Database error: " + e.getMessage());
             return false;
         } finally {
             if (conn != null) {
@@ -214,7 +214,7 @@ public class PackageDAO {
                     conn.setAutoCommit(true);
                     conn.close();
                 } catch (SQLException e) {
-                    e.printStackTrace();
+                    System.err.println("Database error: " + e.getMessage());
                 }
             }
         }

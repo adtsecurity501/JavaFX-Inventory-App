@@ -23,7 +23,7 @@ public class SkuDAO {
                 skus.add(mapRowToSku(rs));
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Database error: " + e.getMessage());
         }
         return skus;
     }
@@ -38,7 +38,7 @@ public class SkuDAO {
                 return Optional.of(mapRowToSku(rs));
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Database error: " + e.getMessage());
         }
         return Optional.empty();
     }
@@ -54,7 +54,7 @@ public class SkuDAO {
             stmt.setString(5, sku.getDescription());
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Database error: " + e.getMessage());
             return false;
         }
     }
@@ -70,7 +70,7 @@ public class SkuDAO {
             stmt.setString(5, sku.getSkuNumber());
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Database error: " + e.getMessage());
             return false;
         }
     }
@@ -82,7 +82,7 @@ public class SkuDAO {
             stmt.setString(1, skuNumber);
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Database error: " + e.getMessage());
             return false;
         }
     }
@@ -125,7 +125,7 @@ public class SkuDAO {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Database error: " + e.getMessage());
         }
         return suggestions;
     }
@@ -159,7 +159,7 @@ public class SkuDAO {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Database error: " + e.getMessage());
         }
         return suggestions;
     }
@@ -186,7 +186,7 @@ public class SkuDAO {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Database error: " + e.getMessage());
         }
         return suggestions;
     }

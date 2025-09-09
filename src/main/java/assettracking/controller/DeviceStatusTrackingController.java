@@ -1,14 +1,13 @@
 package assettracking.controller;
 
-import assettracking.dao.AssetDAO; // <-- IMPORT ADDED
-import assettracking.dao.ReceiptEventDAO;
+import assettracking.dao.AssetDAO;
 import assettracking.data.AssetInfo;
 import assettracking.data.DeviceStatusView;
 import assettracking.db.DatabaseConnection;
 import assettracking.manager.DeviceStatusManager;
+import assettracking.manager.StageManager;
 import assettracking.manager.StatusManager;
 import assettracking.ui.DeviceStatusActions;
-import assettracking.manager.StageManager;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.collections.FXCollections;
@@ -127,7 +126,7 @@ public class DeviceStatusTrackingController {
             stage.showAndWait();
 
         } catch (IOException e) {
-            e.printStackTrace();
+            System.err.println("Service error: " + e.getMessage());
             StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Error", "Could not open the edit window.");
         }
     }
@@ -356,7 +355,7 @@ public class DeviceStatusTrackingController {
                 }
             });
         } catch (IOException e) {
-            e.printStackTrace();
+            System.err.println("Service error: " + e.getMessage());
             StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Error", "Could not open package selection dialog.");
         }
     }

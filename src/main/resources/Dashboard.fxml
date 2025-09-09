@@ -1,13 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.chart.BarChart?>
-<?import javafx.scene.chart.CategoryAxis?>
-<?import javafx.scene.chart.NumberAxis?>
-<?import javafx.scene.chart.PieChart?>
+<?import javafx.scene.chart.*?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-
 <VBox xmlns:fx="http://javafx.com/fxml/1" xmlns="http://javafx.com/javafx/21"
       fx:controller="assettracking.controller.DashboardController" spacing="15" style="-fx-padding: 15;">
 
@@ -96,13 +91,13 @@
                 <VBox spacing="5" VBox.vgrow="ALWAYS"
                       style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 4;">
                     <Label fx:id="breakdownTitleLabel" styleClass="h4"/>
-                    <PieChart fx:id="deploymentBreakdownChart" animated="true" VBox.vgrow="ALWAYS"/>
+                    <PieChart fx:id="deploymentBreakdownChart" VBox.vgrow="ALWAYS"/>
                 </VBox>
 
                 <VBox spacing="5" VBox.vgrow="ALWAYS"
                       style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 4;">
                     <Label text="Intake Volume by Day" styleClass="h4"/>
-                    <BarChart fx:id="weeklyIntakeChart" animated="true" VBox.vgrow="ALWAYS">
+                    <BarChart fx:id="weeklyIntakeChart" VBox.vgrow="ALWAYS">
                         <xAxis>
                             <CategoryAxis label="Date"/>
                         </xAxis>
@@ -212,7 +207,7 @@
                 <VBox spacing="5" VBox.vgrow="ALWAYS"
                       style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 4;">
                     <Label fx:id="inventoryOverviewTitleLabel" text="Asset Status Overview" styleClass="h4"/>
-                    <PieChart fx:id="inventoryPieChart" animated="true" VBox.vgrow="ALWAYS"/>
+                    <PieChart fx:id="inventoryPieChart" VBox.vgrow="ALWAYS"/>
                 </VBox>
             </VBox>
         </ScrollPane>

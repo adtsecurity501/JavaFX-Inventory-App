@@ -1,17 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.control.Tab?>
-<?import javafx.scene.control.TabPane?>
-<?import javafx.scene.layout.BorderPane?>
-<?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.Region?>
-<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
 <?import javafx.scene.shape.SVGPath?>
-<?import javafx.scene.control.ComboBox?>
-
 <BorderPane xmlns:fx="http://javafx.com/fxml/1" xmlns="http://javafx.com/javafx/21"
             fx:controller="assettracking.controller.MainViewController">
     <top>
@@ -51,36 +43,32 @@
             <padding>
                 <Insets top="10" right="10" bottom="10" left="10"/>
             </padding>
-            <children>
-                <TabPane tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS">
-                    <tabs>
-                        <Tab text="Dashboard">
-                            <fx:include fx:id="dashboard" source="Dashboard.fxml"/>
-                        </Tab>
-                        <Tab text="Package Intake">
-                            <fx:include source="PackageIntake.fxml"/>
-                        </Tab>
-                        <Tab text="Package Management">
-                            <fx:include source="PackageManagement.fxml"/>
-                        </Tab>
-                        <Tab text="Device Status Tracking">
-                            <fx:include source="DeviceStatusTracking.fxml"/>
-                        </Tab>
-                        <Tab text="Box ID Viewer">
-                            <fx:include source="BoxIdViewer.fxml"/>
-                        </Tab>
-                        <Tab text="Label Printing">
-                            <fx:include source="LabelPrinting.fxml"/>
-                        </Tab>
-                        <Tab text="SKU Management">
-                            <fx:include source="SkuManagement.fxml"/>
-                        </Tab>
-                        <Tab text="iPad Provisioning">
-                            <fx:include source="iPadProvisioning.fxml"/>
-                        </Tab>
-                    </tabs>
-                </TabPane>
-            </children>
+            <TabPane tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS">
+                <Tab text="Dashboard">
+                    <fx:include fx:id="dashboard" source="Dashboard.fxml"/>
+                </Tab>
+                <Tab text="Package Intake">
+                    <fx:include source="PackageIntake.fxml"/>
+                </Tab>
+                <Tab text="Package Management">
+                    <fx:include source="PackageManagement.fxml"/>
+                </Tab>
+                <Tab text="Device Status Tracking">
+                    <fx:include source="DeviceStatusTracking.fxml"/>
+                </Tab>
+                <Tab text="Box ID Viewer">
+                    <fx:include source="BoxIdViewer.fxml"/>
+                </Tab>
+                <Tab text="Label Printing">
+                    <fx:include source="LabelPrinting.fxml"/>
+                </Tab>
+                <Tab text="SKU Management">
+                    <fx:include source="SkuManagement.fxml"/>
+                </Tab>
+                <Tab text="iPad Provisioning">
+                    <fx:include source="iPadProvisioning.fxml"/>
+                </Tab>
+            </TabPane>
         </VBox>
     </center>
 </BorderPane>

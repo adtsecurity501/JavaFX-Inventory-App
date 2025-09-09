@@ -1,7 +1,7 @@
 package assettracking.controller;
 
-import assettracking.db.DatabaseConnection;
 import assettracking.data.DeviceStatusView;
+import assettracking.db.DatabaseConnection;
 import assettracking.manager.StageManager;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;

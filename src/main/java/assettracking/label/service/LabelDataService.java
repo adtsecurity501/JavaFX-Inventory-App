@@ -43,7 +43,7 @@ public class LabelDataService {
                 return Optional.of(data);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Database error: " + e.getMessage());
         }
         return Optional.empty();
     }

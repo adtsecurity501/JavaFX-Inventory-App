@@ -1,7 +1,7 @@
 package assettracking.controller;
 
-import assettracking.data.Package;
 import assettracking.dao.PackageDAO;
+import assettracking.data.Package;
 import assettracking.db.DatabaseConnection;
 import assettracking.manager.StageManager;
 import javafx.application.Platform;

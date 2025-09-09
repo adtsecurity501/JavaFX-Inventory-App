@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
-
 <BorderPane xmlns:fx="http://javafx.com/fxml/1" xmlns="http://javafx.com/javafx/21"
             fx:controller="assettracking.controller.iPadProvisioningController">
     <center>
@@ -56,7 +54,7 @@
                         <TableColumn fx:id="stageSnRefCol" prefWidth="150" text="SN Ref #"/>
                     </columns>
                 </TableView>
-                <TitledPane text="Device Database Lookup" collapsible="true" expanded="false">
+                <TitledPane text="Device Database Lookup" expanded="false">
                     <VBox spacing="10" style="-fx-padding: 10;">
                         <TextField fx:id="dbSearchField"
                                    promptText="Search by Serial, IMEI, or SIM... Press Enter to search."/>
@@ -79,6 +77,8 @@
             <Button onAction="#handleSetTmobile" text="Set Selected to T-Mobile"/>
             <Button onAction="#handleUpdateSim" text="Update SIM for Selected..."/>
             <Button onAction="#handleRemoveSelected" text="Remove Selected from Stage"/>
+            <Button fx:id="clearStagingButton" onAction="#handleClearStaging" text="Clear Staging Area"
+                    styleClass="danger"/>
             <Button fx:id="exportButton" onAction="#handleExport" text="Export to Template..." styleClass="success"
                     disable="true"/>
         </HBox>

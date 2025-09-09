@@ -35,7 +35,7 @@ public class FlaggedDeviceDAO {
             stmt.executeUpdate();
             return true;
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Database error: " + e.getMessage());
             return false;
         }
     }
@@ -56,7 +56,7 @@ public class FlaggedDeviceDAO {
                 flags.add(new AbstractMap.SimpleEntry<>(rs.getString("serial_number"), rs.getString("flag_reason")));
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Database error: " + e.getMessage());
         }
         return flags;
     }
@@ -74,7 +74,7 @@ public class FlaggedDeviceDAO {
             stmt.setString(1, serialNumber);
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Database error: " + e.getMessage());
             return false;
         }
     }

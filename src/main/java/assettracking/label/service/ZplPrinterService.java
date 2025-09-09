@@ -75,7 +75,7 @@ public class ZplPrinterService {
             return generatedZpl.replace("^XZ", "^PQ1,1,1,Y^XZ");
 
         } catch (IOException e) {
-            e.printStackTrace();
+            System.err.println("Database error: " + e.getMessage());
             // Return a ZPL command that prints an error message on the label itself
             return "^XA^FO50,50^A0N,40,40^FDError: Template Not Found^FS^XZ";
         }
@@ -128,7 +128,7 @@ public class ZplPrinterService {
             return true;
         } catch (PrintException e) {
             System.err.println("Printing failed for printer: " + printerName);
-            e.printStackTrace();
+            System.err.println("Database error: " + e.getMessage());
             return false;
         }
     }

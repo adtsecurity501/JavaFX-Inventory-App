@@ -59,7 +59,7 @@ public class DeviceStatusActions {
             Stage stage = StageManager.createCustomStage(getOwnerWindow(), "Device History for " + serialNumber, root);
             stage.showAndWait();
         } catch (IOException e) {
-            e.printStackTrace();
+            System.err.println("Service error: " + e.getMessage());
             StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Error", "Could not open the device history window.");
         }
     }
@@ -77,7 +77,7 @@ public class DeviceStatusActions {
             Stage stage = StageManager.createCustomStage(getOwnerWindow(), "Scan-Based Status Update", root);
             stage.showAndWait();
         } catch (IOException e) {
-            e.printStackTrace();
+            System.err.println("Service error: " + e.getMessage());
             StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Error", "Could not open the Scan Update window.");
         }
     }
@@ -133,10 +133,10 @@ public class DeviceStatusActions {
                 }
                 StageManager.showAlert(getOwnerWindow(), Alert.AlertType.INFORMATION, "Success", "Export successful: " + file.getAbsolutePath());
             } catch (SQLException e) {
-                e.printStackTrace();
+                System.err.println("Service error: " + e.getMessage());
                 StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Database Error", "Failed to query data for export: " + e.getMessage());
             } catch (IOException e) {
-                e.printStackTrace();
+                System.err.println("Service error: " + e.getMessage());
                 StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Export Error", "Failed to write to file: " + e.getMessage());
             }
         }

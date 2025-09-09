@@ -1,8 +1,8 @@
 package assettracking;
 
-import atlantafx.base.theme.Dracula;
 import assettracking.controller.DashboardController;
 import assettracking.db.DatabaseConnection;
+import atlantafx.base.theme.Dracula;
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -13,6 +13,7 @@ import javafx.stage.StageStyle;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.Objects;
 
 public class MainApp extends Application {
 
@@ -43,7 +44,10 @@ public class MainApp extends Application {
         }
 
         Scene scene = new Scene(rootPane, 1600, 900);
-        scene.getStylesheets().add(getClass().getResource("/style.css").toExternalForm());
+        scene.getStylesheets().addAll(
+                Application.getUserAgentStylesheet(),
+                Objects.requireNonNull(getClass().getResource("/style.css")).toExternalForm()
+        );
 
         primaryStage.setTitle("Inventory and Package Management System");
         primaryStage.setScene(scene);

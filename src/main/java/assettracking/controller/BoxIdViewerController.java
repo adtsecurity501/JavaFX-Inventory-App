@@ -16,7 +16,6 @@ import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
-import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.GridPane;
 import javafx.stage.FileChooser;
 import javafx.stage.Window;
@@ -30,14 +29,9 @@ import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class BoxIdViewerController {
@@ -456,10 +450,12 @@ public class BoxIdViewerController {
             @Override
             protected Void call() throws Exception {
                 String placeholders = String.join(",", Collections.nCopies(serials.size(), "?"));
-                String sql = String.format("""
+
+                String sql = """
                             UPDATE Device_Status ds SET status = 'Disposed', sub_status = 'Ready for Wipe', box_id = NULL, change_log = 'Removed from box'
                             WHERE ds.receipt_id IN ( ... )
-                        """, placeholders);
+                        """.replace("( ... )", String.format("(SELECT MAX(re.receipt_id) FROM Receipt_Events re WHERE re.serial_number IN (%s) GROUP BY re.serial_number)", placeholders));
+                // --- END OF FIX ---
                 try (Connection conn = DatabaseConnection.getInventoryConnection();
                      PreparedStatement stmt = conn.prepareStatement(sql)) {
                     for (int i = 0; i < serials.size(); i++) {

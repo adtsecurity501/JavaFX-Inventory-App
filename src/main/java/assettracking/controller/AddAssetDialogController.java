@@ -13,6 +13,8 @@ import assettracking.label.service.ZplPrinterService;
 import assettracking.manager.StageManager;
 import assettracking.manager.StatusManager;
 import assettracking.ui.AutoCompletePopup;
+import assettracking.ui.AutoCompleteTableCell;
+import assettracking.ui.SerialLookupTableCell;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -37,9 +39,6 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
-import assettracking.ui.AutoCompleteTableCell;
-import assettracking.ui.SerialLookupTableCell;
-
 public class AddAssetDialogController {
 
     private static Set<String> cachedCategories = null;
@@ -48,6 +47,7 @@ public class AddAssetDialogController {
     private final SkuDAO skuDAO = new SkuDAO();
     private final ReceiptEventDAO receiptEventDAO = new ReceiptEventDAO();
     private final ZplPrinterService printerService = new ZplPrinterService();
+    public ToggleGroup conditionToggleGroup;
     // --- FXML Fields ---
     @FXML
     private RadioButton standardIntakeRadio, monitorIntakeRadio, refurbRadioButton, newRadioButton;
@@ -105,72 +105,71 @@ public class AddAssetDialogController {
         setupTable();
         setupAutocomplete();
         setupMonitorIntake();
-        setupInputSanitization(); // <-- ADDED THIS CALL
+        setupInputSanitization(); // <-- THIS METHOD IS NOW FIXED
         refurbRadioButton.setSelected(true);
         standardIntakeRadio.setSelected(true);
     }
 
-    // --- NEW METHOD to add real-time sanitization to serial fields ---
+    // --- THIS IS THE FIX ---
+    // The previous implementation of this method incorrectly handled the cursor
+    // position, causing it to jump when letters were typed. This corrected version
+    // sanitizes the input and reliably moves the cursor to the end of the text,
+    // which is the expected behavior when typing.
     private void setupInputSanitization() {
+        // Listener for the main serial field
         serialField.textProperty().addListener((obs, oldVal, newVal) -> {
-            if (newVal != null && !newVal.isEmpty()) {
-                // Save the current cursor position
-                int caretPos = serialField.getCaretPosition();
+            if (newVal != null) {
                 String sanitized = sanitizeSerialNumber(newVal);
                 if (!newVal.equals(sanitized)) {
                     Platform.runLater(() -> {
                         serialField.setText(sanitized);
-                        // Restore the cursor position
-                        serialField.positionCaret(caretPos);
+                        serialField.end(); // Reliably move caret to the end
                     });
                 }
             }
         });
+
+        // Listener for the monitor serial field
         monitorSerialField.textProperty().addListener((obs, oldVal, newVal) -> {
-            if (newVal != null && !newVal.isEmpty()) {
-                // Save the current cursor position
-                int caretPos = monitorSerialField.getCaretPosition();
+            if (newVal != null) {
                 String sanitized = sanitizeSerialNumber(newVal);
                 if (!newVal.equals(sanitized)) {
                     Platform.runLater(() -> {
                         monitorSerialField.setText(sanitized);
-                        // Restore the cursor position
-                        monitorSerialField.positionCaret(caretPos);
+                        monitorSerialField.end(); // Reliably move caret to the end
                     });
                 }
             }
         });
+
+        // Listener for the manual serial field
         manualSerialField.textProperty().addListener((obs, oldVal, newVal) -> {
-            if (newVal != null && !newVal.isEmpty()) {
-                // Save the current cursor position
-                int caretPos = manualSerialField.getCaretPosition();
+            if (newVal != null) {
                 String sanitized = sanitizeSerialNumber(newVal);
                 if (!newVal.equals(sanitized)) {
                     Platform.runLater(() -> {
                         manualSerialField.setText(sanitized);
-                        // Restore the cursor position
-                        manualSerialField.positionCaret(caretPos);
+                        manualSerialField.end(); // Reliably move caret to the end
                     });
                 }
             }
         });
     }
 
-    // --- NEW HELPER METHOD ---
+    // This helper method is unchanged but is essential for the fix.
     private String sanitizeSerialNumber(String input) {
         if (input == null) return "";
         // Removes anything that is NOT a letter or a number, then converts to uppercase.
         return input.replaceAll("[^a-zA-Z0-9]", "").toUpperCase();
     }
+    // --- END OF FIX ---
 
-    // --- MODIFIED to sanitize each line ---
+
     public String[] getSerialsFromArea() {
         return Arrays.stream(serialArea.getText().trim().split("\\r?\\n")).map(this::sanitizeSerialNumber) // Sanitize each line
                 .filter(s -> !s.isEmpty())       // Remove any lines that are now blank
                 .toArray(String[]::new);
     }
-
-    // --- UNCHANGED METHODS BELOW ---
 
     private void setupAutocomplete() {
         descriptionPopup = new AutoCompletePopup(descriptionField, () -> assetDAO.findDescriptionsLike(descriptionField.getText())).setOnSuggestionSelected(selectedValue -> assetDAO.findSkuDetails(selectedValue, "description").ifPresent(this::populateFieldsFromSku));
@@ -181,26 +180,20 @@ public class AddAssetDialogController {
         this.isEditMode = true;
         this.onSaveCallback = onSaveCallback;
 
-        // --- NEW LOGIC TO INITIALIZE AUTOCOMPLETE FOR EDIT MODE ---
-        setupAutocomplete(); // This ensures the popup objects are created
+        setupAutocomplete();
 
-        // Populate fields
         setFormAssetDetails(assetInfo);
         serialField.setText(assetInfo.getSerialNumber());
 
-        // Configure UI for edit mode
         standardIntakeRadio.setSelected(true);
         saveButton.setText("Save Changes");
 
-        // Disable controls that shouldn't be used in edit mode
         serialField.setEditable(false);
         multiSerialToggle.setDisable(true);
         bulkAddCheckBox.setDisable(true);
         standardIntakeRadio.setDisable(true);
         monitorIntakeRadio.setDisable(true);
 
-        // Hide the disposition pane completely
-        // Find the TitledPane to hide it
         Node dispositionPane = sellScrapCheckBox.getParent().getParent().getParent();
         if (dispositionPane != null) {
             dispositionPane.setVisible(false);
@@ -210,7 +203,6 @@ public class AddAssetDialogController {
 
     private void populateFieldsFromSku(AssetInfo sku) {
         Platform.runLater(() -> {
-            // --- ADD THESE TWO LINES ---
             descriptionPopup.suppressListener(true);
             modelPopup.suppressListener(true);
 
@@ -222,7 +214,6 @@ public class AddAssetDialogController {
             }
             standardIntakeHandler.applyMelRule(sku.getModelNumber(), sku.getDescription());
 
-            // --- ADD THESE TWO LINES ---
             descriptionPopup.suppressListener(false);
             modelPopup.suppressListener(false);
         });
@@ -249,14 +240,12 @@ public class AddAssetDialogController {
 
     private void populateMonitorFieldsFromSku(AssetInfo sku) {
         Platform.runLater(() -> {
-            // --- ADD THESE TWO LINES ---
             monitorDescriptionPopup.suppressListener(true);
             monitorModelPopup.suppressListener(true);
 
             monitorDescriptionField.setText(sku.getDescription());
             monitorModelField.setText(sku.getModelNumber());
 
-            // --- ADD THESE TWO LINES ---
             monitorDescriptionPopup.suppressListener(false);
             monitorModelPopup.suppressListener(false);
         });
@@ -419,9 +408,8 @@ public class AddAssetDialogController {
     @FXML
     private void handleSave() {
         if (isEditMode) {
-            // --- EDIT MODE LOGIC ---
             AssetInfo details = getAssetDetailsFromForm();
-            details.setSerialNumber(serialField.getText()); // Make sure serial is included
+            details.setSerialNumber(serialField.getText());
 
             Task<Boolean> updateTask = new Task<>() {
                 @Override
@@ -432,7 +420,7 @@ public class AddAssetDialogController {
             updateTask.setOnSucceeded(e -> {
                 if (updateTask.getValue()) {
                     if (onSaveCallback != null) {
-                        onSaveCallback.run(); // This will refresh the device list
+                        onSaveCallback.run();
                     }
                     handleClose();
                 } else {
@@ -624,37 +612,30 @@ public class AddAssetDialogController {
     }
 
     private void setupTable() {
-        // Serial Number Column with Autofill on Enter
         serialCol.setCellValueFactory(new PropertyValueFactory<>("serialNumber"));
         serialCol.setCellFactory(col -> new SerialLookupTableCell(assetDAO));
         serialCol.setOnEditCommit(event -> event.getRowValue().setSerialNumber(event.getNewValue()));
 
-        // IMEI Column (standard text editing)
         imeiCol.setCellValueFactory(new PropertyValueFactory<>("imei"));
         imeiCol.setCellFactory(TextFieldTableCell.forTableColumn());
         imeiCol.setOnEditCommit(event -> event.getRowValue().setImei(event.getNewValue()));
 
-        // Category Column with Autocomplete
         categoryCol.setCellValueFactory(new PropertyValueFactory<>("category"));
         categoryCol.setCellFactory(col -> new AutoCompleteTableCell<>(() -> skuDAO.findDistinctValuesLike("category", "")));
         categoryCol.setOnEditCommit(event -> event.getRowValue().setCategory(event.getNewValue()));
 
-        // Make/Manufacturer Column with Autocomplete
         makeCol.setCellValueFactory(new PropertyValueFactory<>("make"));
         makeCol.setCellFactory(col -> new AutoCompleteTableCell<>(() -> skuDAO.findDistinctValuesLike("manufac", "")));
         makeCol.setOnEditCommit(event -> event.getRowValue().setMake(event.getNewValue()));
 
-        // Model Number Column with Autocomplete
         modelCol.setCellValueFactory(new PropertyValueFactory<>("modelNumber"));
         modelCol.setCellFactory(col -> new AutoCompleteTableCell<>(() -> assetDAO.findModelNumbersLike("")));
         modelCol.setOnEditCommit(event -> event.getRowValue().setModelNumber(event.getNewValue()));
 
-        // Description Column with Autocomplete
         descriptionCol.setCellValueFactory(new PropertyValueFactory<>("description"));
         descriptionCol.setCellFactory(col -> new AutoCompleteTableCell<>(() -> assetDAO.findDescriptionsLike("")));
         descriptionCol.setOnEditCommit(event -> event.getRowValue().setDescription(event.getNewValue()));
 
-        // Probable Cause Column (not editable)
         causeCol.setCellValueFactory(new PropertyValueFactory<>("probableCause"));
 
         deviceTable.setItems(assetEntries);

@@ -1,15 +1,18 @@
 package assettracking.controller;
 
-import assettracking.db.DatabaseConnection;
 import assettracking.data.DeviceStatusView;
 import assettracking.data.Package;
+import assettracking.db.DatabaseConnection;
 import assettracking.manager.StageManager;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
-import javafx.scene.control.*;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Label;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.stage.Stage;
 import javafx.stage.Window;

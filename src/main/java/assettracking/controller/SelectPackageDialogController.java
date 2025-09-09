@@ -21,6 +21,7 @@ public class SelectPackageDialogController {
 
     private final PackageDAO packageDAO = new PackageDAO();
     private final ObservableList<Package> packageList = FXCollections.observableArrayList();
+    public Button createNewButton;
     @FXML
     private TextField searchField;
     @FXML
@@ -34,7 +35,6 @@ public class SelectPackageDialogController {
     @FXML
     private Button selectButton;
     @FXML
-    private Button createNewButton;
     private SelectionResult result;
 
     @FXML
@@ -55,7 +55,7 @@ public class SelectPackageDialogController {
             List<Package> results = packageDAO.searchPackagesByTracking(query);
             packageList.setAll(results);
         } catch (Exception e) {
-            e.printStackTrace();
+            System.err.println("Database error: " + e.getMessage());
         }
     }
 

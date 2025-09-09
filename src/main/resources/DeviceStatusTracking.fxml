@@ -1,24 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Button?>
-<?import javafx.scene.control.ComboBox?>
-<?import javafx.scene.control.DatePicker?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.control.Pagination?>
-<?import javafx.scene.control.TableColumn?>
-<?import javafx.scene.control.TableView?>
-<?import javafx.scene.control.TextField?>
-<?import javafx.scene.layout.ColumnConstraints?>
-<?import javafx.scene.layout.GridPane?>
-<?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.VBox?>
-<?import javafx.scene.layout.FlowPane?>
-<?import javafx.scene.layout.Region?>
-
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
 <VBox xmlns:fx="http://javafx.com/fxml/1" xmlns="http://javafx.com/javafx/21"
       fx:controller="assettracking.controller.DeviceStatusTrackingController"
-      spacing="10" fillWidth="true">
+      spacing="10">
     <padding>
         <Insets top="10" left="10" right="10" bottom="10"/>
     </padding>
@@ -43,10 +30,8 @@
             <Label text="To:"/>
             <DatePicker fx:id="toDateFilter"/>
             <HBox spacing="5" alignment="CENTER_LEFT">
-                <children>
-                    <Label text="Per Page:"/>
-                    <ComboBox fx:id="rowsPerPageCombo" prefWidth="80"/>
-                </children>
+                <Label text="Per Page:"/>
+                <ComboBox fx:id="rowsPerPageCombo" prefWidth="80"/>
             </HBox>
             <Button onAction="#onClearFiltersAction" text="Clear Filters"/>
             <Button onAction="#onRefreshAction" text="Refresh" styleClass="success"/>

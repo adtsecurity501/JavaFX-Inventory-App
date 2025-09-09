@@ -41,6 +41,7 @@ public class ScanUpdateController {
     private final PackageDAO packageDAO = new PackageDAO();
     private final SkuDAO skuDAO = new SkuDAO();
     private final ZplPrinterService printerService = new ZplPrinterService();
+    public Button clearBoxIdButton;
     // --- FXML Fields ---
     @FXML
     private ComboBox<String> statusCombo, subStatusCombo;
@@ -162,9 +163,8 @@ public class ScanUpdateController {
             return;
         }
 
-        String baseNote = changeLogField.getText().trim();
-// The note no longer needs to contain the Box ID.
-        String finalNote = baseNote;
+        // The note no longer needs to contain the Box ID.
+        String finalNote = changeLogField.getText().trim();
 
         setFeedback("Processing " + serial + "...", Color.BLUE);
 
@@ -179,7 +179,7 @@ public class ScanUpdateController {
         updateTask.setOnSucceeded(event -> {
             switch (updateTask.getValue()) {
                 case SUCCESS:
-                    setFeedback("\u2713 Success: " + serial, Color.GREEN);
+                    setFeedback("✓ Success: " + serial, Color.GREEN);
                     resultManager.addSuccess(serial, newStatus + " / " + newSubStatus);
                     if (parentController != null) parentController.refreshData();
                     if (printLabelsToggle.isVisible() && printLabelsToggle.isSelected()) {
@@ -187,7 +187,7 @@ public class ScanUpdateController {
                     }
                     break;
                 case NOT_FOUND:
-                    setFeedback("\u2716 Not Found: " + serial, Color.RED);
+                    setFeedback("✖ Not Found: " + serial, Color.RED);
                     resultManager.addFailure(serial, "Not Found in Database");
                     break;
             }
@@ -316,12 +316,12 @@ public class ScanUpdateController {
             };
             bulkUpdateTask.setOnSucceeded(e -> {
                 int count = bulkUpdateTask.getValue();
-                setFeedback(String.format("\u2713 Successfully updated %d devices in '%s'.", count, location), Color.GREEN); // Checkmark ✓
+                setFeedback(String.format("✓ Successfully updated %d devices in '%s'.", count, location), Color.GREEN); // Checkmark ✓
                 resultManager.addSuccess("Box ID: " + location, String.format("Updated %d devices", count));
                 if (parentController != null) parentController.refreshData();
                 scanLocationField.clear();
             });
-            bulkUpdateTask.setOnFailed(e -> setFeedback("\u2716 Bulk update failed: " + e.getSource().getException().getMessage(), Color.RED)); // X mark ✗
+            bulkUpdateTask.setOnFailed(e -> setFeedback("✖ Bulk update failed: " + e.getSource().getException().getMessage(), Color.RED)); // X mark ✗
             new Thread(bulkUpdateTask).start();
         }
     }
@@ -360,7 +360,7 @@ public class ScanUpdateController {
                 }
             });
         } catch (IOException e) {
-            e.printStackTrace();
+            System.err.println("Service error: " + e.getMessage());
             showAlert("Error", "Could not open the package selection dialog.");
         }
     }
@@ -383,7 +383,7 @@ public class ScanUpdateController {
             if (parentController != null) parentController.refreshData();
 
         } catch (IOException e) {
-            e.printStackTrace();
+            System.err.println("Service error: " + e.getMessage());
             showAlert("Error", "Could not open the 'Add Asset' window.");
         }
     }
