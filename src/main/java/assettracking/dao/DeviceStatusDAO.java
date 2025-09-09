@@ -8,6 +8,7 @@ import assettracking.manager.StageManager;
 import assettracking.ui.DeviceStatusActions;
 import javafx.application.Platform;
 import javafx.collections.ObservableList;
+import javafx.scene.control.Alert; // <-- Make sure this import is present
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -39,7 +40,8 @@ public class DeviceStatusDAO {
                 return rs.getInt(1);
             }
         } catch (SQLException e) {
-            Platform.runLater(() -> StageManager.showAlert(null, "Database Error", "Failed to count records for pagination: " + e.getMessage()));
+            // CORRECTED LINE
+            Platform.runLater(() -> StageManager.showAlert(null, Alert.AlertType.ERROR, "Database Error", "Failed to count records for pagination: " + e.getMessage()));
         }
         return 0;
     }
@@ -67,13 +69,15 @@ public class DeviceStatusDAO {
                 ));
             }
         } catch (SQLException e) {
-            Platform.runLater(() -> StageManager.showAlert(null, "Database Error", "Failed to load page data: " + e.getMessage()));
+            // CORRECTED LINE
+            Platform.runLater(() -> StageManager.showAlert(null, Alert.AlertType.ERROR, "Database Error", "Failed to load page data: " + e.getMessage()));
         }
     }
 
     public void updateDeviceStatus(ObservableList<DeviceStatusView> selectedDevices, String newStatus, String newSubStatus, String note, String boxId) {
         if (selectedDevices == null || selectedDevices.isEmpty()) {
-            StageManager.showAlert(null, "No Selection", "Please select one or more devices to update.");
+            // CORRECTED LINE
+            StageManager.showAlert(null, Alert.AlertType.WARNING, "No Selection", "Please select one or more devices to update.");
             return;
         }
 
@@ -112,12 +116,14 @@ public class DeviceStatusDAO {
             }
             conn.commit();
         } catch (SQLException e) {
-            StageManager.showAlert(null, "Update Failed", "Failed to update device statuses in the database: " + e.getMessage());
+            // CORRECTED LINE
+            StageManager.showAlert(null, Alert.AlertType.ERROR, "Update Failed", "Failed to update device statuses in the database: " + e.getMessage());
             if (conn != null) {
                 try {
                     conn.rollback();
                 } catch (SQLException ex) {
-                    StageManager.showAlert(null, "Rollback Failed", "Failed to rollback database changes: " + ex.getMessage());
+                    // CORRECTED LINE
+                    StageManager.showAlert(null, Alert.AlertType.ERROR, "Rollback Failed", "Failed to rollback database changes: " + ex.getMessage());
                 }
             }
         } finally {
@@ -126,7 +132,8 @@ public class DeviceStatusDAO {
                     conn.setAutoCommit(true);
                     conn.close();
                 } catch (SQLException e) {
-                    StageManager.showAlert(null, "Connection Error", "Failed to close database connection: " + e.getMessage());
+                    // CORRECTED LINE
+                    StageManager.showAlert(null, Alert.AlertType.ERROR, "Connection Error", "Failed to close database connection: " + e.getMessage());
                 }
             }
         }
