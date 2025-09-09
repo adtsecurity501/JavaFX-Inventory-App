@@ -130,7 +130,7 @@ public class AssetDAO {
         }
     }
 
-    // RESTORED this missing method
+    // RESTORED this public method
     public void addAsset(AssetInfo asset) {
         try (Connection conn = DatabaseConnection.getInventoryConnection()) {
             addAsset(conn, asset);
