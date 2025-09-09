@@ -1,20 +1,29 @@
 package assettracking.ui;
 
+import assettracking.data.AssetEntry;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TextField;
 
 import java.util.List;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 public class AutoCompleteTableCell<S> extends TableCell<S, String> {
 
-    // MODIFIED: This now takes a Function that accepts the current text input
     private final Function<String, List<String>> suggestionProvider;
+    private final BiConsumer<S, String> onSuggestionSelectedCallback;
     private TextField textField;
     private AutoCompletePopup popup;
 
+    // Overloaded constructor for simple cases that don't need cross-cell updates
     public AutoCompleteTableCell(Function<String, List<String>> suggestionProvider) {
+        this(suggestionProvider, null);
+    }
+
+    // Main constructor that accepts the callback
+    public AutoCompleteTableCell(Function<String, List<String>> suggestionProvider, BiConsumer<S, String> onSuggestionSelectedCallback) {
         this.suggestionProvider = suggestionProvider;
+        this.onSuggestionSelectedCallback = onSuggestionSelectedCallback;
     }
 
     @Override
@@ -60,13 +69,22 @@ public class AutoCompleteTableCell<S> extends TableCell<S, String> {
     private void createTextField() {
         textField = new TextField(getItem());
 
-        // --- THIS IS THE KEY FIX ---
-        // The AutoCompletePopup's suggestion provider is now a lambda that calls the
-        // cell's suggestionProvider, passing in the textField's current text.
-        // This ensures the suggestions are always relevant to what the user is typing.
         popup = new AutoCompletePopup(textField, () -> suggestionProvider.apply(textField.getText()));
-        popup.setOnSuggestionSelected(this::commitEdit);
-        // --- END OF FIX ---
+
+        // --- THIS IS THE KEY CHANGE ---
+        // When a suggestion is selected, we now first execute the callback
+        // before committing the edit to the current cell.
+        popup.setOnSuggestionSelected(selectedValue -> {
+            if (onSuggestionSelectedCallback != null) {
+                // Get the data object (AssetEntry) for the current row
+                S currentItem = getTableView().getItems().get(getIndex());
+                // Execute the callback, passing the row's data object and the selected value
+                onSuggestionSelectedCallback.accept(currentItem, selectedValue);
+            }
+            // Now, commit the edit for this specific cell
+            commitEdit(selectedValue);
+        });
+        // --- END OF KEY CHANGE ---
 
         textField.setMinWidth(this.getWidth() - this.getGraphicTextGap() * 2);
         textField.setOnAction(event -> commitEdit(textField.getText()));

@@ -16,7 +16,6 @@ Priority 2:
 
 
 At End:
-- rename the database and change paths everwhere
 - clean up code and extra files and tables
 - add comments and describe the code so that a dev can work on it and update, maybe make a manual for it.
 - create executable for program 
@@ -136,6 +135,7 @@ device is a:Optiplex 3000
 - I have a box id at the top of the list that is blank and says there are 2 devices in side but when I click on it it shows alot more than 2, what is going on?
 - on scan update the sizing is off between succesful scans and failed/unrefnized scans windwos. The sucess. scans windows is smaller and i think it's because it doesn't have the process failed scans button
 - update DB
+- rename the database and change paths everwhere
 
 
 

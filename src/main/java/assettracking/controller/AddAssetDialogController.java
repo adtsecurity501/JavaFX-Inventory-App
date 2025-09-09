@@ -622,31 +622,49 @@ public class AddAssetDialogController {
         imeiCol.setCellFactory(TextFieldTableCell.forTableColumn());
         imeiCol.setOnEditCommit(event -> event.getRowValue().setImei(event.getNewValue()));
 
-        // --- THIS ENTIRE SECTION IS UPDATED TO USE THE NEW CELL LOGIC ---
-        // Category Column with Autocomplete
+        // Category and Make columns (simple autocomplete, no cross-cell updates)
         categoryCol.setCellValueFactory(new PropertyValueFactory<>("category"));
         categoryCol.setCellFactory(col -> new AutoCompleteTableCell<>(fragment -> skuDAO.findDistinctValuesLike("category", fragment)));
         categoryCol.setOnEditCommit(event -> event.getRowValue().setCategory(event.getNewValue()));
 
-        // Make/Manufacturer Column with Autocomplete
         makeCol.setCellValueFactory(new PropertyValueFactory<>("make"));
         makeCol.setCellFactory(col -> new AutoCompleteTableCell<>(fragment -> skuDAO.findDistinctValuesLike("manufac", fragment)));
         makeCol.setOnEditCommit(event -> event.getRowValue().setMake(event.getNewValue()));
 
-        // Model Number Column with Autocomplete
+        // --- THIS SECTION IS NOW UPDATED WITH THE NEW CALLBACK LOGIC ---
+
+        // Model Number Column with Autocomplete and cross-cell update
         modelCol.setCellValueFactory(new PropertyValueFactory<>("modelNumber"));
-        modelCol.setCellFactory(col -> new AutoCompleteTableCell<>(assetDAO::findModelNumbersLike // Using a method reference for conciseness
+        modelCol.setCellFactory(col -> new AutoCompleteTableCell<>(
+                assetDAO::findModelNumbersLike, // Suggestion provider
+                (assetEntry, selectedModel) -> { // Callback logic
+                    assetDAO.findSkuDetails(selectedModel, "model_number").ifPresent(skuDetails -> {
+                        // Update the data object for the row
+                        assetEntry.setMake(skuDetails.getMake());
+                        assetEntry.setCategory(skuDetails.getCategory());
+                        assetEntry.setDescription(skuDetails.getDescription());
+                        // Refresh the table to show changes in other cells
+                        deviceTable.refresh();
+                    });
+                }
         ));
         modelCol.setOnEditCommit(event -> event.getRowValue().setModelNumber(event.getNewValue()));
 
-        // Description Column with Autocomplete
+        // Description Column with Autocomplete and cross-cell update
         descriptionCol.setCellValueFactory(new PropertyValueFactory<>("description"));
-        descriptionCol.setCellFactory(col -> new AutoCompleteTableCell<>(assetDAO::findDescriptionsLike // Using a method reference for conciseness
+        descriptionCol.setCellFactory(col -> new AutoCompleteTableCell<>(
+                assetDAO::findDescriptionsLike, // Suggestion provider
+                (assetEntry, selectedDescription) -> { // Callback logic
+                    assetDAO.findSkuDetails(selectedDescription, "description").ifPresent(skuDetails -> {
+                        assetEntry.setMake(skuDetails.getMake());
+                        assetEntry.setCategory(skuDetails.getCategory());
+                        assetEntry.setModelNumber(skuDetails.getModelNumber());
+                        deviceTable.refresh();
+                    });
+                }
         ));
         descriptionCol.setOnEditCommit(event -> event.getRowValue().setDescription(event.getNewValue()));
-        // --- END OF UPDATED SECTION ---
 
-        // Probable Cause Column (not editable)
         causeCol.setCellValueFactory(new PropertyValueFactory<>("probableCause"));
 
         deviceTable.setItems(assetEntries);
