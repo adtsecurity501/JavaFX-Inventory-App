@@ -11,7 +11,7 @@ import java.util.Optional;
 public class AppSettingsDAO {
 
     public Optional<String> getSetting(String key) {
-        String sql = "SELECT setting_value FROM appsettings WHERE setting_key = ?";
+        String sql = "SELECT setting_value FROM app_settings WHERE setting_key = ?";
         try (Connection conn = DatabaseConnection.getInventoryConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, key);
@@ -27,7 +27,7 @@ public class AppSettingsDAO {
     }
 
     public void saveSetting(String key, String value) {
-        String sql = "INSERT INTO appsettings (setting_key, setting_value) VALUES (?, ?) " +
+        String sql = "INSERT INTO app_settings (setting_key, setting_value) VALUES (?, ?) " +
                 "ON CONFLICT (setting_key) DO UPDATE SET setting_value = EXCLUDED.setting_value";
         try (Connection conn = DatabaseConnection.getInventoryConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
