@@ -453,7 +453,7 @@ public class DashboardController {
             Throwable ex = importTask.getException();
             statusLabel.setText("Import failed. See error dialog.");
             StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Import Failed", "An error occurred: " + ex.getMessage());
-            ex.printStackTrace();
+            System.err.println("Device import failed: " + ex.getMessage());
         });
 
         new Thread(importTask).start();

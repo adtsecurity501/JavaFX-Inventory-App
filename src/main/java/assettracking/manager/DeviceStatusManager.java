@@ -45,7 +45,7 @@ public class DeviceStatusManager {
         });
 
         countTask.setOnFailed(e -> {
-            countTask.getException().printStackTrace();
+            System.err.println("Failed to fetch page count: " + countTask.getException().getMessage());
             // Optionally show an error to the user
         });
 
