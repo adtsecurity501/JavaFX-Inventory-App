@@ -4,15 +4,16 @@ import javafx.scene.control.TableCell;
 import javafx.scene.control.TextField;
 
 import java.util.List;
-import java.util.function.Supplier;
+import java.util.function.Function;
 
 public class AutoCompleteTableCell<S> extends TableCell<S, String> {
 
-    private final Supplier<List<String>> suggestionProvider;
+    // MODIFIED: This now takes a Function that accepts the current text input
+    private final Function<String, List<String>> suggestionProvider;
     private TextField textField;
     private AutoCompletePopup popup;
 
-    public AutoCompleteTableCell(Supplier<List<String>> suggestionProvider) {
+    public AutoCompleteTableCell(Function<String, List<String>> suggestionProvider) {
         this.suggestionProvider = suggestionProvider;
     }
 
@@ -58,10 +59,14 @@ public class AutoCompleteTableCell<S> extends TableCell<S, String> {
 
     private void createTextField() {
         textField = new TextField(getItem());
-        // The popup is created here and its suggestion provider lambda
-        // has access to the textField instance.
-        popup = new AutoCompletePopup(textField, () -> suggestionProvider.get());
+
+        // --- THIS IS THE KEY FIX ---
+        // The AutoCompletePopup's suggestion provider is now a lambda that calls the
+        // cell's suggestionProvider, passing in the textField's current text.
+        // This ensures the suggestions are always relevant to what the user is typing.
+        popup = new AutoCompletePopup(textField, () -> suggestionProvider.apply(textField.getText()));
         popup.setOnSuggestionSelected(this::commitEdit);
+        // --- END OF FIX ---
 
         textField.setMinWidth(this.getWidth() - this.getGraphicTextGap() * 2);
         textField.setOnAction(event -> commitEdit(textField.getText()));

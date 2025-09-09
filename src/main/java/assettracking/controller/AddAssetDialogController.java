@@ -612,30 +612,41 @@ public class AddAssetDialogController {
     }
 
     private void setupTable() {
+        // Serial Number Column with Autofill on Enter
         serialCol.setCellValueFactory(new PropertyValueFactory<>("serialNumber"));
         serialCol.setCellFactory(col -> new SerialLookupTableCell(assetDAO));
         serialCol.setOnEditCommit(event -> event.getRowValue().setSerialNumber(event.getNewValue()));
 
+        // IMEI Column (standard text editing)
         imeiCol.setCellValueFactory(new PropertyValueFactory<>("imei"));
         imeiCol.setCellFactory(TextFieldTableCell.forTableColumn());
         imeiCol.setOnEditCommit(event -> event.getRowValue().setImei(event.getNewValue()));
 
+        // --- THIS ENTIRE SECTION IS UPDATED TO USE THE NEW CELL LOGIC ---
+        // Category Column with Autocomplete
         categoryCol.setCellValueFactory(new PropertyValueFactory<>("category"));
-        categoryCol.setCellFactory(col -> new AutoCompleteTableCell<>(() -> skuDAO.findDistinctValuesLike("category", "")));
+        categoryCol.setCellFactory(col -> new AutoCompleteTableCell<>(fragment -> skuDAO.findDistinctValuesLike("category", fragment)));
         categoryCol.setOnEditCommit(event -> event.getRowValue().setCategory(event.getNewValue()));
 
+        // Make/Manufacturer Column with Autocomplete
         makeCol.setCellValueFactory(new PropertyValueFactory<>("make"));
-        makeCol.setCellFactory(col -> new AutoCompleteTableCell<>(() -> skuDAO.findDistinctValuesLike("manufac", "")));
+        makeCol.setCellFactory(col -> new AutoCompleteTableCell<>(fragment -> skuDAO.findDistinctValuesLike("manufac", fragment)));
         makeCol.setOnEditCommit(event -> event.getRowValue().setMake(event.getNewValue()));
 
+        // Model Number Column with Autocomplete
         modelCol.setCellValueFactory(new PropertyValueFactory<>("modelNumber"));
-        modelCol.setCellFactory(col -> new AutoCompleteTableCell<>(() -> assetDAO.findModelNumbersLike("")));
+        modelCol.setCellFactory(col -> new AutoCompleteTableCell<>(assetDAO::findModelNumbersLike // Using a method reference for conciseness
+        ));
         modelCol.setOnEditCommit(event -> event.getRowValue().setModelNumber(event.getNewValue()));
 
+        // Description Column with Autocomplete
         descriptionCol.setCellValueFactory(new PropertyValueFactory<>("description"));
-        descriptionCol.setCellFactory(col -> new AutoCompleteTableCell<>(() -> assetDAO.findDescriptionsLike("")));
+        descriptionCol.setCellFactory(col -> new AutoCompleteTableCell<>(assetDAO::findDescriptionsLike // Using a method reference for conciseness
+        ));
         descriptionCol.setOnEditCommit(event -> event.getRowValue().setDescription(event.getNewValue()));
+        // --- END OF UPDATED SECTION ---
 
+        // Probable Cause Column (not editable)
         causeCol.setCellValueFactory(new PropertyValueFactory<>("probableCause"));
 
         deviceTable.setItems(assetEntries);
