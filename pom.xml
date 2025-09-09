@@ -5,9 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>assettracking</groupId>
-    <!-- MODIFIED: Changed the artifactId -->
     <artifactId>ATLegMav</artifactId>
-    <!-- MODIFIED: Changed the version -->
     <version>1.0-SNAPSHOT</version>
 
     <properties>
@@ -15,7 +13,8 @@
         <java.version>21</java.version>
         <javafx.version>21.0.2</javafx.version>
         <jackson.version>2.17.1</jackson.version>
-        <h2.version>2.2.224</h2.version>
+        <!-- H2 version removed, Postgres version added -->
+        <postgres.version>42.7.2</postgres.version>
         <junit.version>5.10.2</junit.version>
     </properties>
 
@@ -39,11 +38,20 @@
             <version>2.0.1</version>
         </dependency>
 
-        <!-- DATABASE DEPENDENCIES -->
+        <!-- ===== DATABASE DEPENDENCIES (MODIFIED) ===== -->
+        <!-- REMOVED H2 Dependency -->
+        <!--
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
             <version>${h2.version}</version>
+        </dependency>
+        -->
+        <!-- ADDED PostgreSQL Dependency -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>${postgres.version}</version>
         </dependency>
         <dependency>
             <groupId>com.zaxxer</groupId>
@@ -60,6 +68,7 @@
             <artifactId>slf4j-simple</artifactId>
             <version>2.0.13</version>
         </dependency>
+        <!-- ===== END OF MODIFICATION ===== -->
 
         <!-- Data Handling & File IO -->
         <dependency>
@@ -70,14 +79,13 @@
         <dependency>
             <groupId>org.apache.poi</groupId>
             <artifactId>poi-ooxml</artifactId>
-            <version>5.4.0</version> <!-- A known stable version -->
+            <version>5.4.0</version>
         </dependency>
         <dependency>
             <groupId>com.opencsv</groupId>
             <artifactId>opencsv</artifactId>
             <version>5.9</version>
         </dependency>
-        <!-- Explicitly define a secure version to override any transitive vulnerabilities -->
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
@@ -94,6 +102,7 @@
     </dependencies>
 
     <build>
+        <!-- The build section remains unchanged -->
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

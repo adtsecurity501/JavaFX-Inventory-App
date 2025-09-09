@@ -22,10 +22,7 @@ public class FlaggedDeviceImporter {
     public void importFromFile(Stage owner, Runnable onFinished) {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Select Flagged Devices File");
-        fileChooser.getExtensionFilters().addAll(
-                new FileChooser.ExtensionFilter("Excel Files", "*.xlsx", "*.xls"),
-                new FileChooser.ExtensionFilter("All Files", "*.*")
-        );
+        fileChooser.getExtensionFilters().addAll(new FileChooser.ExtensionFilter("Excel Files", "*.xlsx", "*.xls"), new FileChooser.ExtensionFilter("All Files", "*.*"));
         File selectedFile = fileChooser.showOpenDialog(owner);
 
         if (selectedFile != null) {
@@ -57,8 +54,7 @@ public class FlaggedDeviceImporter {
         Map<String, String> dataToImport = new LinkedHashMap<>();
         int skippedRowCount = 0;
 
-        try (FileInputStream fis = new FileInputStream(file);
-             Workbook workbook = WorkbookFactory.create(fis)) {
+        try (FileInputStream fis = new FileInputStream(file); Workbook workbook = WorkbookFactory.create(fis)) {
 
             Sheet sheet = workbook.getSheetAt(0);
             if (sheet.getPhysicalNumberOfRows() < 2) {
@@ -103,7 +99,7 @@ public class FlaggedDeviceImporter {
         }
 
         // --- THIS IS THE CORRECTED H2-COMPATIBLE SQL ---
-        String upsertSql = "MERGE INTO Flag_Devices (serial_number, status, sub_status, flag_reason) KEY(serial_number) VALUES (?, 'Flag!', 'Requires Review', ?)";
+        String upsertSql = "INSERT INTO flag_devices (serial_number, status, sub_status, flag_reason) " + "VALUES (?, 'Flag!', 'Requires Review', ?) " + "ON CONFLICT (serial_number) DO UPDATE SET " + "flag_reason = EXCLUDED.flag_reason";
         int successfullyProcessedCount = 0;
 
         try (Connection conn = DatabaseConnection.getInventoryConnection()) {

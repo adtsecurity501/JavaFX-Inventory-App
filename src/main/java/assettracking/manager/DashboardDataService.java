@@ -112,21 +112,20 @@ public class DashboardDataService {
         XYChart.Series<String, Number> series = new XYChart.Series<>();
         series.setName("Devices Received");
 
-        // --- THIS IS THE DEFINITIVE FIX ---
-        // The query now explicitly formats the date into a 'YYYY-MM-dd' string,
-        // which is the most reliable format for the BarChart's category axis.
-        // This replaces the CAST operation which was not sufficient.
-        String sql = "SELECT FORMATDATETIME(p.receive_date, 'yyyy-MM-dd') AS day, COUNT(re.receipt_id) AS device_count " + "FROM Receipt_Events re " + "JOIN Packages p ON re.package_id = p.package_id " + "WHERE " + dateFilterClause + " " + "GROUP BY day " + "ORDER BY day ASC;";
+        // H2: FORMATDATETIME(p.receive_date, 'yyyy-MM-dd') AS day
+        // PostgreSQL: TO_CHAR(p.receive_date, 'YYYY-MM-DD') AS day
+        String sql = "SELECT TO_CHAR(p.receive_date, 'YYYY-MM-DD') AS day, COUNT(re.receipt_id) AS device_count " +
+                "FROM Receipt_Events re " +
+                "JOIN Packages p ON re.package_id = p.package_id " +
+                "WHERE " + dateFilterClause + " " +
+                "GROUP BY day " +
+                "ORDER BY day ASC;";
 
-        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql); ResultSet rs = stmt.executeQuery()) {
-
+        try (Connection conn = DatabaseConnection.getInventoryConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
-                // Retrieve the formatted date string and the count
-                String day = rs.getString("day");
-                int deviceCount = rs.getInt("device_count");
-
-                // Add the data to the series for the chart
-                series.getData().add(new XYChart.Data<>(day, deviceCount));
+                series.getData().add(new XYChart.Data<>(rs.getString("day"), rs.getInt("device_count")));
             }
         }
         return series;
@@ -135,11 +134,19 @@ public class DashboardDataService {
 
     public Map<String, String> getStaticKpis() throws SQLException {
         Map<String, String> kpis = new HashMap<>();
-        String triageSql = "SELECT COUNT(*) as count FROM Device_Status ds JOIN (" + LATEST_RECEIPT_SUBQUERY + ") l ON ds.receipt_id = l.max_receipt_id JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id WHERE ds.status IN ('Intake', 'Triage & Repair') AND re.category NOT LIKE '%Monitor%'";
-        String awaitingDisposalSql = "SELECT COUNT(*) as count FROM Device_Status ds JOIN (" + LATEST_RECEIPT_SUBQUERY + ") l ON ds.receipt_id = l.max_receipt_id WHERE ds.status = 'Disposed' AND ds.sub_status IN ('Can-Am, Pending Pickup', 'Ingram, Pending Pickup', 'Ready for Wipe')";
-        String turnaroundSql = "SELECT AVG(DATEDIFF('DAY', p.receive_date, ds.last_update)) as avg_days FROM Device_Status ds JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id JOIN Packages p ON re.package_id = p.package_id WHERE ds.status = 'Processed' AND ds.sub_status = 'Ready for Deployment' AND ds.last_update >= DATEADD('DAY', -30, CURRENT_DATE)";
-        String dailySql = "SELECT COUNT(DISTINCT re.serial_number) as count FROM Device_Status ds JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id WHERE ds.status = 'Processed' AND ds.sub_status = 'Ready for Deployment' AND CAST(ds.last_update AS DATE) = CURRENT_DATE AND EXISTS (SELECT 1 FROM Device_Status h_ds JOIN Receipt_Events h_re ON h_ds.receipt_id = h_re.receipt_id WHERE h_re.serial_number = re.serial_number AND h_ds.status IN ('Intake', 'Triage & Repair'))";
+        // ... (triageSql and awaitingDisposalSql are unchanged) ...
+        String triageSql = "SELECT COUNT(*) as count FROM Device_Status ds JOIN (SELECT serial_number, MAX(receipt_id) as max_receipt_id FROM Receipt_Events GROUP BY serial_number) l ON ds.receipt_id = l.max_receipt_id JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id WHERE ds.status IN ('Intake', 'Triage & Repair') AND re.category NOT LIKE '%Monitor%'";
+        String awaitingDisposalSql = "SELECT COUNT(*) as count FROM Device_Status ds JOIN (SELECT serial_number, MAX(receipt_id) as max_receipt_id FROM Receipt_Events GROUP BY serial_number) l ON ds.receipt_id = l.max_receipt_id WHERE ds.status = 'Disposed' AND ds.sub_status IN ('Can-Am, Pending Pickup', 'Ingram, Pending Pickup', 'Ready for Wipe')";
 
+        // H2: AVG(DATEDIFF('DAY', p.receive_date, ds.last_update))
+        // PostgreSQL: AVG(CAST(ds.last_update AS DATE) - p.receive_date)
+        String turnaroundSql = "SELECT AVG(CAST(ds.last_update AS DATE) - p.receive_date) as avg_days FROM Device_Status ds JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id JOIN Packages p ON re.package_id = p.package_id WHERE ds.status = 'Processed' AND ds.sub_status = 'Ready for Deployment' AND ds.last_update >= (CURRENT_DATE - INTERVAL '30 DAY')";
+
+        // H2: CAST(ds.last_update AS DATE) = CURRENT_DATE
+        // PostgreSQL: ds.last_update >= CURRENT_DATE AND ds.last_update < (CURRENT_DATE + INTERVAL '1 DAY')
+        String dailySql = "SELECT COUNT(DISTINCT re.serial_number) as count FROM Device_Status ds JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id WHERE ds.status = 'Processed' AND ds.sub_status = 'Ready for Deployment' AND ds.last_update >= CURRENT_DATE AND ds.last_update < (CURRENT_DATE + INTERVAL '1 DAY') AND EXISTS (SELECT 1 FROM Device_Status h_ds JOIN Receipt_Events h_re ON h_ds.receipt_id = h_re.receipt_id WHERE h_re.serial_number = re.serial_number AND h_ds.status IN ('Intake', 'Triage & Repair'))";
+
+        // ... (database execution logic is unchanged) ...
         try (Connection conn = DatabaseConnection.getInventoryConnection()) {
             try (PreparedStatement stmt = conn.prepareStatement(triageSql); ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) kpis.put("activeTriage", String.valueOf(rs.getInt("count")));
