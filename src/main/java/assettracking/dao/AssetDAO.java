@@ -67,59 +67,72 @@ public class AssetDAO {
     }
 
     /**
-     * CORRECTED: The filter `AND sku_number IS NOT NULL AND sku_number != ''` has been REMOVED.
-     * This ensures ALL descriptions from the SKU_Table are available for autofill during intake.
-     */
-    /**
-     * Finds descriptions, intelligently ranking results that start with the fragment higher.
-     * It also now searches both the description and model number for better results.
+     * Finds descriptions case-insensitively, ranking results that start with the fragment higher.
      */
     public List<String> findDescriptionsLike(String descriptionFragment) {
         List<String> suggestions = new ArrayList<>();
-        // This improved query uses a CASE statement to rank results by relevance.
-        String sql = "SELECT DISTINCT description FROM SKU_Table " + "WHERE (description LIKE ? OR model_number LIKE ?) " + "AND description IS NOT NULL AND description != '' " + "ORDER BY CASE " + "    WHEN description LIKE ? THEN 1 " + // 1. Starts with the term
-                "    WHEN description LIKE ? THEN 2 " + // 2. Contains the term as a whole word
-                "    ELSE 3 " +                       // 3. Just contains the term
-                "END, description " + "LIMIT 10";
+        // This query now uses LOWER() on all columns and parameters for a case-insensitive search.
+        String sql = "SELECT DISTINCT description, " + "CASE " + "    WHEN LOWER(description) LIKE ? THEN 1 " + // Priority 1: Starts with the term
+                "    WHEN LOWER(description) LIKE ? THEN 2 " + // Priority 2: Contains the term as a whole word
+                "    ELSE 3 " +                                // Priority 3: Just contains the term
+                "END AS priority " + "FROM SKU_Table " + "WHERE (LOWER(description) LIKE ? OR LOWER(model_number) LIKE ?) " + "AND description IS NOT NULL AND description != '' " + "ORDER BY priority, description " + "LIMIT 10";
+
         try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, "%" + descriptionFragment + "%"); // For the WHERE clause
-            stmt.setString(2, "%" + descriptionFragment + "%"); // For the WHERE clause
-            stmt.setString(3, descriptionFragment + "%");      // For the ORDER BY 'starts with'
-            stmt.setString(4, "% " + descriptionFragment + "%");     // For the ORDER BY 'contains word'
+
+            // Convert search terms to lowercase here
+            String lowerFragment = descriptionFragment.toLowerCase();
+            String startsWithTerm = lowerFragment + "%";
+            String wholeWordTerm = "% " + lowerFragment + "%";
+            String searchTerm = "%" + lowerFragment + "%";
+
+            // Set the parameters in the correct order for the query
+            stmt.setString(1, startsWithTerm);      // For priority 1
+            stmt.setString(2, wholeWordTerm);      // For priority 2
+            stmt.setString(3, searchTerm);         // For WHERE clause (description)
+            stmt.setString(4, searchTerm);         // For WHERE clause (model_number)
+
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
                     suggestions.add(rs.getString("description"));
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Database error: " + e.getMessage());
         }
         return suggestions;
     }
 
     /**
-     * Finds model numbers, intelligently ranking results that start with the fragment higher.
-     * It also searches both the model number and description for better results.
+     * Finds model numbers case-insensitively, ranking results that start with the fragment higher.
      */
     public List<String> findModelNumbersLike(String modelFragment) {
         List<String> suggestions = new ArrayList<>();
-        String sql = "SELECT DISTINCT model_number FROM SKU_Table " + "WHERE (model_number LIKE ? OR description LIKE ?) " + "AND model_number IS NOT NULL AND model_number != '' " + "ORDER BY CASE " + "    WHEN model_number LIKE ? THEN 1 " + // 1. Starts with the term
-                "    WHEN model_number LIKE ? THEN 2 " + // 2. Contains the term as a whole word
-                "    ELSE 3 " +                       // 3. Just contains the term
-                "END, model_number " + "LIMIT 10";
+        // This query also uses LOWER() for a case-insensitive search.
+        String sql = "SELECT DISTINCT model_number, " + "CASE " + "    WHEN LOWER(model_number) LIKE ? THEN 1 " + // Priority 1: Starts with the term
+                "    WHEN LOWER(model_number) LIKE ? THEN 2 " + // Priority 2: Contains the term as a whole word
+                "    ELSE 3 " +                                // Priority 3: Just contains the term
+                "END AS priority " + "FROM SKU_Table " + "WHERE (LOWER(model_number) LIKE ? OR LOWER(description) LIKE ?) " + "AND model_number IS NOT NULL AND model_number != '' " + "ORDER BY priority, model_number " + "LIMIT 10";
         try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
-            String searchTerm = "%" + modelFragment + "%";
-            stmt.setString(1, searchTerm); // For the WHERE clause
-            stmt.setString(2, searchTerm); // For the WHERE clause
-            stmt.setString(3, modelFragment + "%");      // For the ORDER BY 'starts with'
-            stmt.setString(4, "% " + modelFragment + "%");     // For the ORDER BY 'contains word'
+
+            // Convert search terms to lowercase here
+            String lowerFragment = modelFragment.toLowerCase();
+            String startsWithTerm = lowerFragment + "%";
+            String wholeWordTerm = "% " + lowerFragment + "%";
+            String searchTerm = "%" + lowerFragment + "%";
+
+            // Set the parameters in the correct order for the query
+            stmt.setString(1, startsWithTerm);      // For priority 1
+            stmt.setString(2, wholeWordTerm);      // For priority 2
+            stmt.setString(3, searchTerm);         // For WHERE clause (model_number)
+            stmt.setString(4, searchTerm);         // For WHERE clause (description)
+
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
                     suggestions.add(rs.getString("model_number"));
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Database error: " + e.getMessage());
         }
         return suggestions;
     }
@@ -179,7 +192,7 @@ public class AssetDAO {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Database error: " + e.getMessage());
         }
         return Optional.empty();
     }
@@ -195,7 +208,7 @@ public class AssetDAO {
             stmt.setString(6, asset.getSerialNumber());
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Database error: " + e.getMessage());
             return false;
         }
     }
@@ -210,7 +223,7 @@ public class AssetDAO {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Database error: " + e.getMessage());
         }
         return Optional.empty();
     }
@@ -255,7 +268,7 @@ public class AssetDAO {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Database error: " + e.getMessage());
         }
         return Optional.empty();
     }
@@ -271,7 +284,7 @@ public class AssetDAO {
                 }
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Database error: " + e.getMessage());
         }
         return Optional.empty();
     }
@@ -284,7 +297,7 @@ public class AssetDAO {
                 categories.add(rs.getString("category"));
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Database error: " + e.getMessage());
         }
         return categories;
     }

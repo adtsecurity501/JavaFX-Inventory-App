@@ -59,10 +59,10 @@ public class AutoCompletePopup {
             if (isSuppressed) {
                 return;
             }
-            if (newVal == null || newVal.length() < 2) {
+            if (newVal == null || newVal.isEmpty()) {
                 contextMenu.hide();
             } else {
-                updateSuggestions(newVal);
+                updateSuggestions();
             }
         });
 
@@ -82,7 +82,7 @@ public class AutoCompletePopup {
         contextMenu.addEventFilter(WindowEvent.WINDOW_HIDDEN, event -> textField.positionCaret(textField.getLength()));
     }
 
-    private void updateSuggestions(String input) {
+    private void updateSuggestions() {
         Task<List<String>> task = new Task<>() {
             @Override
             protected List<String> call() {
