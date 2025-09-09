@@ -12,32 +12,24 @@ import java.util.*;
 
 public class AssetDAO {
 
-    // (This findAssetBySerialNumber method is the correct, intelligent version from our last conversation)
     public Optional<AssetInfo> findAssetBySerialNumber(String serialNumber) {
         AssetInfo asset = null;
-
-        String sqlAutofill = "SELECT serial_number, make, part_number, description, category, imei, everon_serial, capacity FROM Device_Autofill_Data WHERE serial_number = ?";
-        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sqlAutofill)) {
+        String sqlAutofill = "SELECT * FROM device_autofill_data WHERE serial_number = ?";
+        try (Connection conn = DatabaseConnection.getInventoryConnection();
+             PreparedStatement stmt = conn.prepareStatement(sqlAutofill)) {
             stmt.setString(1, serialNumber);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
-                    asset = new AssetInfo();
-                    asset.setSerialNumber(rs.getString("serial_number"));
-                    asset.setMake(rs.getString("make"));
-                    asset.setModelNumber(rs.getString("part_number"));
-                    asset.setDescription(rs.getString("description"));
-                    asset.setCategory(rs.getString("category"));
-                    asset.setImei(rs.getString("imei"));
-                    asset.setEveronSerial(rs.getBoolean("everon_serial"));
-                    asset.setCapacity(rs.getString("capacity"));
+                    asset = mapRowToAssetInfo(rs);
                 }
             }
         } catch (SQLException e) {
-            System.err.println("Error finding asset in Device_Autofill_Data for serial '" + serialNumber + "': " + e.getMessage());
+            System.err.println("Error finding asset in device_autofill_data for serial '" + serialNumber + "': " + e.getMessage());
         }
 
-        String sqlPhysicalAssets = "SELECT serial_number, make, part_number, description, category, imei, everon_serial, capacity FROM Physical_Assets WHERE serial_number = ?";
-        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sqlPhysicalAssets)) {
+        String sqlPhysicalAssets = "SELECT * FROM physical_assets WHERE serial_number = ?";
+        try (Connection conn = DatabaseConnection.getInventoryConnection();
+             PreparedStatement stmt = conn.prepareStatement(sqlPhysicalAssets)) {
             stmt.setString(1, serialNumber);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
@@ -60,146 +52,56 @@ public class AssetDAO {
                 }
             }
         } catch (SQLException e) {
-            System.err.println("Error finding asset in Physical_Assets for serial '" + serialNumber + "': " + e.getMessage());
+            System.err.println("Error finding asset in physical_assets for serial '" + serialNumber + "': " + e.getMessage());
         }
-
         return Optional.ofNullable(asset);
     }
 
-    /**
-     * Finds descriptions case-insensitively, ranking results that start with the fragment higher.
-     */
-    public List<String> findDescriptionsLike(String descriptionFragment) {
-        List<String> suggestions = new ArrayList<>();
-        // This query now uses LOWER() on all columns and parameters for a case-insensitive search.
-        String sql = "SELECT DISTINCT description, " + "CASE " + "    WHEN LOWER(description) LIKE ? THEN 1 " + // Priority 1: Starts with the term
-                "    WHEN LOWER(description) LIKE ? THEN 2 " + // Priority 2: Contains the term as a whole word
-                "    ELSE 3 " +                                // Priority 3: Just contains the term
-                "END AS priority " + "FROM SKU_Table " + "WHERE (LOWER(description) LIKE ? OR LOWER(model_number) LIKE ?) " + "AND description IS NOT NULL AND description != '' " + "ORDER BY priority, description " + "LIMIT 10";
-
-        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
-
-            // Convert search terms to lowercase here
-            String lowerFragment = descriptionFragment.toLowerCase();
-            String startsWithTerm = lowerFragment + "%";
-            String wholeWordTerm = "% " + lowerFragment + "%";
-            String searchTerm = "%" + lowerFragment + "%";
-
-            // Set the parameters in the correct order for the query
-            stmt.setString(1, startsWithTerm);      // For priority 1
-            stmt.setString(2, wholeWordTerm);      // For priority 2
-            stmt.setString(3, searchTerm);         // For WHERE clause (description)
-            stmt.setString(4, searchTerm);         // For WHERE clause (model_number)
-
-            try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    suggestions.add(rs.getString("description"));
-                }
-            }
-        } catch (SQLException e) {
-            System.err.println("Database error: " + e.getMessage());
-        }
-        return suggestions;
-    }
-
-    /**
-     * Finds model numbers case-insensitively, ranking results that start with the fragment higher.
-     */
-    public List<String> findModelNumbersLike(String modelFragment) {
-        List<String> suggestions = new ArrayList<>();
-        // This query also uses LOWER() for a case-insensitive search.
-        String sql = "SELECT DISTINCT model_number, " + "CASE " + "    WHEN LOWER(model_number) LIKE ? THEN 1 " + // Priority 1: Starts with the term
-                "    WHEN LOWER(model_number) LIKE ? THEN 2 " + // Priority 2: Contains the term as a whole word
-                "    ELSE 3 " +                                // Priority 3: Just contains the term
-                "END AS priority " + "FROM SKU_Table " + "WHERE (LOWER(model_number) LIKE ? OR LOWER(description) LIKE ?) " + "AND model_number IS NOT NULL AND model_number != '' " + "ORDER BY priority, model_number " + "LIMIT 10";
-        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
-
-            // Convert search terms to lowercase here
-            String lowerFragment = modelFragment.toLowerCase();
-            String startsWithTerm = lowerFragment + "%";
-            String wholeWordTerm = "% " + lowerFragment + "%";
-            String searchTerm = "%" + lowerFragment + "%";
-
-            // Set the parameters in the correct order for the query
-            stmt.setString(1, startsWithTerm);      // For priority 1
-            stmt.setString(2, wholeWordTerm);      // For priority 2
-            stmt.setString(3, searchTerm);         // For WHERE clause (model_number)
-            stmt.setString(4, searchTerm);         // For WHERE clause (description)
-
-            try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    suggestions.add(rs.getString("model_number"));
-                }
-            }
-        } catch (SQLException e) {
-            System.err.println("Database error: " + e.getMessage());
-        }
-        return suggestions;
-    }
-
-    // New method that operates within an existing transaction
     public Optional<AssetInfo> findAssetBySerialNumber(Connection conn, String serialNumber) throws SQLException {
-        // This query is simplified for brevity but functionally the same
-        String sql = "SELECT * FROM Physical_Assets WHERE serial_number = ?";
+        String sql = "SELECT * FROM physical_assets WHERE serial_number = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, serialNumber);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
-                    AssetInfo asset = new AssetInfo();
-                    // Populate asset fields from result set
-                    asset.setSerialNumber(rs.getString("serial_number"));
-                    asset.setMake(rs.getString("make"));
-                    asset.setModelNumber(rs.getString("part_number"));
-                    asset.setDescription(rs.getString("description"));
-                    asset.setCategory(rs.getString("category"));
-                    asset.setImei(rs.getString("imei"));
-                    return Optional.of(asset);
+                    return Optional.of(mapRowToAssetInfo(rs));
                 }
             }
         }
         return Optional.empty();
     }
 
-    // New method that operates within an existing transaction
-    public void addAsset(Connection conn, AssetInfo asset) throws SQLException {
-        String sql = "INSERT INTO Physical_Assets (serial_number, imei, category, make, description, part_number) VALUES (?, ?, ?, ?, ?, ?)";
-        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, asset.getSerialNumber());
-            stmt.setString(2, asset.getImei());
-            stmt.setString(3, asset.getCategory());
-            stmt.setString(4, asset.getMake());
-            stmt.setString(5, asset.getDescription());
-            stmt.setString(6, asset.getModelNumber());
-            stmt.executeUpdate();
-        }
+    public List<String> findDescriptionsLike(String descriptionFragment) {
+        return findSuggestions("description", descriptionFragment);
     }
 
-    public Optional<AssetInfo> findSkuByModelAndCondition(String modelNumber, boolean isRefurbished) {
-        String conditionSearchTerm = isRefurbished ? "%RFB%" : "%NEW%";
-        String antiConditionSearchTerm = isRefurbished ? "%NEW%" : "%RFB%";
-        String sql = "SELECT sku_number, description FROM SKU_Table " + "WHERE model_number = ? " + "AND description LIKE ? " + "AND description NOT LIKE ? " + "LIMIT 1";
-        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, modelNumber);
-            stmt.setString(2, conditionSearchTerm);
-            stmt.setString(3, antiConditionSearchTerm);
+    public List<String> findModelNumbersLike(String modelFragment) {
+        return findSuggestions("model_number", modelFragment);
+    }
+
+    private List<String> findSuggestions(String column, String fragment) {
+        List<String> suggestions = new ArrayList<>();
+        String sql = String.format(
+                "SELECT DISTINCT %s FROM sku_table WHERE %s ILIKE ? AND %s IS NOT NULL AND %s != '' ORDER BY %s LIMIT 10",
+                column, column, column, column, column
+        );
+        try (Connection conn = DatabaseConnection.getInventoryConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, "%" + fragment + "%");
             try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    AssetInfo assetInfo = new AssetInfo();
-                    assetInfo.setModelNumber(modelNumber);
-                    assetInfo.setSkuNumber(rs.getString("sku_number"));
-                    assetInfo.setDescription(rs.getString("description"));
-                    return Optional.of(assetInfo);
+                while (rs.next()) {
+                    suggestions.add(rs.getString(1));
                 }
             }
         } catch (SQLException e) {
-            System.err.println("Database error: " + e.getMessage());
+            System.err.println("Database error finding suggestions for " + column + ": " + e.getMessage());
         }
-        return Optional.empty();
+        return suggestions;
     }
 
     public boolean updateAsset(AssetInfo asset) {
-        String sql = "UPDATE Physical_Assets SET category = ?, make = ?, part_number = ?, description = ?, imei = ? WHERE serial_number = ?";
-        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+        String sql = "UPDATE physical_assets SET category = ?, make = ?, part_number = ?, description = ?, imei = ? WHERE serial_number = ?";
+        try (Connection conn = DatabaseConnection.getInventoryConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, asset.getCategory());
             stmt.setString(2, asset.getMake());
             stmt.setString(3, asset.getModelNumber());
@@ -208,29 +110,14 @@ public class AssetDAO {
             stmt.setString(6, asset.getSerialNumber());
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("Database error: " + e.getMessage());
+            System.err.println("Database error updating asset: " + e.getMessage());
             return false;
         }
     }
 
-    public Optional<String> findDescriptionBySkuNumber(String skuNumber) {
-        String sql = "SELECT description FROM SKU_Table WHERE sku_number = ? AND (model_number IS NULL OR model_number = '')";
-        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, skuNumber);
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    return Optional.ofNullable(rs.getString("description"));
-                }
-            }
-        } catch (SQLException e) {
-            System.err.println("Database error: " + e.getMessage());
-        }
-        return Optional.empty();
-    }
-
-    public void addAsset(AssetInfo asset) {
-        String sql = "INSERT INTO Physical_Assets (serial_number, imei, category, make, description, part_number, capacity, everon_serial) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+    public void addAsset(Connection conn, AssetInfo asset) throws SQLException {
+        String sql = "INSERT INTO physical_assets (serial_number, imei, category, make, description, part_number, capacity, everon_serial) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, asset.getSerialNumber());
             stmt.setString(2, asset.getImei());
             stmt.setString(3, asset.getCategory());
@@ -240,22 +127,22 @@ public class AssetDAO {
             stmt.setString(7, asset.getCapacity());
             stmt.setBoolean(8, asset.isEveronSerial());
             stmt.executeUpdate();
+        }
+    }
+
+    // RESTORED this missing method
+    public void addAsset(AssetInfo asset) {
+        try (Connection conn = DatabaseConnection.getInventoryConnection()) {
+            addAsset(conn, asset);
         } catch (SQLException e) {
-            System.err.println("Error adding physical asset: " + e.getMessage());
+            System.err.println("Error adding physical asset with auto-connection: " + e.getMessage());
         }
     }
 
     public Optional<AssetInfo> findSkuDetails(String value, String lookupType) {
-        String sql;
-        if ("description".equalsIgnoreCase(lookupType)) {
-            sql = "SELECT category, model_number, description, manufac AS make FROM SKU_Table WHERE description = ?";
-        } else if ("model_number".equalsIgnoreCase(lookupType)) {
-            sql = "SELECT category, model_number, description, manufac AS make FROM SKU_Table WHERE model_number = ?";
-        } else {
-            return Optional.empty();
-        }
-
-        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+        String sql = "SELECT category, model_number, description, manufac AS make FROM sku_table WHERE " + lookupType + " = ?";
+        try (Connection conn = DatabaseConnection.getInventoryConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, value);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
@@ -268,14 +155,15 @@ public class AssetDAO {
                 }
             }
         } catch (SQLException e) {
-            System.err.println("Database error: " + e.getMessage());
+            System.err.println("Database error finding SKU details: " + e.getMessage());
         }
         return Optional.empty();
     }
 
     public Optional<MelRule> findMelRule(String modelNumber, String description) {
-        String sql = "SELECT model_number, action, special_notes FROM Mel_Rules WHERE model_number = ? OR description = ?";
-        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+        String sql = "SELECT model_number, action, special_notes FROM mel_rules WHERE model_number = ? OR description = ?";
+        try (Connection conn = DatabaseConnection.getInventoryConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, modelNumber);
             stmt.setString(2, description);
             try (ResultSet rs = stmt.executeQuery()) {
@@ -284,21 +172,55 @@ public class AssetDAO {
                 }
             }
         } catch (SQLException e) {
-            System.err.println("Database error: " + e.getMessage());
+            System.err.println("Database error finding MEL rule: " + e.getMessage());
         }
         return Optional.empty();
     }
 
     public Set<String> getAllDistinctCategories() {
         Set<String> categories = new TreeSet<>();
-        String sql = "SELECT DISTINCT category FROM Physical_Assets WHERE category IS NOT NULL AND category != '' " + "UNION " + "SELECT DISTINCT category FROM SKU_Table WHERE category IS NOT NULL AND category != '' " + "ORDER BY category";
-        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql); ResultSet rs = stmt.executeQuery()) {
+        String sql = "SELECT category FROM physical_assets WHERE category IS NOT NULL AND category != '' " +
+                "UNION " +
+                "SELECT category FROM sku_table WHERE category IS NOT NULL AND category != '' " +
+                "ORDER BY category";
+        try (Connection conn = DatabaseConnection.getInventoryConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
                 categories.add(rs.getString("category"));
             }
         } catch (SQLException e) {
-            System.err.println("Database error: " + e.getMessage());
+            System.err.println("Database error getting distinct categories: " + e.getMessage());
         }
         return categories;
+    }
+
+    public Optional<String> findDescriptionBySkuNumber(String skuNumber) {
+        String sql = "SELECT description FROM sku_table WHERE sku_number = ? AND (model_number IS NULL OR model_number = '')";
+        try (Connection conn = DatabaseConnection.getInventoryConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, skuNumber);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return Optional.ofNullable(rs.getString("description"));
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Database error finding description by SKU: " + e.getMessage());
+        }
+        return Optional.empty();
+    }
+
+    private AssetInfo mapRowToAssetInfo(ResultSet rs) throws SQLException {
+        AssetInfo asset = new AssetInfo();
+        asset.setSerialNumber(rs.getString("serial_number"));
+        asset.setMake(rs.getString("make"));
+        asset.setModelNumber(rs.getString("part_number"));
+        asset.setDescription(rs.getString("description"));
+        asset.setCategory(rs.getString("category"));
+        asset.setImei(rs.getString("imei"));
+        asset.setEveronSerial(rs.getBoolean("everon_serial"));
+        asset.setCapacity(rs.getString("capacity"));
+        return asset;
     }
 }
