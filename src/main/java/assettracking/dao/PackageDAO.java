@@ -16,8 +16,7 @@ public class PackageDAO {
 
     public int addPackage(String tracking, String firstName, String lastName, String city, String state, String zip, LocalDate date) {
         String sql = "INSERT INTO Packages (tracking_number, first_name, last_name, city, state, zip_code, receive_date) VALUES (?, ?, ?, ?, ?, ?, ?)";
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
             stmt.setString(1, tracking);
             stmt.setString(2, firstName);
@@ -42,8 +41,7 @@ public class PackageDAO {
 
     public int countFilteredPackages(String trackingFilter, LocalDate fromDate, LocalDate toDate) throws SQLException {
         QueryAndParams queryAndParams = buildFilteredQuery(true, trackingFilter, fromDate, toDate);
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(queryAndParams.sql)) {
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(queryAndParams.sql)) {
             for (int i = 0; i < queryAndParams.params.size(); i++) {
                 stmt.setObject(i + 1, queryAndParams.params.get(i));
             }
@@ -59,8 +57,7 @@ public class PackageDAO {
         List<Package> packageList = new ArrayList<>();
         QueryAndParams queryAndParams = buildFilteredQuery(false, trackingFilter, fromDate, toDate);
 
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(queryAndParams.sql)) {
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(queryAndParams.sql)) {
 
             int paramIndex = 1;
             for (Object param : queryAndParams.params) {
@@ -71,15 +68,7 @@ public class PackageDAO {
 
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
-                packageList.add(new Package(
-                        rs.getInt("package_id"),
-                        rs.getString("tracking_number"),
-                        rs.getString("first_name"),
-                        rs.getString("last_name"),
-                        rs.getString("city"),
-                        rs.getString("state"),
-                        rs.getString("zip_code"),
-                        LocalDate.parse(rs.getString("receive_date"))
+                packageList.add(new Package(rs.getInt("package_id"), rs.getString("tracking_number"), rs.getString("first_name"), rs.getString("last_name"), rs.getString("city"), rs.getString("state"), rs.getString("zip_code"), rs.getDate("receive_date").toLocalDate() // Switched to getDate for LocalDate conversion
                 ));
             }
         }
@@ -88,47 +77,34 @@ public class PackageDAO {
 
     public List<Package> searchPackagesByTracking(String trackingFilter) throws SQLException {
         List<Package> packageList = new ArrayList<>();
-        String sql = "SELECT * FROM Packages WHERE tracking_number LIKE ? ORDER BY receive_date DESC LIMIT 50";
+        String sql = "SELECT * FROM packages WHERE tracking_number ILIKE ? ORDER BY receive_date DESC LIMIT 50";
 
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setString(1, "%" + trackingFilter + "%");
             ResultSet rs = stmt.executeQuery();
 
             while (rs.next()) {
-                packageList.add(new Package(
-                        rs.getInt("package_id"),
-                        rs.getString("tracking_number"),
-                        rs.getString("first_name"),
-                        rs.getString("last_name"),
-                        rs.getString("city"),
-                        rs.getString("state"),
-                        rs.getString("zip_code"),
-                        LocalDate.parse(rs.getString("receive_date"))
-                ));
+                packageList.add(new Package(rs.getInt("package_id"), rs.getString("tracking_number"), rs.getString("first_name"), rs.getString("last_name"), rs.getString("city"), rs.getString("state"), rs.getString("zip_code"), LocalDate.parse(rs.getString("receive_date"))));
             }
         }
         return packageList;
     }
 
     public int getAssetCountForPackage(int packageId) throws SQLException {
-        // This new query is much smarter. It only counts devices in the package
-        // whose most recent status is NOT 'Deleted (Mistake)'.
         String sql = """
                     SELECT COUNT(re.serial_number)
-                    FROM Receipt_Events re
+                    FROM receipt_events re
                     JOIN (
                         SELECT serial_number, MAX(receipt_id) as max_receipt_id
-                        FROM Receipt_Events
+                        FROM receipt_events
                         GROUP BY serial_number
                     ) latest ON re.serial_number = latest.serial_number AND re.receipt_id = latest.max_receipt_id
-                    JOIN Device_Status ds ON re.receipt_id = ds.receipt_id
+                    JOIN device_status ds ON re.receipt_id = ds.receipt_id
                     WHERE re.package_id = ? AND (ds.sub_status IS NULL OR ds.sub_status != 'Deleted (Mistake)')
                 """;
 
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, packageId);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
@@ -140,12 +116,11 @@ public class PackageDAO {
     }
 
     public boolean deletePackage(int packageId) {
-        // We need to delete in the correct order to respect foreign key constraints.
-        String getReceiptIdsSql = "SELECT receipt_id FROM Receipt_Events WHERE package_id = ?";
-        String deleteDispositionsSql = "DELETE FROM Disposition_Info WHERE receipt_id = ?";
-        String deleteStatusesSql = "DELETE FROM Device_Status WHERE receipt_id = ?";
-        String deleteReceiptsSql = "DELETE FROM Receipt_Events WHERE package_id = ?";
-        String deletePackageSql = "DELETE FROM Packages WHERE package_id = ?";
+        String getReceiptIdsSql = "SELECT receipt_id FROM receipt_events WHERE package_id = ?";
+        String deleteDispositionsSql = "DELETE FROM disposition_info WHERE receipt_id = ?";
+        String deleteStatusesSql = "DELETE FROM device_status WHERE receipt_id = ?";
+        String deleteReceiptsSql = "DELETE FROM receipt_events WHERE package_id = ?";
+        String deletePackageSql = "DELETE FROM packages WHERE package_id = ?";
 
         Connection conn = null;
         try {
@@ -167,8 +142,7 @@ public class PackageDAO {
             // Only proceed if there are receipts to delete
             if (!receiptIds.isEmpty()) {
                 // 2. Delete all associated Disposition_Info and Device_Status records
-                try (PreparedStatement deleteDispStmt = conn.prepareStatement(deleteDispositionsSql);
-                     PreparedStatement deleteStatusStmt = conn.prepareStatement(deleteStatusesSql)) {
+                try (PreparedStatement deleteDispStmt = conn.prepareStatement(deleteDispositionsSql); PreparedStatement deleteStatusStmt = conn.prepareStatement(deleteStatusesSql)) {
                     for (Integer receiptId : receiptIds) {
                         deleteDispStmt.setInt(1, receiptId);
                         deleteDispStmt.addBatch();
@@ -222,13 +196,12 @@ public class PackageDAO {
 
     private QueryAndParams buildFilteredQuery(boolean forCount, String trackingFilter, LocalDate fromDate, LocalDate toDate) {
         String selectClause = forCount ? "SELECT COUNT(*) " : "SELECT * ";
-        String fromClause = "FROM Packages";
-
+        String fromClause = "FROM packages";
         List<Object> params = new ArrayList<>();
         StringBuilder whereClause = new StringBuilder();
 
         if (trackingFilter != null && !trackingFilter.isEmpty()) {
-            whereClause.append(" tracking_number LIKE ?");
+            whereClause.append(" tracking_number ILIKE ?");
             params.add("%" + trackingFilter + "%");
         }
 

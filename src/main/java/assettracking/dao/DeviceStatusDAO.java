@@ -8,7 +8,6 @@ import assettracking.manager.StageManager;
 import assettracking.ui.DeviceStatusActions;
 import javafx.application.Platform;
 import javafx.collections.ObservableList;
-import javafx.scene.control.Alert;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -40,7 +39,7 @@ public class DeviceStatusDAO {
                 return rs.getInt(1);
             }
         } catch (SQLException e) {
-            Platform.runLater(() -> StageManager.showAlert(null, Alert.AlertType.ERROR, "Database Error", "Failed to count records for pagination: " + e.getMessage()));
+            Platform.runLater(() -> StageManager.showAlert(null, "Database Error", "Failed to count records for pagination: " + e.getMessage()));
         }
         return 0;
     }
@@ -68,18 +67,18 @@ public class DeviceStatusDAO {
                 ));
             }
         } catch (SQLException e) {
-            Platform.runLater(() -> StageManager.showAlert(null, Alert.AlertType.ERROR, "Database Error", "Failed to load page data: " + e.getMessage()));
+            Platform.runLater(() -> StageManager.showAlert(null, "Database Error", "Failed to load page data: " + e.getMessage()));
         }
     }
 
     public void updateDeviceStatus(ObservableList<DeviceStatusView> selectedDevices, String newStatus, String newSubStatus, String note, String boxId) {
         if (selectedDevices == null || selectedDevices.isEmpty()) {
-            StageManager.showAlert(null, Alert.AlertType.WARNING, "No Selection", "Please select one or more devices to update.");
+            StageManager.showAlert(null, "No Selection", "Please select one or more devices to update.");
             return;
         }
 
-        String updateStatusSql = "UPDATE Device_Status SET status = ?, sub_status = ?, last_update = CURRENT_TIMESTAMP, change_log = ?, box_id = ? WHERE receipt_id = ?";
-        String deleteFlagSql = "DELETE FROM Flag_Devices WHERE serial_number = ?";
+        String updateStatusSql = "UPDATE device_status SET status = ?, sub_status = ?, last_update = CURRENT_TIMESTAMP, change_log = ?, box_id = ? WHERE receipt_id = ?";
+        String deleteFlagSql = "DELETE FROM flag_devices WHERE serial_number = ?";
 
         Connection conn = null;
         try {
@@ -94,7 +93,6 @@ public class DeviceStatusDAO {
                     updateStmt.setString(2, newSubStatus);
                     updateStmt.setString(3, note.isEmpty() ? null : note);
 
-                    // If this is a deletion, force box_id to null. Otherwise, use the provided boxId.
                     if ("Deleted (Mistake)".equals(newSubStatus)) {
                         updateStmt.setNull(4, java.sql.Types.VARCHAR);
                     } else {
@@ -114,12 +112,12 @@ public class DeviceStatusDAO {
             }
             conn.commit();
         } catch (SQLException e) {
-            StageManager.showAlert(null, Alert.AlertType.ERROR, "Update Failed", "Failed to update device statuses in the database: " + e.getMessage());
+            StageManager.showAlert(null, "Update Failed", "Failed to update device statuses in the database: " + e.getMessage());
             if (conn != null) {
                 try {
                     conn.rollback();
                 } catch (SQLException ex) {
-                    StageManager.showAlert(null, Alert.AlertType.ERROR, "Rollback Failed", "Failed to rollback database changes: " + ex.getMessage());
+                    StageManager.showAlert(null, "Rollback Failed", "Failed to rollback database changes: " + ex.getMessage());
                 }
             }
         } finally {
@@ -128,7 +126,7 @@ public class DeviceStatusDAO {
                     conn.setAutoCommit(true);
                     conn.close();
                 } catch (SQLException e) {
-                    StageManager.showAlert(null, Alert.AlertType.ERROR, "Connection Error", "Failed to close database connection: " + e.getMessage());
+                    StageManager.showAlert(null, "Connection Error", "Failed to close database connection: " + e.getMessage());
                 }
             }
         }
@@ -137,34 +135,29 @@ public class DeviceStatusDAO {
     private DeviceStatusActions.QueryAndParams buildFilteredQuery(boolean forCount) {
         DeviceStatusTrackingController controller = manager.getController();
 
-        // --- QUERY LOGIC HAS BEEN CORRECTED HERE ---
         String baseQuery =
-                " FROM " +
-                        "    Receipt_Events re " +
+                " FROM receipt_events re " +
                         "INNER JOIN ( " +
                         "    SELECT serial_number, MAX(receipt_id) AS max_receipt_id " +
-                        "    FROM Receipt_Events " +
+                        "    FROM receipt_events " +
                         "    GROUP BY serial_number " +
                         ") latest ON re.serial_number = latest.serial_number AND re.receipt_id = latest.max_receipt_id " +
-                        // --- NEW: JOIN the Physical_Assets table to get the most current data ---
-                        "LEFT JOIN Physical_Assets pa ON re.serial_number = pa.serial_number " +
-                        "LEFT JOIN Packages p ON re.package_id = p.package_id " +
-                        "LEFT JOIN Device_Status ds ON re.receipt_id = ds.receipt_id";
+                        "LEFT JOIN physical_assets pa ON re.serial_number = pa.serial_number " +
+                        "LEFT JOIN packages p ON re.package_id = p.package_id " +
+                        "LEFT JOIN device_status ds ON re.receipt_id = ds.receipt_id";
 
         String selectClause = forCount
                 ? "SELECT COUNT(DISTINCT re.serial_number)"
-                // --- UPDATED: Select category, make, and description from Physical_Assets (aliased as 'pa') ---
                 : "SELECT p.receive_date, re.receipt_id, re.serial_number, pa.category, pa.make, pa.description, " +
                 "ds.status, ds.sub_status, ds.last_update, ds.change_log, " +
-                "EXISTS(SELECT 1 FROM Flag_Devices fd WHERE fd.serial_number = re.serial_number) AS is_flagged";
-        // --- END OF CORRECTIONS ---
+                "EXISTS(SELECT 1 FROM flag_devices fd WHERE fd.serial_number = re.serial_number) AS is_flagged";
 
         List<Object> params = new ArrayList<>();
         StringBuilder whereClause = new StringBuilder(" WHERE 1=1");
 
         String serialNum = controller.serialSearchField.getText().trim();
         if (!serialNum.isEmpty()) {
-            whereClause.append(" AND re.serial_number LIKE ?");
+            whereClause.append(" AND re.serial_number ILIKE ?");
             params.add("%" + serialNum + "%");
         }
         String status = controller.statusFilterCombo.getValue();
@@ -173,13 +166,11 @@ public class DeviceStatusDAO {
             params.add(status);
         }
 
-        // --- NEW LOGIC TO ADD SUB-STATUS TO THE QUERY ---
         String subStatus = controller.subStatusFilterCombo.getValue();
         if (subStatus != null && !"All Sub-Statuses".equals(subStatus)) {
             whereClause.append(" AND ds.sub_status = ?");
             params.add(subStatus);
         }
-        // --- END OF NEW LOGIC ---
 
         String category = controller.categoryFilterCombo.getValue();
         if (category != null && !"All Categories".equals(category)) {
@@ -204,7 +195,6 @@ public class DeviceStatusDAO {
             if ("Status".equals(groupBy)) {
                 fullQuery += " ORDER BY ds.status, ds.last_update DESC";
             } else if ("Category".equals(groupBy)) {
-                // --- UPDATED: Group by the current category in Physical_Assets ---
                 fullQuery += " ORDER BY pa.category, ds.last_update DESC";
             } else {
                 fullQuery += " ORDER BY ds.last_update DESC";
