@@ -14,10 +14,17 @@ import java.util.Optional;
 
 public class iPadProvisioningDAO {
     public void upsertBulkDevices(List<BulkDevice> devices) throws SQLException {
-        // This is the correct "UPSERT" syntax for an H2 database.
-        String upsertSql = "INSERT INTO bulk_devices (SerialNumber, IMEI, ICCID, Capacity, DeviceName, LastImportDate) " + "VALUES (?, ?, ?, ?, ?, ?) " + "ON CONFLICT (SerialNumber) DO UPDATE SET " + "IMEI = EXCLUDED.IMEI, " + "ICCID = EXCLUDED.ICCID, " + "Capacity = EXCLUDED.Capacity, " + "DeviceName = EXCLUDED.DeviceName, " + "LastImportDate = EXCLUDED.LastImportDate";
+        String upsertSql = "INSERT INTO bulk_devices (serialnumber, imei, iccid, capacity, devicename, lastimportdate) " +
+                "VALUES (?, ?, ?, ?, ?, ?) " +
+                "ON CONFLICT (serialnumber) DO UPDATE SET " +
+                "imei = EXCLUDED.imei, " +
+                "iccid = EXCLUDED.iccid, " +
+                "capacity = EXCLUDED.capacity, " +
+                "devicename = EXCLUDED.devicename, " +
+                "lastimportdate = EXCLUDED.lastimportdate";
 
-        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(upsertSql)) {
+        try (Connection conn = DatabaseConnection.getInventoryConnection();
+             PreparedStatement stmt = conn.prepareStatement(upsertSql)) {
             conn.setAutoCommit(false);
             for (BulkDevice device : devices) {
                 stmt.setString(1, device.getSerialNumber());
@@ -34,8 +41,10 @@ public class iPadProvisioningDAO {
     }
 
     public int getDeviceCount() throws SQLException {
-        String sql = "SELECT COUNT(*) FROM Bulk_Devices;";
-        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql); ResultSet rs = stmt.executeQuery()) {
+        String sql = "SELECT COUNT(*) FROM bulk_devices;";
+        try (Connection conn = DatabaseConnection.getInventoryConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
             if (rs.next()) {
                 return rs.getInt(1);
             }
@@ -44,12 +53,20 @@ public class iPadProvisioningDAO {
     }
 
     public Optional<BulkDevice> findDeviceBySerial(String serialNumber) throws SQLException {
-        String sql = "SELECT * FROM Bulk_Devices WHERE SerialNumber = ?";
-        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+        String sql = "SELECT * FROM bulk_devices WHERE serialnumber = ?";
+        try (Connection conn = DatabaseConnection.getInventoryConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, serialNumber);
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
-                return Optional.of(new BulkDevice(rs.getString("SerialNumber"), rs.getString("IMEI"), rs.getString("ICCID"), rs.getString("Capacity"), rs.getString("DeviceName"), rs.getString("LastImportDate")));
+                return Optional.of(new BulkDevice(
+                        rs.getString("serialnumber"),
+                        rs.getString("imei"),
+                        rs.getString("iccid"),
+                        rs.getString("capacity"),
+                        rs.getString("devicename"),
+                        rs.getString("lastimportdate")
+                ));
             }
         }
         return Optional.empty();
@@ -57,25 +74,39 @@ public class iPadProvisioningDAO {
 
     public List<BulkDevice> searchDevices(String query) throws SQLException {
         List<BulkDevice> results = new ArrayList<>();
-        String sql = "SELECT * FROM Bulk_Devices WHERE " + "SerialNumber LIKE ? OR " + "IMEI LIKE ? OR " + "ICCID LIKE ? " + "LIMIT 100";
+        // Use ILIKE for case-insensitive search in PostgreSQL
+        String sql = "SELECT * FROM bulk_devices WHERE " +
+                "serialnumber ILIKE ? OR " +
+                "imei ILIKE ? OR " +
+                "iccid ILIKE ? " +
+                "LIMIT 100";
         String queryParam = "%" + query + "%";
 
-        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try (Connection conn = DatabaseConnection.getInventoryConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, queryParam);
             stmt.setString(2, queryParam);
             stmt.setString(3, queryParam);
 
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
-                results.add(new BulkDevice(rs.getString("SerialNumber"), rs.getString("IMEI"), rs.getString("ICCID"), rs.getString("Capacity"), rs.getString("DeviceName"), rs.getString("LastImportDate")));
+                results.add(new BulkDevice(
+                        rs.getString("serialnumber"),
+                        rs.getString("imei"),
+                        rs.getString("iccid"),
+                        rs.getString("capacity"),
+                        rs.getString("devicename"),
+                        rs.getString("lastimportdate")
+                ));
             }
         }
         return results;
     }
 
     public void updateSimCard(String serialNumber, String newIccid) throws SQLException {
-        String sql = "UPDATE Bulk_Devices SET ICCID = ? WHERE SerialNumber = ?";
-        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+        String sql = "UPDATE bulk_devices SET iccid = ? WHERE serialnumber = ?";
+        try (Connection conn = DatabaseConnection.getInventoryConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, newIccid);
             stmt.setString(2, serialNumber);
             stmt.executeUpdate();
@@ -83,8 +114,11 @@ public class iPadProvisioningDAO {
     }
 
     public void saveAssignments(List<StagedDevice> devices) throws SQLException {
-        String sql = "INSERT INTO Device_Assignments (SerialNumber, EmployeeEmail, EmployeeFirstName, " + "EmployeeLastName, SNReferenceNumber, AssignmentDate, DepotOrderNumber, Exported) " + "VALUES (?, ?, ?, ?, ?, CURRENT_DATE, ?, true)"; // Use CURRENT_DATE for PostgreSQL
-        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+        String sql = "INSERT INTO device_assignments (serialnumber, employeeemail, employeefirstname, " +
+                "employeelastname, snreferencenumber, assignmentdate, depotordernumber, exported) " +
+                "VALUES (?, ?, ?, ?, ?, CURRENT_DATE, ?, true)";
+        try (Connection conn = DatabaseConnection.getInventoryConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
             conn.setAutoCommit(false);
             for (StagedDevice device : devices) {
                 stmt.setString(1, device.getSerialNumber());
@@ -92,7 +126,7 @@ public class iPadProvisioningDAO {
                 stmt.setString(3, device.getFirstName());
                 stmt.setString(4, device.getLastName());
                 stmt.setString(5, device.getSnReferenceNumber());
-                stmt.setString(6, device.getDepotOrderNumber()); // Note: Parameter index shifts from 6 to 7 in SQLite to just 6 here. The code provided is correct.
+                stmt.setString(6, device.getDepotOrderNumber());
                 stmt.addBatch();
             }
             stmt.executeBatch();

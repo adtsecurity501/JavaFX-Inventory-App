@@ -10,14 +10,8 @@ import java.util.Optional;
 
 public class AppSettingsDAO {
 
-    /**
-     * Retrieves a setting value from the database.
-     *
-     * @param key The name of the setting to retrieve (e.g., "device_goal").
-     * @return An Optional containing the value if found, otherwise empty.
-     */
     public Optional<String> getSetting(String key) {
-        String sql = "SELECT setting_value FROM AppSettings WHERE setting_key = ?";
+        String sql = "SELECT setting_value FROM appsettings WHERE setting_key = ?";
         try (Connection conn = DatabaseConnection.getInventoryConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, key);
@@ -27,20 +21,12 @@ public class AppSettingsDAO {
                 }
             }
         } catch (SQLException e) {
-            System.err.println("Database error: " + e.getMessage());
+            System.err.println("Database error getting setting '" + key + "': " + e.getMessage());
         }
         return Optional.empty();
     }
 
-    /**
-     * Saves or updates a setting in the database using H2's MERGE command.
-     *
-     * @param key   The name of the setting (e.g., "device_goal").
-     * @param value The value to save.
-     */
     public void saveSetting(String key, String value) {
-        // H2: MERGE INTO AppSettings (setting_key, setting_value) KEY(setting_key) VALUES (?, ?);
-        // PostgreSQL equivalent:
         String sql = "INSERT INTO appsettings (setting_key, setting_value) VALUES (?, ?) " +
                 "ON CONFLICT (setting_key) DO UPDATE SET setting_value = EXCLUDED.setting_value";
         try (Connection conn = DatabaseConnection.getInventoryConnection();

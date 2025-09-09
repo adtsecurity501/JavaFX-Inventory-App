@@ -98,16 +98,20 @@ public class FlaggedDeviceImporter {
             return "No unique, valid data found to import.";
         }
 
-        // --- THIS IS THE CORRECTED H2-COMPATIBLE SQL ---
-        String upsertSql = "INSERT INTO flag_devices (serial_number, status, sub_status, flag_reason) " + "VALUES (?, 'Flag!', 'Requires Review', ?) " + "ON CONFLICT (serial_number) DO UPDATE SET " + "flag_reason = EXCLUDED.flag_reason";
+        String upsertSql = "INSERT INTO flag_devices (serial_number, status, sub_status, flag_reason) " +
+                "VALUES (?, 'Flag!', 'Requires Review', ?) " +
+                "ON CONFLICT (serial_number) DO UPDATE SET " +
+                "status = EXCLUDED.status, " +
+                "sub_status = EXCLUDED.sub_status, " +
+                "flag_reason = EXCLUDED.flag_reason";
         int successfullyProcessedCount = 0;
 
         try (Connection conn = DatabaseConnection.getInventoryConnection()) {
             conn.setAutoCommit(false);
             try (PreparedStatement upsertStmt = conn.prepareStatement(upsertSql)) {
                 for (Map.Entry<String, String> entry : dataToImport.entrySet()) {
-                    upsertStmt.setString(1, entry.getKey());   // serial_number
-                    upsertStmt.setString(2, entry.getValue()); // flag_reason
+                    upsertStmt.setString(1, entry.getKey());
+                    upsertStmt.setString(2, entry.getValue());
                     upsertStmt.addBatch();
                 }
                 int[] batchResults = upsertStmt.executeBatch();

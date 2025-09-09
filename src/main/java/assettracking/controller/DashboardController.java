@@ -265,17 +265,11 @@ public class DashboardController {
 
     private String getDateFilterClause(String columnName) {
         if (todayRadio.isSelected()) {
-            // H2: >= CURRENT_DATE
-            // PostgreSQL: >= CURRENT_DATE AND < (CURRENT_DATE + INTERVAL '1 DAY')
             return " " + columnName + " >= CURRENT_DATE AND " + columnName + " < (CURRENT_DATE + INTERVAL '1 DAY')";
         }
         if (days7Radio.isSelected()) {
-            // H2: >= DATEADD('DAY', -7, CURRENT_DATE)
-            // PostgreSQL: >= (CURRENT_DATE - INTERVAL '7 DAY')
             return " " + columnName + " >= (CURRENT_DATE - INTERVAL '7 DAY')";
         }
-        // H2: >= DATEADD('DAY', -30, CURRENT_DATE)
-        // PostgreSQL: >= (CURRENT_DATE - INTERVAL '30 DAY')
         return " " + columnName + " >= (CURRENT_DATE - INTERVAL '30 DAY')";
     }
 

@@ -16,7 +16,7 @@ import java.util.Map;
 
 public class DashboardDataService {
 
-    private static final String LATEST_RECEIPT_SUBQUERY = "SELECT serial_number, MAX(receipt_id) as max_receipt_id FROM Receipt_Events GROUP BY serial_number";
+    private static final String LATEST_RECEIPT_SUBQUERY = "SELECT serial_number, MAX(receipt_id) as max_receipt_id FROM receipt_events GROUP BY serial_number";
 
     public Map<String, Integer> getGranularMetrics(String intakeDateClause, String statusDateClause) throws SQLException {
         Map<String, Integer> metrics = new HashMap<>();
@@ -26,14 +26,14 @@ public class DashboardDataService {
                         SUM(CASE WHEN %s THEN 1 ELSE 0 END) as IntakenCount,
                         SUM(CASE WHEN ds.status = 'Processed' AND %s THEN 1 ELSE 0 END) as ProcessedCount,
                         SUM(CASE WHEN ds.status = 'Disposed' AND %s THEN 1 ELSE 0 END) as DisposedCount
-                    FROM Receipt_Events re
-                    LEFT JOIN Packages p ON re.package_id = p.package_id
-                    LEFT JOIN Device_Status ds ON re.receipt_id = ds.receipt_id
+                    FROM receipt_events re
+                    LEFT JOIN packages p ON re.package_id = p.package_id
+                    LEFT JOIN device_status ds ON re.receipt_id = ds.receipt_id
                     WHERE
-                        re.category LIKE '%%%%Laptop%%%%' OR
-                        re.category LIKE '%%%%Tablet%%%%' OR
-                        re.category LIKE '%%%%Desktop%%%%' OR
-                        re.category LIKE '%%%%Monitor%%%%'
+                        re.category ILIKE '%%%%laptop%%%%' OR
+                        re.category ILIKE '%%%%tablet%%%%' OR
+                        re.category ILIKE '%%%%desktop%%%%' OR
+                        re.category ILIKE '%%%%monitor%%%%'
                     GROUP BY re.category
                 """, intakeDateClause, statusDateClause, statusDateClause);
 
@@ -67,7 +67,7 @@ public class DashboardDataService {
         List<TopModelStat> results = new ArrayList<>();
         String sql = String.format("""
                     SELECT re.model_number, COUNT(re.receipt_id) as model_count
-                    FROM Device_Status ds JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id
+                    FROM device_status ds JOIN receipt_events re ON ds.receipt_id = re.receipt_id
                     WHERE ds.status = 'Processed' AND %s
                     GROUP BY re.model_number
                     HAVING re.model_number IS NOT NULL AND re.model_number != ''
@@ -84,7 +84,7 @@ public class DashboardDataService {
 
     public List<PieChart.Data> getInventoryOverviewData() throws SQLException {
         List<PieChart.Data> data = new ArrayList<>();
-        String sql = "SELECT CASE WHEN ds.status = 'Flag!' THEN 'Flagged for Review' ELSE ds.status END as status_display, COUNT(*) as status_count FROM Device_Status ds JOIN (" + LATEST_RECEIPT_SUBQUERY + ") latest_re ON ds.receipt_id = latest_re.max_receipt_id GROUP BY status_display;";
+        String sql = "SELECT CASE WHEN ds.status = 'Flag!' THEN 'Flagged for Review' ELSE ds.status END as status_display, COUNT(*) as status_count FROM device_status ds JOIN (" + LATEST_RECEIPT_SUBQUERY + ") latest_re ON ds.receipt_id = latest_re.max_receipt_id GROUP BY status_display;";
         try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql); ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
                 data.add(new PieChart.Data(rs.getString("status_display"), rs.getInt("status_count")));
@@ -95,10 +95,15 @@ public class DashboardDataService {
 
     public List<PieChart.Data> getProcessedBreakdownData(String dateFilterClause) throws SQLException {
         List<PieChart.Data> data = new ArrayList<>();
-        // --- THIS QUERY IS NOW CORRECTED ---
-        // It adds the condition "re.category IS NOT NULL AND re.category != ''" to exclude blank categories.
-        String sql = "SELECT re.category, COUNT(*) as count " + "FROM Device_Status ds " + "JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id " + "JOIN (" + LATEST_RECEIPT_SUBQUERY + ") latest_re ON ds.receipt_id = latest_re.max_receipt_id " + "WHERE ds.status = 'Processed' " + "AND re.category IS NOT NULL AND re.category != '' " + // <-- THE FIX
-                "AND " + dateFilterClause + " " + "GROUP BY re.category " + "ORDER BY count DESC";
+        String sql = "SELECT re.category, COUNT(*) as count " +
+                "FROM device_status ds " +
+                "JOIN receipt_events re ON ds.receipt_id = re.receipt_id " +
+                "JOIN (" + LATEST_RECEIPT_SUBQUERY + ") latest_re ON ds.receipt_id = latest_re.max_receipt_id " +
+                "WHERE ds.status = 'Processed' " +
+                "AND re.category IS NOT NULL AND re.category != '' " +
+                "AND " + dateFilterClause + " " +
+                "GROUP BY re.category " +
+                "ORDER BY count DESC";
 
         try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql); ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
@@ -111,12 +116,9 @@ public class DashboardDataService {
     public XYChart.Series<String, Number> getIntakeVolumeData(String dateFilterClause) throws SQLException {
         XYChart.Series<String, Number> series = new XYChart.Series<>();
         series.setName("Devices Received");
-
-        // H2: FORMATDATETIME(p.receive_date, 'yyyy-MM-dd') AS day
-        // PostgreSQL: TO_CHAR(p.receive_date, 'YYYY-MM-DD') AS day
         String sql = "SELECT TO_CHAR(p.receive_date, 'YYYY-MM-DD') AS day, COUNT(re.receipt_id) AS device_count " +
-                "FROM Receipt_Events re " +
-                "JOIN Packages p ON re.package_id = p.package_id " +
+                "FROM receipt_events re " +
+                "JOIN packages p ON re.package_id = p.package_id " +
                 "WHERE " + dateFilterClause + " " +
                 "GROUP BY day " +
                 "ORDER BY day ASC;";
@@ -134,19 +136,11 @@ public class DashboardDataService {
 
     public Map<String, String> getStaticKpis() throws SQLException {
         Map<String, String> kpis = new HashMap<>();
-        // ... (triageSql and awaitingDisposalSql are unchanged) ...
-        String triageSql = "SELECT COUNT(*) as count FROM Device_Status ds JOIN (SELECT serial_number, MAX(receipt_id) as max_receipt_id FROM Receipt_Events GROUP BY serial_number) l ON ds.receipt_id = l.max_receipt_id JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id WHERE ds.status IN ('Intake', 'Triage & Repair') AND re.category NOT LIKE '%Monitor%'";
-        String awaitingDisposalSql = "SELECT COUNT(*) as count FROM Device_Status ds JOIN (SELECT serial_number, MAX(receipt_id) as max_receipt_id FROM Receipt_Events GROUP BY serial_number) l ON ds.receipt_id = l.max_receipt_id WHERE ds.status = 'Disposed' AND ds.sub_status IN ('Can-Am, Pending Pickup', 'Ingram, Pending Pickup', 'Ready for Wipe')";
+        String triageSql = "SELECT COUNT(*) as count FROM device_status ds JOIN (" + LATEST_RECEIPT_SUBQUERY + ") l ON ds.receipt_id = l.max_receipt_id JOIN receipt_events re ON ds.receipt_id = re.receipt_id WHERE ds.status IN ('Intake', 'Triage & Repair') AND re.category NOT ILIKE '%Monitor%'";
+        String awaitingDisposalSql = "SELECT COUNT(*) as count FROM device_status ds JOIN (" + LATEST_RECEIPT_SUBQUERY + ") l ON ds.receipt_id = l.max_receipt_id WHERE ds.status = 'Disposed' AND ds.sub_status IN ('Can-Am, Pending Pickup', 'Ingram, Pending Pickup', 'Ready for Wipe')";
+        String turnaroundSql = "SELECT AVG(CAST(ds.last_update AS DATE) - p.receive_date) as avg_days FROM device_status ds JOIN receipt_events re ON ds.receipt_id = re.receipt_id JOIN packages p ON re.package_id = p.package_id WHERE ds.status = 'Processed' AND ds.sub_status = 'Ready for Deployment' AND ds.last_update >= (CURRENT_DATE - INTERVAL '30 DAY')";
+        String dailySql = "SELECT COUNT(DISTINCT re.serial_number) as count FROM device_status ds JOIN receipt_events re ON ds.receipt_id = re.receipt_id WHERE ds.status = 'Processed' AND ds.sub_status = 'Ready for Deployment' AND ds.last_update >= CURRENT_DATE AND ds.last_update < (CURRENT_DATE + INTERVAL '1 DAY') AND EXISTS (SELECT 1 FROM device_status h_ds JOIN receipt_events h_re ON h_ds.receipt_id = h_re.receipt_id WHERE h_re.serial_number = re.serial_number AND h_ds.status IN ('Intake', 'Triage & Repair'))";
 
-        // H2: AVG(DATEDIFF('DAY', p.receive_date, ds.last_update))
-        // PostgreSQL: AVG(CAST(ds.last_update AS DATE) - p.receive_date)
-        String turnaroundSql = "SELECT AVG(CAST(ds.last_update AS DATE) - p.receive_date) as avg_days FROM Device_Status ds JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id JOIN Packages p ON re.package_id = p.package_id WHERE ds.status = 'Processed' AND ds.sub_status = 'Ready for Deployment' AND ds.last_update >= (CURRENT_DATE - INTERVAL '30 DAY')";
-
-        // H2: CAST(ds.last_update AS DATE) = CURRENT_DATE
-        // PostgreSQL: ds.last_update >= CURRENT_DATE AND ds.last_update < (CURRENT_DATE + INTERVAL '1 DAY')
-        String dailySql = "SELECT COUNT(DISTINCT re.serial_number) as count FROM Device_Status ds JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id WHERE ds.status = 'Processed' AND ds.sub_status = 'Ready for Deployment' AND ds.last_update >= CURRENT_DATE AND ds.last_update < (CURRENT_DATE + INTERVAL '1 DAY') AND EXISTS (SELECT 1 FROM Device_Status h_ds JOIN Receipt_Events h_re ON h_ds.receipt_id = h_re.receipt_id WHERE h_re.serial_number = re.serial_number AND h_ds.status IN ('Intake', 'Triage & Repair'))";
-
-        // ... (database execution logic is unchanged) ...
         try (Connection conn = DatabaseConnection.getInventoryConnection()) {
             try (PreparedStatement stmt = conn.prepareStatement(triageSql); ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) kpis.put("activeTriage", String.valueOf(rs.getInt("count")));
