@@ -1,8 +1,10 @@
 Priority 1:
 - add way to import information into the device_autofill_data table .
 - When I minimize the window it goes to the bottom left corner and it has no styles
-
-
+- The code needs to change for ipadsettings I think Im calling the wrong table name or something when seraahing serial in the ipad provisioning table.
+- Update the descriptionn on SKU Print H2 db.
+- Make the serach on scan update sku Search for sku to print less specific so I can find devices using upper or lower case and in different order so I can find a 9TH GEN IPAD searching with ipad 9th gen for example H2 db.
+-Auto search serial numbers and try to populate fields when I click the process failed scans on scan upadte window as If I were to click on the serial filed and press enter.
 
 Priority 2:
 

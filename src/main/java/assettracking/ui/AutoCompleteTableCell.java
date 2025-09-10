@@ -1,6 +1,5 @@
 package assettracking.ui;
 
-import assettracking.data.AssetEntry;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TextField;
 
@@ -13,7 +12,6 @@ public class AutoCompleteTableCell<S> extends TableCell<S, String> {
     private final Function<String, List<String>> suggestionProvider;
     private final BiConsumer<S, String> onSuggestionSelectedCallback;
     private TextField textField;
-    private AutoCompletePopup popup;
 
     // Overloaded constructor for simple cases that don't need cross-cell updates
     public AutoCompleteTableCell(Function<String, List<String>> suggestionProvider) {
@@ -69,7 +67,7 @@ public class AutoCompleteTableCell<S> extends TableCell<S, String> {
     private void createTextField() {
         textField = new TextField(getItem());
 
-        popup = new AutoCompletePopup(textField, () -> suggestionProvider.apply(textField.getText()));
+        AutoCompletePopup popup = new AutoCompletePopup(textField, () -> suggestionProvider.apply(textField.getText()));
 
         // --- THIS IS THE KEY CHANGE ---
         // When a suggestion is selected, we now first execute the callback

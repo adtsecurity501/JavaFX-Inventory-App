@@ -18,9 +18,11 @@ import javafx.scene.Parent;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 
+import java.io.File;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -294,9 +296,7 @@ public class DeviceStatusTrackingController {
         }
         cachedCategories = new ArrayList<>();
         String sql = "SELECT DISTINCT category FROM Receipt_Events WHERE category IS NOT NULL AND category != '' ORDER BY category";
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql); ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
                 cachedCategories.add(rs.getString("category"));
             }
@@ -309,8 +309,7 @@ public class DeviceStatusTrackingController {
 
     private String findFlagReason(String serialNumber) {
         String sql = "SELECT flag_reason FROM Flag_Devices WHERE serial_number = ?";
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, serialNumber);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
@@ -378,11 +377,7 @@ public class DeviceStatusTrackingController {
         contextMenu.getItems().addAll(historyMenuItem, new SeparatorMenuItem(), reassignMenuItem, editMenuItem, deleteMenuItem);
         statusTable.setRowFactory(tv -> {
             TableRow<DeviceStatusView> row = new TableRow<>();
-            row.contextMenuProperty().bind(
-                    Bindings.when(row.emptyProperty().not())
-                            .then(contextMenu)
-                            .otherwise((ContextMenu) null)
-            );
+            row.contextMenuProperty().bind(Bindings.when(row.emptyProperty().not()).then(contextMenu).otherwise((ContextMenu) null));
             row.itemProperty().addListener((obs, previousItem, currentItem) -> {
                 row.getStyleClass().removeAll("flagged-row", "wip-row", "disposal-row", "processed-row", "shipped-row");
                 if (currentItem != null) {
@@ -484,8 +479,31 @@ public class DeviceStatusTrackingController {
     }
 
     @FXML
-    private void handleExportToCSV() {
-        deviceStatusActions.exportToCSV();
+    private void handleExport() { // You can rename this method to handleExport() if you prefer
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Save Asset Report");
+
+        // Add filters for both file types
+        FileChooser.ExtensionFilter csvFilter = new FileChooser.ExtensionFilter("CSV Files (*.csv)", "*.csv");
+        FileChooser.ExtensionFilter xlsxFilter = new FileChooser.ExtensionFilter("Excel Files (*.xlsx)", "*.xlsx");
+        fileChooser.getExtensionFilters().addAll(csvFilter, xlsxFilter);
+
+        File file = fileChooser.showSaveDialog(getOwnerWindow());
+
+        if (file != null) {
+            // Check which filter was selected to determine the file type
+            String extension = fileChooser.getSelectedExtensionFilter().getExtensions().getFirst();
+
+            if (extension.equals("*.csv")) {
+                // If the file doesn't end with .csv, append it
+                String csvPath = file.getAbsolutePath().toLowerCase().endsWith(".csv") ? file.getAbsolutePath() : file.getAbsolutePath() + ".csv";
+                deviceStatusActions.exportToCSV(new File(csvPath));
+            } else if (extension.equals("*.xlsx")) {
+                // If the file doesn't end with .xlsx, append it
+                String xlsxPath = file.getAbsolutePath().toLowerCase().endsWith(".xlsx") ? file.getAbsolutePath() : file.getAbsolutePath() + ".xlsx";
+                deviceStatusActions.exportToXLSX(new File(xlsxPath));
+            }
+        }
     }
 
     @FXML
