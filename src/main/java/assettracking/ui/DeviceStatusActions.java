@@ -33,8 +33,8 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 
 public class DeviceStatusActions {
@@ -117,21 +117,21 @@ public class DeviceStatusActions {
 
             CreationHelper createHelper = workbook.getCreationHelper();
 
+            // --- NEW: Map to dynamically count statuses for the summary ---
+            Map<String, Integer> statusCounts = new HashMap<>();
+
+            // Cell Style Definitions
             CellStyle timestampCellStyle = workbook.createCellStyle();
             timestampCellStyle.setDataFormat(createHelper.createDataFormat().getFormat("yyyy-mm-dd hh:mm:ss"));
-
             CellStyle dateCellStyle = workbook.createCellStyle();
             dateCellStyle.setDataFormat(createHelper.createDataFormat().getFormat("yyyy-mm-dd"));
-
             CellStyle headerStyle = workbook.createCellStyle();
             Font headerFont = workbook.createFont();
             headerFont.setBold(true);
             headerStyle.setFont(headerFont);
-
             CellStyle warningStyle = workbook.createCellStyle();
             warningStyle.setFillForegroundColor(IndexedColors.YELLOW.getIndex());
             warningStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-
             CellStyle dangerStyle = workbook.createCellStyle();
             dangerStyle.setFillForegroundColor(IndexedColors.RED.getIndex());
             dangerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
@@ -153,7 +153,6 @@ public class DeviceStatusActions {
                 row.createCell(4).setCellValue(rs.getString("state"));
                 row.createCell(5).setCellValue(rs.getString("zip_code"));
 
-                // --- FIX: Use getObject() to get modern date/time types directly ---
                 Cell receiveDateCell = row.createCell(6);
                 LocalDate receiveDate = rs.getObject("receive_date", LocalDate.class);
                 if (receiveDate != null) {
@@ -166,7 +165,6 @@ public class DeviceStatusActions {
                 row.createCell(9).setCellValue(rs.getString("imei"));
                 row.createCell(10).setCellValue(rs.getString("serial_number"));
 
-                // --- FIX: Use getObject() for LocalDateTime as well ---
                 Cell statusDateCell = row.createCell(11);
                 LocalDateTime statusTimestamp = rs.getObject("status_change_date", LocalDateTime.class);
                 if (statusTimestamp != null) {
@@ -174,10 +172,17 @@ public class DeviceStatusActions {
                     statusDateCell.setCellStyle(timestampCellStyle);
                 }
 
-                row.createCell(12).setCellValue(rs.getString("status"));
+                String status = rs.getString("status");
+                row.createCell(12).setCellValue(status);
                 row.createCell(13).setCellValue(rs.getString("sub_status"));
 
-                // --- Updated calculation logic to use the new types ---
+                // --- Tally the status for the summary dashboard ---
+                if (status != null && !status.isEmpty()) {
+                    statusCounts.merge(status, 1, Integer::sum);
+                } else {
+                    statusCounts.merge("Not Set", 1, Integer::sum);
+                }
+
                 if (statusTimestamp != null) {
                     long daysInStatus = ChronoUnit.DAYS.between(statusTimestamp.toLocalDate(), LocalDate.now());
                     Cell daysInStatusCell = row.createCell(14);
@@ -207,7 +212,8 @@ public class DeviceStatusActions {
 
             for (int i = 0; i < headers.length; i++) dataSheet.autoSizeColumn(i);
 
-            buildSummarySheet(summarySheet, rowNum - 1, headerStyle);
+            // --- Pass the calculated counts to the summary builder ---
+            buildSummarySheet(summarySheet, rowNum - 1, headerStyle, statusCounts);
 
             if (rowNum > 1) {
                 buildPivotTableSheet(workbook.createSheet("Pivot Table Analysis"), dataSheet, rowNum, headers.length);
@@ -227,29 +233,36 @@ public class DeviceStatusActions {
         }
     }
 
-    // --- NEW HELPER METHOD FOR SUMMARY SHEET ---
-    private void buildSummarySheet(XSSFSheet sheet, int totalDevices, CellStyle headerStyle) {
+    // --- MODIFIED HELPER METHOD for a dynamic summary ---
+    private void buildSummarySheet(XSSFSheet sheet, int totalDevices, CellStyle headerStyle, Map<String, Integer> statusCounts) {
         sheet.createRow(0).createCell(0).setCellValue("Inventory & Performance Summary");
         sheet.getRow(0).getCell(0).setCellStyle(headerStyle);
 
-        sheet.createRow(2).createCell(0).setCellValue("Total Devices in Report:");
+        sheet.createRow(2).createCell(0).setCellValue("Total Receipt Events in Report:");
         sheet.getRow(2).createCell(1).setCellValue(totalDevices);
 
-        sheet.createRow(4).createCell(0).setCellValue("Inventory by Status:");
+        sheet.createRow(4).createCell(0).setCellValue("Inventory by Status (Live Count):");
         sheet.getRow(4).getCell(0).setCellStyle(headerStyle);
-        // Formula to count devices in "Triage & Repair" status from the data sheet
-        sheet.createRow(5).createCell(0).setCellValue("Triage & Repair");
-        sheet.getRow(5).createCell(1).setCellFormula("COUNTIF('Full Data Report'!M:M, \"Triage & Repair\")");
 
-        sheet.createRow(6).createCell(0).setCellValue("Ready for Deployment");
-        sheet.getRow(6).createCell(1).setCellFormula("COUNTIF('Full Data Report'!N:N, \"Ready for Deployment\")");
+        // Sort the statuses by count (descending) for a cleaner report
+        Map<String, Integer> sortedStatusCounts = statusCounts.entrySet().stream().sorted(Map.Entry.<String, Integer>comparingByValue().reversed()).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new));
 
-        sheet.createRow(8).createCell(0).setCellValue("Performance Metrics:");
-        sheet.getRow(8).getCell(0).setCellStyle(headerStyle);
-        sheet.createRow(9).createCell(0).setCellValue("Average Days in Current Status");
-        sheet.getRow(9).createCell(1).setCellFormula("AVERAGE('Full Data Report'!O:O)");
+        // Dynamically create a row for each status
+        int summaryRowNum = 5;
+        for (Map.Entry<String, Integer> entry : sortedStatusCounts.entrySet()) {
+            Row row = sheet.createRow(summaryRowNum++);
+            row.createCell(0).setCellValue(entry.getKey());
+            row.createCell(1).setCellValue(entry.getValue());
+        }
 
-        // Auto-size columns
+        // Add a gap before the next section
+        summaryRowNum++;
+
+        sheet.createRow(summaryRowNum).createCell(0).setCellValue("Performance Metrics (Based on this Report):");
+        sheet.getRow(summaryRowNum).getCell(0).setCellStyle(headerStyle);
+        sheet.createRow(summaryRowNum + 1).createCell(0).setCellValue("Average Days in Current Status");
+        sheet.getRow(summaryRowNum + 1).createCell(1).setCellFormula("AVERAGE('Full Data Report'!O:O)");
+
         sheet.autoSizeColumn(0);
         sheet.autoSizeColumn(1);
     }
