@@ -1,9 +1,11 @@
+// In file: src/main/java/assettracking/manager/DeviceImportService.java
+
 package assettracking.manager;
 
 import assettracking.dao.bulk.iPadProvisioningDAO;
 import assettracking.data.bulk.BulkDevice;
 import assettracking.db.DatabaseConnection;
-import assettracking.ui.ExcelReader;
+import com.github.pjfanning.xlsx.StreamingReader;
 import com.opencsv.CSVReader;
 import com.opencsv.exceptions.CsvException;
 import org.apache.poi.ss.usermodel.*;
@@ -21,96 +23,221 @@ import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-/**
- * Service to handle importing device data from both Excel and CSV files.
- */
 public class DeviceImportService {
 
     private final iPadProvisioningDAO dao = new iPadProvisioningDAO();
 
-    public DeviceImportService() {
-    }
-
-    // --- METHOD FOR IPAD PROVISIONING TAB (UNCHANGED) ---
     public int importFromFile(File file) throws IOException, SQLException {
-        List<BulkDevice> devices = ExcelReader.readDeviceFile(file);
+        List<BulkDevice> devices = assettracking.ui.ExcelReader.readDeviceFile(file);
         if (devices.isEmpty()) return 0;
         dao.upsertBulkDevices(devices);
         return devices.size();
     }
 
-    // --- NEW METHODS FOR DASHBOARD FOLDER SCANNING ---
-    public String runFolderImport(List<String> folderPathsToScan, java.util.function.Consumer<String> progressCallback) throws Exception {
+    public List<ImportResult> runFolderImport(List<String> folderPathsToScan, Consumer<String> progressCallback) throws IOException {
         progressCallback.accept("Scanning for device files...");
         List<File> allFiles = findAllDeviceFiles(folderPathsToScan);
         if (allFiles.isEmpty()) {
-            return "No device files found to process in the configured folders.";
+            progressCallback.accept("No new device files found to process.");
+            return Collections.emptyList();
         }
-        progressCallback.accept(String.format("Found %d files. Starting import...", allFiles.size()));
 
-        AtomicInteger totalUpserted = new AtomicInteger(0);
+        List<ImportResult> results = new ArrayList<>();
         for (int i = 0; i < allFiles.size(); i++) {
             File file = allFiles.get(i);
             progressCallback.accept(String.format("Processing file %d/%d: %s", i + 1, allFiles.size(), file.getName()));
-            totalUpserted.addAndGet(processAndUpsertData(file));
-        }
-
-        return String.format("Import complete. Upserted/updated %d total device records from %d files.", totalUpserted.get(), allFiles.size());
-    }
-
-    private List<File> findAllDeviceFiles(List<String> folderPaths) {
-        List<File> foundFiles = new ArrayList<>();
-        for (String path : folderPaths) {
-            try (Stream<Path> stream = Files.walk(Paths.get(path))) {
-                foundFiles.addAll(stream
-                        .filter(Files::isRegularFile)
-                        .filter(p -> {
-                            String name = p.getFileName().toString().toLowerCase();
-                            return (name.endsWith(".csv") || name.endsWith(".xlsx")) && !name.startsWith("~");
-                        })
-                        .map(Path::toFile)
-                        .toList());
-            } catch (IOException e) {
-                System.err.println("Warning: Could not scan directory: " + path + ". Error: " + e.getMessage());
+            try {
+                results.add(processAndUpsertData(file));
+            } catch (Exception e) {
+                results.add(new ImportResult(file, 0, List.of("Critical error processing file: " + e.getMessage())));
             }
         }
-        foundFiles.sort(Comparator.comparingLong(File::lastModified));
-        return foundFiles;
+        return results;
     }
 
-    private int processAndUpsertData(File file) throws IOException, SQLException, CsvException {
-        String fileName = file.getName().toLowerCase();
-        List<BulkDevice> devicesToProcess;
+    private ImportResult processAndUpsertData(File file) throws IOException, CsvException, SQLException {
+        List<BulkDevice> parsedDevices = file.getName().toLowerCase().endsWith(".csv") ? streamCsvData(file) : streamExcelData(file);
 
-        // *** THIS IS THE CORE FIX: DIFFERENT LOGIC FOR DIFFERENT FILE TYPES ***
-        if (fileName.endsWith(".csv")) {
-            devicesToProcess = readAndCleanCsvData(file);
-        } else if (fileName.endsWith(".xlsx")) {
-            devicesToProcess = readAndCleanExcelData(file);
-        } else {
-            return 0; // Skip unsupported files
+        if (parsedDevices.isEmpty()) {
+            return new ImportResult(file, 0, Collections.emptyList());
         }
 
-        if (devicesToProcess.isEmpty()) {
-            return 0;
+        DeviceValidationResult validationResult = validateDevices(parsedDevices);
+        int successfulCount = 0;
+        if (!validationResult.validDevices().isEmpty()) {
+            successfulCount = performDatabaseUpsert(validationResult.validDevices());
         }
 
-        int[] recordsAffected;
+        return new ImportResult(file, successfulCount, validationResult.errors());
+    }
+
+    private List<BulkDevice> streamExcelData(File file) throws IOException {
+        List<BulkDevice> devices = new ArrayList<>();
+        String now = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+
+        try (FileInputStream fis = new FileInputStream(file); Workbook workbook = StreamingReader.builder().rowCacheSize(100).bufferSize(4096).open(fis)) {
+
+            for (Sheet sheet : workbook) {
+                Map<String, Integer> headerMap = null;
+                for (Row row : sheet) {
+                    if (headerMap == null) {
+                        headerMap = getHeaderMap(row);
+                        if (!headerMap.containsKey("serial number") && !headerMap.containsKey("serial")) {
+                            break;
+                        }
+                        continue;
+                    }
+                    processRow(row, headerMap, now).ifPresent(devices::add);
+                }
+            }
+        }
+        return devices;
+    }
+
+    private List<BulkDevice> streamCsvData(File file) throws IOException, CsvException {
+        List<BulkDevice> devices = new ArrayList<>();
+        String now = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+
+        try (CSVReader reader = new CSVReader(new FileReader(file))) {
+            String[] headerArray = reader.readNext();
+            if (headerArray == null) return devices;
+
+            Map<String, Integer> headerMap = new HashMap<>();
+            for (int i = 0; i < headerArray.length; i++) {
+                headerMap.put(headerArray[i].trim().toLowerCase(), i);
+            }
+
+            if (!headerMap.containsKey("serial number") && !headerMap.containsKey("serial")) {
+                return devices;
+            }
+
+            String[] line;
+            while ((line = reader.readNext()) != null) {
+                processCsvRow(line, headerMap, now).ifPresent(devices::add);
+            }
+        }
+        return devices;
+    }
+
+    private Optional<BulkDevice> processRow(Row row, Map<String, Integer> headers, String now) {
+        String serial = getCellValue(row, headers, "serial number", "serial");
+        if (serial == null || serial.isEmpty()) return Optional.empty();
+
+        String iccid = getCleanedNumericValue(row, headers, "iccid", "sim");
+        if (iccid != null && (iccid.length() < 18 || iccid.length() > 20)) {
+            iccid = null;
+        }
+
+        return Optional.of(new BulkDevice(serial.toUpperCase(), getCleanedNumericValue(row, headers, "imei/meid", "imei"), iccid, getCellValue(row, headers, "capacity"), getCellValue(row, headers, "name", "device name"), now));
+    }
+
+    private Optional<BulkDevice> processCsvRow(String[] line, Map<String, Integer> headers, String now) {
+        String serial = getCsvValue(line, headers, "serial number", "serial");
+        if (serial == null || serial.isEmpty()) return Optional.empty();
+
+        String iccid = getCleanedNumericCsvValue(line, headers, "iccid", "sim");
+        if (iccid != null && (iccid.length() < 18 || iccid.length() > 20)) {
+            iccid = null;
+        }
+
+        return Optional.of(new BulkDevice(serial.toUpperCase(), getCleanedNumericCsvValue(line, headers, "imei/meid", "imei"), iccid, getCsvValue(line, headers, "capacity"), getCsvValue(line, headers, "name", "device name"), now));
+    }
+
+    private Map<String, Integer> getHeaderMap(Row headerRow) {
+        Map<String, Integer> map = new HashMap<>();
+        if (headerRow != null) {
+            for (Cell cell : headerRow) {
+                map.put(new DataFormatter().formatCellValue(cell).trim().toLowerCase(), cell.getColumnIndex());
+            }
+        }
+        return map;
+    }
+
+    private String getCellValue(Row row, Map<String, Integer> headers, String... possibleNames) {
+        for (String name : possibleNames) {
+            if (headers.containsKey(name)) {
+                Cell cell = row.getCell(headers.get(name));
+                if (cell != null) {
+                    return new DataFormatter().formatCellValue(cell).trim();
+                }
+            }
+        }
+        return null;
+    }
+
+    private String getCleanedNumericValue(Row row, Map<String, Integer> headers, String... possibleNames) {
+        String val = getCellValue(row, headers, possibleNames);
+        if (val == null) return null;
+        if (val.endsWith(".0")) val = val.substring(0, val.length() - 2);
+        return val.replaceAll("[^0-9]", "");
+    }
+
+    private String getCsvValue(String[] line, Map<String, Integer> headers, String... possibleNames) {
+        for (String name : possibleNames) {
+            if (headers.containsKey(name)) {
+                int index = headers.get(name);
+                if (index < line.length) {
+                    return line[index].trim();
+                }
+            }
+        }
+        return null;
+    }
+
+    private String getCleanedNumericCsvValue(String[] line, Map<String, Integer> headers, String... possibleNames) {
+        String val = getCsvValue(line, headers, possibleNames);
+        if (val == null) return null;
+        if (val.endsWith(".0")) val = val.substring(0, val.length() - 2);
+        return val.replaceAll("[^0-9]", "");
+    }
+
+    private DeviceValidationResult validateDevices(List<BulkDevice> devices) {
+        List<String> errors = new ArrayList<>();
+
+        // --- STEP 1: DE-DUPLICATE BY SERIAL NUMBER FIRST ---
+        // This handles the "Redundant Rows" case by keeping only the first entry for each serial.
+        Map<String, BulkDevice> uniqueDevicesBySerial = new LinkedHashMap<>();
+        for (BulkDevice device : devices) {
+            uniqueDevicesBySerial.putIfAbsent(device.getSerialNumber(), device);
+        }
+        List<BulkDevice> deDuplicatedList = new ArrayList<>(uniqueDevicesBySerial.values());
+
+        // --- STEP 2: VALIDATE FOR DUPLICATE IMEIs on the CLEANED list ---
+        // This now only catches the "Illegitimate Duplicates".
+        Map<String, List<BulkDevice>> devicesByImei = deDuplicatedList.stream().filter(d -> d.getImei() != null && !d.getImei().isEmpty()).collect(Collectors.groupingBy(BulkDevice::getImei));
+
+        devicesByImei.entrySet().stream().filter(entry -> entry.getValue().size() > 1).forEach(entry -> {
+            String imei = entry.getKey();
+            String serials = entry.getValue().stream().map(BulkDevice::getSerialNumber).collect(Collectors.joining(", "));
+            errors.add(String.format("Rejected: Duplicate IMEI [%s] found for serials: %s.", imei, serials));
+        });
+
+        Set<String> invalidImeis = devicesByImei.entrySet().stream().filter(entry -> entry.getValue().size() > 1).map(Map.Entry::getKey).collect(Collectors.toSet());
+
+        // Filter out the invalid devices to create the final list of valid ones
+        List<BulkDevice> validDevices = deDuplicatedList.stream().filter(d -> d.getImei() == null || d.getImei().isEmpty() || !invalidImeis.contains(d.getImei())).collect(Collectors.toList());
+
+        return new DeviceValidationResult(validDevices, errors);
+    }
+
+    private int performDatabaseUpsert(List<BulkDevice> devices) throws SQLException {
         String unassignSql = "UPDATE Bulk_Devices SET ICCID = NULL WHERE ICCID = ? AND SerialNumber <> ?";
         String upsertSql = "MERGE INTO Bulk_Devices (SerialNumber, IMEI, ICCID, Capacity, DeviceName, LastImportDate) KEY(SerialNumber) VALUES (?, ?, ?, ?, ?, ?)";
+        int[] upsertResults;
 
         try (Connection conn = DatabaseConnection.getInventoryConnection()) {
             conn.setAutoCommit(false);
-            try (PreparedStatement unassignStmt = conn.prepareStatement(unassignSql);
-                 PreparedStatement upsertStmt = conn.prepareStatement(upsertSql)) {
-                for (BulkDevice device : devicesToProcess) {
+            try (PreparedStatement unassignStmt = conn.prepareStatement(unassignSql); PreparedStatement upsertStmt = conn.prepareStatement(upsertSql)) {
+
+                for (BulkDevice device : devices) {
                     if (device.getIccid() != null && !device.getIccid().isEmpty()) {
                         unassignStmt.setString(1, device.getIccid());
                         unassignStmt.setString(2, device.getSerialNumber());
-                        unassignStmt.executeUpdate();
+                        unassignStmt.addBatch();
                     }
                     upsertStmt.setString(1, device.getSerialNumber());
                     upsertStmt.setString(2, device.getImei());
@@ -120,129 +247,30 @@ public class DeviceImportService {
                     upsertStmt.setString(6, device.getLastImportDate());
                     upsertStmt.addBatch();
                 }
-                recordsAffected = upsertStmt.executeBatch();
+                unassignStmt.executeBatch();
+                upsertResults = upsertStmt.executeBatch();
             } catch (SQLException e) {
                 conn.rollback();
                 throw e;
             }
             conn.commit();
         }
-        return recordsAffected.length;
+        return (int) Arrays.stream(upsertResults).filter(i -> i >= 0).count();
     }
 
-    private List<BulkDevice> readAndCleanExcelData(File file) throws IOException {
-        List<BulkDevice> devices = new ArrayList<>();
-        try (FileInputStream fis = new FileInputStream(file); Workbook workbook = WorkbookFactory.create(fis)) {
-            for (Sheet sheet : workbook) {
-                processSheet(sheet, devices);
+    private List<File> findAllDeviceFiles(List<String> folderPaths) throws IOException {
+        List<File> foundFiles = new ArrayList<>();
+        for (String path : folderPaths) {
+            try (Stream<Path> stream = Files.walk(Paths.get(path))) {
+                foundFiles.addAll(stream.filter(Files::isRegularFile).filter(p -> {
+                    String name = p.getFileName().toString().toLowerCase();
+                    return (name.endsWith(".csv") || name.endsWith(".xlsx")) && !name.startsWith("~");
+                }).map(Path::toFile).toList());
+            } catch (IOException e) {
+                throw new IOException("Could not scan directory: " + path, e);
             }
         }
-        return devices;
-    }
-
-    private List<BulkDevice> readAndCleanCsvData(File file) throws IOException, CsvException {
-        List<BulkDevice> devices = new ArrayList<>();
-        // Simulate a single "sheet" from the CSV data
-        List<String[]> allRows;
-        try (CSVReader reader = new CSVReader(new FileReader(file))) {
-            allRows = reader.readAll();
-        }
-        Sheet mockSheet = createMockSheet(allRows);
-        processSheet(mockSheet, devices);
-        return devices;
-    }
-
-    private void processSheet(Sheet sheet, List<BulkDevice> devices) {
-        String now = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
-        Integer headerRowIndex = findHeaderRow(sheet, "serial number", "serial");
-        if (headerRowIndex == null) return;
-
-        Map<String, Integer> headers = getHeaderMap(sheet.getRow(headerRowIndex));
-        if (!headers.containsKey("serial number") && !headers.containsKey("serial")) return;
-
-        for (int i = headerRowIndex + 1; i <= sheet.getLastRowNum(); i++) {
-            Row row = sheet.getRow(i);
-            if (row == null) continue;
-
-            String serial = getCleanValue(row, headers, "serial number", "serial");
-            if (serial == null || serial.isEmpty()) continue;
-
-            String iccid = getCleanValue(row, headers, "iccid", "sim");
-            if (iccid != null && (iccid.length() < 18 || iccid.length() > 20)) {
-                iccid = null;
-            }
-
-            devices.add(new BulkDevice(
-                    serial.toUpperCase(),
-                    getCleanValue(row, headers, "imei/meid", "imei"),
-                    iccid,
-                    getCleanValue(row, headers, "capacity"),
-                    getCleanValue(row, headers, "name", "device name"),
-                    now
-            ));
-        }
-    }
-
-    // Helper methods for parsing
-    private Integer findHeaderRow(Sheet sheet, String... possibleHeaders) {
-        for (int i = 0; i < Math.min(10, sheet.getLastRowNum() + 1); i++) {
-            Row row = sheet.getRow(i);
-            if (row == null) continue;
-            for (Cell cell : row) {
-                String cellValue = getCellValueAsString(cell).trim().toLowerCase();
-                for (String header : possibleHeaders) {
-                    if (cellValue.equals(header)) return i;
-                }
-            }
-        }
-        return null;
-    }
-
-    private Map<String, Integer> getHeaderMap(Row headerRow) {
-        Map<String, Integer> map = new HashMap<>();
-        if (headerRow != null) {
-            for (Cell cell : headerRow) {
-                map.put(getCellValueAsString(cell).trim().toLowerCase(), cell.getColumnIndex());
-            }
-        }
-        return map;
-    }
-
-    private String getCellValueAsString(Cell cell) {
-        if (cell == null) return "";
-        DataFormatter formatter = new DataFormatter();
-        return formatter.formatCellValue(cell).trim();
-    }
-
-    private String getCleanValue(Row row, Map<String, Integer> headers, String... possibleNames) {
-        for (String name : possibleNames) {
-            if (headers.containsKey(name)) {
-                String val = getCellValueAsString(row.getCell(headers.get(name)));
-                if (name.equals("iccid") || name.equals("sim") || name.equals("imei")) {
-                    if (val.endsWith(".0")) val = val.substring(0, val.length() - 2);
-                    val = val.replaceAll("[^0-9]", "");
-                }
-                return val.isEmpty() ? null : val;
-            }
-        }
-        return null;
-    }
-
-    // This is a bit of a hack to reuse the sheet processing logic for CSVs
-    private Sheet createMockSheet(List<String[]> csvData) throws IOException {
-        try (Workbook workbook = WorkbookFactory.create(true)) {
-            Sheet sheet = workbook.createSheet();
-            for (int i = 0; i < csvData.size(); i++) {
-                Row row = sheet.createRow(i);
-                String[] rowData = csvData.get(i);
-                for (int j = 0; j < rowData.length; j++) {
-                    row.createCell(j).setCellValue(rowData[j]);
-                }
-            }
-            // Note: This only works if the sheet data is used immediately.
-            // For complex cases, the original approach is fine, and this warning can be suppressed.
-            // For your use case, your original code is acceptable.
-            return sheet;
-        }
+        foundFiles.sort(Comparator.comparingLong(File::lastModified));
+        return foundFiles;
     }
 }

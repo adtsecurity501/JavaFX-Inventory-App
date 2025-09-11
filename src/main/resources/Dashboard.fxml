@@ -14,13 +14,12 @@
             </toggleGroup>
         </RadioButton>
         <RadioButton fx:id="days7Radio" text="Last 7 Days" selected="true" toggleGroup="$dateRangeToggleGroup"/>
-        <RadioButton fx:id="days30Radio" text="Last 30 Days" toggleGroup="$dateRangeToggleGroup"/>
+        <RadioButton text="Last 30 Days" toggleGroup="$dateRangeToggleGroup"/>
         <Region HBox.hgrow="ALWAYS"/>
-        <!-- THIS IS THE CORRECTED LINE -->
         <Button text="Refresh" onAction="#refreshAllData" styleClass="success"/>
         <Button fx:id="importDeviceFilesButton" text="Import Device Files..." onAction="#handleImportDeviceFiles"/>
         <Button fx:id="manageFoldersButton" text="Manage Import Folders..." onAction="#handleManageFolders"/>
-        <Button fx:id="importFlagsButton" text="Import Flags..." onAction="#handleImportFlags"/>
+        <Button text="Import Flags..." onAction="#handleImportFlags"/>
         <Button onAction="#handleManageMelRules" text="Update MEL Rules..."/>
     </HBox>
 
@@ -170,11 +169,12 @@
                             <ColumnConstraints percentWidth="50"/>
                         </columnConstraints>
                         <VBox alignment="CENTER" spacing="5" GridPane.columnIndex="0">
-                            <Label text="Boxes Assembled Today" styleClass="kpi-title"/>
+                            <Label fx:id="boxesAssembledTitleLabel" text="Boxes Assembled Today"
+                                   styleClass="kpi-title"/>
                             <Label fx:id="boxesAssembledLabel" styleClass="kpi-metric, text-info"/>
                         </VBox>
                         <VBox alignment="CENTER" spacing="5" GridPane.columnIndex="1">
-                            <Label text="Labels Created Today" styleClass="kpi-title"/>
+                            <Label fx:id="labelsCreatedTitleLabel" text="Labels Created Today" styleClass="kpi-title"/>
                             <Label fx:id="labelsCreatedLabel" styleClass="kpi-metric, text-info"/>
                         </VBox>
                         <VBox alignment="CENTER" spacing="5" GridPane.columnIndex="0" GridPane.rowIndex="1">

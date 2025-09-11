@@ -3,10 +3,7 @@ package assettracking.controller;
 import assettracking.dao.AppSettingsDAO;
 import assettracking.data.TopModelStat;
 import assettracking.db.DatabaseConnection;
-import assettracking.manager.ConfettiManager;
-import assettracking.manager.DashboardDataService;
-import assettracking.manager.DeviceImportService;
-import assettracking.manager.StageManager;
+import assettracking.manager.*;
 import assettracking.ui.FlaggedDeviceImporter;
 import assettracking.ui.MelRulesImporter;
 import javafx.animation.ScaleTransition;
@@ -27,6 +24,13 @@ import javafx.stage.Stage;
 import javafx.util.Duration;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 public class DashboardController {
@@ -57,9 +61,7 @@ public class DashboardController {
     @FXML
     private ToggleGroup dateRangeToggleGroup;
     @FXML
-    private RadioButton todayRadio, days7Radio, days30Radio;
-    @FXML
-    private Button importFlagsButton;
+    private RadioButton todayRadio, days7Radio;
     @FXML
     private TextField deviceGoalField, monitorGoalField;
     @FXML
@@ -76,6 +78,8 @@ public class DashboardController {
     private TableColumn<TopModelStat, Integer> modelCountCol;
     @FXML
     private Label statusLabel;
+    @FXML
+    private Label boxesAssembledTitleLabel, labelsCreatedTitleLabel;
 
     private double weeklyDeviceGoal = 100.0;
     private double weeklyMonitorGoal = 50.0;
@@ -88,9 +92,6 @@ public class DashboardController {
     public void initialize() {
         setupTopModelsTable();
         setupUIListeners();
-        // --- THIS IS THE KEY CHANGE ---
-        // We now call a method that immediately starts a background thread
-        // for ALL initial data loading.
         loadInitialDataAsync();
     }
 
@@ -115,12 +116,10 @@ public class DashboardController {
         topModelsTable.setItems(topModelsList);
     }
 
-    // --- NEW METHOD to handle ALL initial data loading on a background thread ---
     private void loadInitialDataAsync() {
         Task<Void> initialLoadTask = new Task<>() {
             @Override
-            protected Void call() throws Exception {
-                // This now happens on a background thread, preventing the UI from freezing.
+            protected Void call() { // Removed 'throws Exception'
                 weeklyDeviceGoal = Double.parseDouble(appSettingsDAO.getSetting("device_goal").orElse("100.0"));
                 weeklyMonitorGoal = Double.parseDouble(appSettingsDAO.getSetting("monitor_goal").orElse("50.0"));
                 return null;
@@ -128,19 +127,14 @@ public class DashboardController {
         };
 
         initialLoadTask.setOnSucceeded(e -> {
-            // This happens on the UI thread only AFTER the background task is complete.
             deviceGoalField.setText(String.valueOf((int) weeklyDeviceGoal));
             monitorGoalField.setText(String.valueOf((int) weeklyMonitorGoal));
-            // Now that the initial goals are loaded, fetch the rest of the dashboard data.
             refreshAllData();
         });
 
-        initialLoadTask.setOnFailed(e -> {
-            // Proper error handling if the database connection fails.
-            Platform.runLater(() -> {
-                StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Database Connection Failed", "Could not connect to the database. Please ensure the H2 server is running and the network is accessible.\\n\\nError: " + initialLoadTask.getException().getMessage());
-            });
-        });
+        initialLoadTask.setOnFailed(e -> Platform.runLater(() -> {
+            StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Database Connection Failed", "Could not connect to the database. Please ensure the H2 server is running and the network is accessible.\n\nError: " + initialLoadTask.getException().getMessage());
+        }));
 
         new Thread(initialLoadTask).start();
     }
@@ -155,7 +149,6 @@ public class DashboardController {
         loadTopModelsData();
     }
 
-    // (The rest of the DashboardController methods remain unchanged)
     private void loadGranularMetrics() {
         Task<Map<String, Integer>> task = new Task<>() {
             @Override
@@ -264,34 +257,52 @@ public class DashboardController {
     }
 
     private String getDateFilterClause(String columnName) {
-        if (todayRadio.isSelected()) {
-            return " " + columnName + " >= CURRENT_DATE";
+        // This now wraps the column name in a function that casts it to a date.
+        // This works for both p.receive_date and ds.last_update
+        String dateColumn = String.format("CAST(%s AS DATE)", columnName);
+
+        RadioButton selected = (RadioButton) dateRangeToggleGroup.getSelectedToggle();
+        if (selected == null || selected.getText().equals("Last 7 Days")) { // Default case
+            return String.format(" %s >= DATEADD('DAY', -7, CURRENT_DATE)", dateColumn);
         }
-        if (days7Radio.isSelected()) {
-            return " " + columnName + " >= DATEADD('DAY', -7, CURRENT_DATE)";
+        if (selected.getText().equals("Today")) {
+            return String.format(" %s >= CURRENT_DATE", dateColumn);
         }
-        return " " + columnName + " >= DATEADD('DAY', -30, CURRENT_DATE)";
+        // Last 30 Days
+        return String.format(" %s >= DATEADD('DAY', -30, CURRENT_DATE)", dateColumn);
     }
 
     private void updateDynamicTitles() {
+        RadioButton selected = (RadioButton) dateRangeToggleGroup.getSelectedToggle();
         String timeSuffix;
-        if (todayRadio.isSelected()) {
-            timeRangeTitleLabel.setText("Metrics for Today");
-            pacingTitleLabel.setText("Daily Pacing (Refurbished Only)");
-            timeSuffix = "(Today)";
-        } else if (days7Radio.isSelected()) {
+        String pacingTimeSuffix; // Suffix without parentheses for the titles
+
+        if (selected == null || selected.getText().equals("Last 7 Days")) { // Default case
             timeRangeTitleLabel.setText("Metrics for Last 7 Days");
             pacingTitleLabel.setText("Weekly Pacing (Refurbished Only)");
             timeSuffix = "(Last 7 Days)";
-        } else {
+            pacingTimeSuffix = "Last 7 Days"; // New
+        } else if (selected.getText().equals("Today")) {
+            timeRangeTitleLabel.setText("Metrics for Today");
+            pacingTitleLabel.setText("Daily Pacing (Refurbished Only)");
+            timeSuffix = "(Today)";
+            pacingTimeSuffix = "Today"; // New
+        } else { // Last 30 Days
             timeRangeTitleLabel.setText("Metrics for Last 30 Days");
             pacingTitleLabel.setText("Monthly Pacing (Refurbished Only)");
             timeSuffix = "(Last 30 Days)";
+            pacingTimeSuffix = "Last 30 Days"; // New
         }
+
+        // Update the main titles
         healthTitleLabel.setText("Overall Health " + timeSuffix);
         breakdownTitleLabel.setText("Processed Breakdown " + timeSuffix);
         topModelsTitleLabel.setText("Top Processed Models " + timeSuffix);
         inventoryOverviewTitleLabel.setText("Asset Status Overview (All Time)");
+
+        // --- ADD THESE TWO LINES TO UPDATE THE PACING TITLES ---
+        boxesAssembledTitleLabel.setText("Boxes Assembled " + pacingTimeSuffix);
+        labelsCreatedTitleLabel.setText("Labels Created " + pacingTimeSuffix);
     }
 
     private void setPieChartData(PieChart chart, ObservableList<PieChart.Data> data) {
@@ -353,7 +364,6 @@ public class DashboardController {
         VBox content = new VBox(10, listView, buttonBox);
         dialogPane.setContent(content);
 
-        // This converts the result when the OK button is clicked.
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == ButtonType.OK) {
                 return new ArrayList<>(listView.getItems());
@@ -382,13 +392,9 @@ public class DashboardController {
         AppSettingsDAO settingsDAO = new AppSettingsDAO();
         final String FOLDERS_KEY = "bulk.import.scan.folders";
 
-        // Get the currently saved folders
         List<String> currentFolders = new ArrayList<>(settingsDAO.getSetting(FOLDERS_KEY).map(paths -> Arrays.asList(paths.split(","))).orElse(List.of()));
-
-        // This method will open a dialog to let the user add/remove folders
         Optional<List<String>> updatedFoldersOpt = showFolderManagementDialog(currentFolders);
 
-        // If the user confirmed changes, save them
         updatedFoldersOpt.ifPresent(updatedFolders -> {
             String pathsToSave = String.join(",", updatedFolders);
             settingsDAO.saveSetting(FOLDERS_KEY, pathsToSave);
@@ -396,64 +402,68 @@ public class DashboardController {
         });
     }
 
-
     @FXML
     private void handleImportDeviceFiles() {
         AppSettingsDAO settingsDAO = new AppSettingsDAO();
         final String FOLDERS_KEY = "bulk.import.scan.folders";
-
-        List<String> foldersToScan;
         Optional<String> savedPathsOpt = settingsDAO.getSetting(FOLDERS_KEY);
 
-        if (savedPathsOpt.isPresent() && !savedPathsOpt.get().isBlank()) {
-            foldersToScan = new ArrayList<>(Arrays.asList(savedPathsOpt.get().split(",")));
-        } else {
-            // --- ONE-TIME SETUP WITH LOOPING DIALOG ---
-            StageManager.showAlert(getStage(), Alert.AlertType.INFORMATION, "Initial Folder Setup", "Please select the folder(s) where your device files are stored.\nYou can add multiple folders.");
-
-            Optional<List<String>> chosenFoldersOpt = showFolderManagementDialog(new ArrayList<>());
-
-            if (chosenFoldersOpt.isPresent() && !chosenFoldersOpt.get().isEmpty()) {
-                foldersToScan = chosenFoldersOpt.get();
-                String pathsToSave = String.join(",", foldersToScan);
-                settingsDAO.saveSetting(FOLDERS_KEY, pathsToSave);
-                StageManager.showAlert(getStage(), Alert.AlertType.INFORMATION, "Settings Saved", "Your folder paths have been saved. The import will now begin.");
-            } else {
-                statusLabel.setText("Folder setup cancelled. Import aborted.");
-                return; // User cancelled or selected no folders
-            }
+        if (savedPathsOpt.isEmpty() || savedPathsOpt.get().isBlank()) {
+            StageManager.showAlert(getStage(), Alert.AlertType.WARNING, "Setup Required", "Please configure the import folders first using the 'Manage Import Folders' button.");
+            return;
         }
 
-        // --- The rest of the import logic is unchanged ---
+        List<String> foldersToScan = new ArrayList<>(Arrays.asList(savedPathsOpt.get().split(",")));
         DeviceImportService importService = new DeviceImportService();
 
-        Task<String> importTask = new Task<>() {
+        Task<List<ImportResult>> importTask = new Task<>() {
             @Override
-            protected String call() throws Exception {
+            protected List<ImportResult> call() throws IOException {
                 return importService.runFolderImport(foldersToScan, this::updateMessage);
             }
         };
 
         importTask.messageProperty().addListener((obs, oldMsg, newMsg) -> statusLabel.setText(newMsg));
-
-        importTask.setOnRunning(e -> {
-            importDeviceFilesButton.setDisable(true);
-            statusLabel.setText("Starting import...");
-        });
+        importDeviceFilesButton.setDisable(true);
+        statusLabel.setText("Starting import...");
 
         importTask.setOnSucceeded(e -> {
             importDeviceFilesButton.setDisable(false);
-            StageManager.showAlert(getStage(), Alert.AlertType.INFORMATION, "Import Complete", importTask.getValue());
-            statusLabel.setText("Import finished successfully.");
-            refreshAllData();
+            List<ImportResult> results = importTask.getValue();
+
+            if (results.isEmpty()) {
+                statusLabel.setText("Import finished: No new files were found to process.");
+                return;
+            }
+
+            StringBuilder summary = new StringBuilder("Import Complete:\n\n");
+            int totalSuccess = results.stream().mapToInt(ImportResult::successfulCount).sum();
+            long totalErrors = results.stream().mapToLong(r -> r.errors().size()).sum();
+
+            summary.append(String.format("Successfully processed: %d records\n", totalSuccess));
+            summary.append(String.format("Rejected records: %d\n", totalErrors));
+
+            List<String> topErrors = results.stream().flatMap(r -> r.errors().stream()).limit(10).toList();
+
+            if (!topErrors.isEmpty()) {
+                summary.append("\nTop Reasons for Rejection:\n");
+                topErrors.forEach(err -> summary.append(String.format("- %s\n", err)));
+            }
+
+            String logMessage = logImportErrors(results);
+            summary.append(logMessage);
+
+            statusLabel.setText(String.format("Import finished. Processed: %d, Rejected: %d. Refreshing dashboard...", totalSuccess, totalErrors));
+            StageManager.showAlert(getStage(), Alert.AlertType.INFORMATION, "Import Results", summary.toString());
+
+            Platform.runLater(this::refreshAllData);
         });
 
         importTask.setOnFailed(e -> {
             importDeviceFilesButton.setDisable(false);
             Throwable ex = importTask.getException();
             statusLabel.setText("Import failed. See error dialog.");
-            StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Import Failed", "An error occurred: " + ex.getMessage());
-            System.err.println("Device import failed: " + ex.getMessage());
+            StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Import Failed", "A critical error occurred: " + ex.getMessage());
         });
 
         new Thread(importTask).start();
@@ -468,6 +478,36 @@ public class DashboardController {
     @FXML
     private void handleManageMelRules() {
         new MelRulesImporter().importFromFile(getStage());
+    }
+
+    private String logImportErrors(List<ImportResult> results) {
+        List<String> allErrors = results.stream().flatMap(r -> r.errors().stream()).toList();
+
+        if (allErrors.isEmpty()) {
+            return "";
+        }
+
+        try {
+            Path logDir = Paths.get(System.getProperty("user.home"), ".asset_tracker_logs");
+            Files.createDirectories(logDir);
+            String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+            Path logFile = logDir.resolve("import_errors_" + timestamp + ".txt");
+
+            try (PrintWriter writer = new PrintWriter(logFile.toFile())) {
+                writer.println("Asset Tracking Import Error Log - " + LocalDateTime.now());
+                writer.println("=======================================================");
+                for (ImportResult result : results) {
+                    if (!result.errors().isEmpty()) {
+                        writer.printf("\nErrors for file: %s\n", result.file().getName());
+                        writer.println("----------------------------------------");
+                        result.errors().forEach(writer::println);
+                    }
+                }
+            }
+            return String.format("\nA full report of all %d rejected records has been saved to:\n%s", allErrors.size(), logFile.toAbsolutePath());
+        } catch (IOException e) {
+            return "\nCould not write full error log to file due to an error: " + e.getMessage();
+        }
     }
 
     @FXML
