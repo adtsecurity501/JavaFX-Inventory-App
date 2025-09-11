@@ -1,11 +1,10 @@
 package assettracking.controller;
 
-import assettracking.dao.AssetDAO;
 import assettracking.dao.PackageDAO;
 import assettracking.dao.SkuDAO;
 import assettracking.data.AssetEntry;
-import assettracking.data.AssetInfo;
 import assettracking.data.Package;
+import assettracking.data.Sku;
 import assettracking.label.service.ZplPrinterService;
 import assettracking.manager.ScanResultManager;
 import assettracking.manager.ScanUpdateService;
@@ -37,7 +36,6 @@ public class ScanUpdateController {
     // --- Services and Managers ---
     private final ScanUpdateService updateService = new ScanUpdateService();
     private final ScanResultManager resultManager = new ScanResultManager();
-    private final AssetDAO assetDAO = new AssetDAO();
     private final PackageDAO packageDAO = new PackageDAO();
     private final SkuDAO skuDAO = new SkuDAO();
     private final ZplPrinterService printerService = new ZplPrinterService();
@@ -233,17 +231,16 @@ public class ScanUpdateController {
     }
 
     private void printDeploymentLabels(String serialNumber, String sku, String printerName) {
-        Optional<AssetInfo> assetOpt = assetDAO.findAssetBySerialNumber(serialNumber);
-        if (assetOpt.isEmpty()) {
-            resultManager.addFailure(serialNumber, "Asset info not found for printing");
-            return;
-        }
-        String description = assetOpt.get().getDescription() != null ? assetOpt.get().getDescription() : "N/A";
+        // --- THIS IS THE KEY CHANGE ---
+        // Instead of looking up the asset's old description, we now look up the
+        // official description from the SKU table using the selected SKU number.
+        String description = skuDAO.findSkuByNumber(sku).map(Sku::getDescription) // If the Sku object is found, get its description
+                .orElse("Description not found for SKU"); // Provide a fallback if it's missing
 
+        // The rest of the method remains the same, but now uses the correct description.
         String adtZpl = ZplPrinterService.getAdtLabelZpl(sku, description);
         String serialZpl = ZplPrinterService.getSerialLabelZpl(sku, serialNumber);
 
-        // This method now uses the printer name passed from the UI
         printerService.sendZplToPrinter(printerName, adtZpl);
         printerService.sendZplToPrinter(printerName, serialZpl);
     }
