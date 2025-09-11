@@ -112,20 +112,15 @@ public class DashboardDataService {
         XYChart.Series<String, Number> series = new XYChart.Series<>();
         series.setName("Devices Received");
 
-        // --- THIS IS THE DEFINITIVE FIX ---
-        // The query now explicitly formats the date into a 'YYYY-MM-dd' string,
-        // which is the most reliable format for the BarChart's category axis.
-        // This replaces the CAST operation which was not sufficient.
-        String sql = "SELECT FORMATDATETIME(p.receive_date, 'yyyy-MM-dd') AS day, COUNT(re.receipt_id) AS device_count " + "FROM Receipt_Events re " + "JOIN Packages p ON re.package_id = p.package_id " + "WHERE " + dateFilterClause + " " + "GROUP BY day " + "ORDER BY day ASC;";
+        // --- FINAL, ROBUST QUERY ---
+        // PARSEDATETIME forces the text column to be treated as a date for the query.
+        String sql = "SELECT FORMATDATETIME(PARSEDATETIME(p.receive_date, 'yyyy-MM-dd'), 'yyyy-MM-dd') AS day, COUNT(re.receipt_id) AS device_count " + "FROM Receipt_Events re " + "LEFT JOIN Packages p ON re.package_id = p.package_id " + "WHERE p.receive_date IS NOT NULL AND " + dateFilterClause + " " + "GROUP BY p.receive_date " + "ORDER BY p.receive_date ASC;";
 
         try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql); ResultSet rs = stmt.executeQuery()) {
 
             while (rs.next()) {
-                // Retrieve the formatted date string and the count
                 String day = rs.getString("day");
                 int deviceCount = rs.getInt("device_count");
-
-                // Add the data to the series for the chart
                 series.getData().add(new XYChart.Data<>(day, deviceCount));
             }
         }

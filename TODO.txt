@@ -5,7 +5,7 @@ Priority 1:
 - Update the descriptionn on SKU Print H2 db.
 - Make the serach on scan update sku Search for sku to print less specific so I can find devices using upper or lower case and in different order so I can find a 9TH GEN IPAD searching with ipad 9th gen for example H2 db.
 -Auto search serial numbers and try to populate fields when I click the process failed scans on scan upadte window as If I were to click on the serial filed and press enter.
-- I have old cateogieys showing up in the device status traking fileter optuins dropdown when 	I click on hem no devices pop up.
+
 
 
 
@@ -145,6 +145,10 @@ device is a:Optiplex 3000
 -I need to rework how I import devices to the h2 db. For some reason when I click the import device files button on the dashboard the logic isnt working correctly. I want to sit down and completely rething it using best practices and iimprovements. what can you suggest? Currently Im dealing with duplicate sims (ICCIDs) and also duplicate IMEIs across multiple devices.
 - since i updated the template for printing labels I need it to automatically go in and edlete the old template on the computer instead of me manually having to go into C:\Users\lcorsini\ADT_Label_Templates and doing it, but it needs to be dynamic and do it on whatever computer / user
 - Lets update the Boxes assempbled (insert dynamic rnage here) and lables created (insert dynamic rnage here) titles to be dynamic depednign on the time range radio button I select.
+- I have old cateogieys showing up in the device status traking fileter optuins dropdown when 	I click on hem no devices pop up.
+
+
+
 
 
 

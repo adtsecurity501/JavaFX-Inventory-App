@@ -108,10 +108,13 @@ public class ScanUpdateController {
                 skuListView.getItems().clear();
                 return;
             }
-            List<String> suggestions = skuDAO.findSkusWithSkuNumberLike(newVal);
+            // --- THIS IS THE ONLY LINE THAT CHANGES ---
+            // It now calls our new, more flexible search method.
+            List<String> suggestions = skuDAO.findSkusWithKeywords(newVal);
             skuListView.setItems(FXCollections.observableArrayList(suggestions));
         });
 
+        // The rest of this method remains the same...
         skuListView.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
             if (newSelection != null) {
                 String selectedSku = newSelection.split(" - ")[0];

@@ -33,10 +33,7 @@ import javax.print.PrintService;
 import javax.print.PrintServiceLookup;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class AddAssetDialogController {
@@ -397,8 +394,46 @@ public class AddAssetDialogController {
         this.currentPackage = pkg;
         loadCategories();
         bulkAddCheckBox.setSelected(true);
-        assetEntries.setAll(entries);
+
+        // Don't just add the serials; run a background task to look them up first.
+        Task<List<AssetEntry>> lookupTask = new Task<>() {
+            @Override
+            protected List<AssetEntry> call() {
+                List<AssetEntry> populatedEntries = new ArrayList<>();
+                for (AssetEntry entry : entries) {
+                    String serial = entry.getSerialNumber();
+                    if (serial == null || serial.isEmpty()) continue;
+
+                    // Perform the same lookup as the single-serial field
+                    Optional<AssetInfo> assetOpt = assetDAO.findAssetBySerialNumber(serial);
+
+                    if (assetOpt.isPresent()) {
+                        AssetInfo assetInfo = assetOpt.get();
+                        // Create a new, fully populated entry
+                        populatedEntries.add(new AssetEntry(serial, assetInfo.getImei(), assetInfo.getCategory(), assetInfo.getMake(), assetInfo.getModelNumber(), assetInfo.getDescription(), "" // Probable cause is left blank initially
+                        ));
+                    } else {
+                        // If not found, add the entry with just the serial number
+                        populatedEntries.add(entry);
+                    }
+                }
+                return populatedEntries;
+            }
+        };
+
+        lookupTask.setOnSucceeded(e -> {
+            // Once the lookup is complete, update the table on the UI thread
+            assetEntries.setAll(lookupTask.getValue());
+        });
+
+        lookupTask.setOnFailed(e -> {
+            // Handle any potential database errors during the lookup
+            StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Lookup Failed", "An error occurred while looking up serial numbers.");
+        });
+
+        new Thread(lookupTask).start();
     }
+
 
     @FXML
     private void handleLookupSerial() {
@@ -635,8 +670,7 @@ public class AddAssetDialogController {
 
         // Model Number Column with Autocomplete and cross-cell update
         modelCol.setCellValueFactory(new PropertyValueFactory<>("modelNumber"));
-        modelCol.setCellFactory(col -> new AutoCompleteTableCell<>(
-                assetDAO::findModelNumbersLike, // Suggestion provider
+        modelCol.setCellFactory(col -> new AutoCompleteTableCell<>(assetDAO::findModelNumbersLike, // Suggestion provider
                 (assetEntry, selectedModel) -> { // Callback logic
                     assetDAO.findSkuDetails(selectedModel, "model_number").ifPresent(skuDetails -> {
                         // Update the data object for the row
@@ -646,14 +680,12 @@ public class AddAssetDialogController {
                         // Refresh the table to show changes in other cells
                         deviceTable.refresh();
                     });
-                }
-        ));
+                }));
         modelCol.setOnEditCommit(event -> event.getRowValue().setModelNumber(event.getNewValue()));
 
         // Description Column with Autocomplete and cross-cell update
         descriptionCol.setCellValueFactory(new PropertyValueFactory<>("description"));
-        descriptionCol.setCellFactory(col -> new AutoCompleteTableCell<>(
-                assetDAO::findDescriptionsLike, // Suggestion provider
+        descriptionCol.setCellFactory(col -> new AutoCompleteTableCell<>(assetDAO::findDescriptionsLike, // Suggestion provider
                 (assetEntry, selectedDescription) -> { // Callback logic
                     assetDAO.findSkuDetails(selectedDescription, "description").ifPresent(skuDetails -> {
                         assetEntry.setMake(skuDetails.getMake());
@@ -661,8 +693,7 @@ public class AddAssetDialogController {
                         assetEntry.setModelNumber(skuDetails.getModelNumber());
                         deviceTable.refresh();
                     });
-                }
-        ));
+                }));
         descriptionCol.setOnEditCommit(event -> event.getRowValue().setDescription(event.getNewValue()));
 
         causeCol.setCellValueFactory(new PropertyValueFactory<>("probableCause"));

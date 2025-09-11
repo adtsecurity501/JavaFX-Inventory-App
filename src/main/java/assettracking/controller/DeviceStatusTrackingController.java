@@ -295,14 +295,28 @@ public class DeviceStatusTrackingController {
             return;
         }
         cachedCategories = new ArrayList<>();
-        String sql = "SELECT DISTINCT category FROM Receipt_Events WHERE category IS NOT NULL AND category != '' ORDER BY category";
+
+        // --- THIS IS THE NEW, SMARTER QUERY ---
+        // It gets the distinct, current categories from Physical_Assets, but only for
+        // devices that are currently active in the inventory (have a receipt event).
+        String sql = """
+                    SELECT DISTINCT pa.category
+                    FROM Physical_Assets pa
+                    JOIN (
+                        SELECT serial_number, MAX(receipt_id) AS max_receipt_id
+                        FROM Receipt_Events
+                        GROUP BY serial_number
+                    ) latest ON pa.serial_number = latest.serial_number
+                    WHERE pa.category IS NOT NULL AND pa.category != ''
+                    ORDER BY pa.category
+                """;
+
         try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql); ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
                 cachedCategories.add(rs.getString("category"));
             }
             categoryFilterCombo.getItems().addAll(cachedCategories);
         } catch (SQLException e) {
-            // Replace printStackTrace
             Platform.runLater(() -> StageManager.showAlert(statusTable.getScene().getWindow(), Alert.AlertType.ERROR, "Database Error", "Failed to load categories for filtering."));
         }
     }
