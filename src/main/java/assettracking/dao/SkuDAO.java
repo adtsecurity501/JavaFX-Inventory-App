@@ -7,9 +7,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 public class SkuDAO {
 
@@ -25,6 +23,46 @@ public class SkuDAO {
         }
         return skus;
     }
+
+    /**
+     * Finds SKUs where the SKU number matches OR the description contains all specified keywords.
+     * This allows for flexible searching by either SKU or description.
+     *
+     * @param query The user's search input.
+     * @return A list of formatted, unique SKU suggestions.
+     */
+    public List<String> findSkusByKeywordOrSkuNumber(String query) {
+        if (query == null || query.trim().isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // This is your excellent implementation line!
+        Set<String> suggestions = new LinkedHashSet<>(findSkusWithKeywords(query));
+
+        // Now, we add any additional results where the SKU number itself matches.
+        // The LinkedHashSet will automatically ignore duplicates.
+        String skuSearchSql = "SELECT sku_number, description FROM SKU_Table " + "WHERE sku_number LIKE ? " + "AND sku_number IS NOT NULL AND sku_number != '' LIMIT 15";
+
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(skuSearchSql)) {
+
+            stmt.setString(1, "%" + query.toUpperCase() + "%");
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    String sku = rs.getString("sku_number");
+                    String description = rs.getString("description");
+                    if (description == null || description.trim().isEmpty()) {
+                        description = "No Description";
+                    }
+                    suggestions.add(sku + " - " + description);
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Database error during SKU number search: " + e.getMessage());
+        }
+
+        return new ArrayList<>(suggestions);
+    }
+
 
     public List<String> findSkusWithKeywords(String keywords) {
         List<String> suggestions = new ArrayList<>();

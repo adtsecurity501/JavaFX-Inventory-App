@@ -113,19 +113,17 @@ public class LabelPrintingController {
 
     // --- UPDATED: Now creates and stores popups ---
     private void setupAutocomplete() {
-        imageSkuPopup = new AutoCompletePopup(imageSkuField, () -> skuDAO.findSkusLike(imageSkuField.getText()))
-                .setOnSuggestionSelected(selectedValue -> {
-                    String sku = selectedValue.split(" - ")[0];
-                    // --- THIS IS THE NEW HELPER METHOD CALL ---
-                    selectAndSetText(imageSkuPopup, imageSkuField, sku);
-                });
+        imageSkuPopup = new AutoCompletePopup(imageSkuField, () -> skuDAO.findSkusLike(imageSkuField.getText())).setOnSuggestionSelected(selectedValue -> {
+            String sku = selectedValue.split(" - ")[0];
+            // --- THIS IS THE NEW HELPER METHOD CALL ---
+            selectAndSetText(imageSkuPopup, imageSkuField, sku);
+        });
 
-        imageDeviceSkuPopup = new AutoCompletePopup(imageDeviceSkuField, () -> skuDAO.findSkusLike(imageDeviceSkuField.getText()))
-                .setOnSuggestionSelected(selectedValue -> {
-                    String sku = selectedValue.split(" - ")[0];
-                    // --- THIS IS THE NEW HELPER METHOD CALL ---
-                    selectAndSetText(imageDeviceSkuPopup, imageDeviceSkuField, sku);
-                });
+        imageDeviceSkuPopup = new AutoCompletePopup(imageDeviceSkuField, () -> skuDAO.findSkusLike(imageDeviceSkuField.getText())).setOnSuggestionSelected(selectedValue -> {
+            String sku = selectedValue.split(" - ")[0];
+            // --- THIS IS THE NEW HELPER METHOD CALL ---
+            selectAndSetText(imageDeviceSkuPopup, imageDeviceSkuField, sku);
+        });
     }
 
 
@@ -302,6 +300,8 @@ public class LabelPrintingController {
     private void handlePrintAssetTag() {
         String serial;
         String imei = null;
+
+        // The logic to get the data remains the same
         if (assetTagStandardRadio.isSelected()) {
             serial = assetSerialField.getText().trim();
             if (assetImeiCheckbox.isSelected()) {
@@ -311,15 +311,32 @@ public class LabelPrintingController {
             showAlert(Alert.AlertType.INFORMATION, "Not Implemented", "Combined iPad/Samsung format not yet implemented in this view.");
             return;
         }
+
         if (serial.isEmpty()) {
             showAlert(Alert.AlertType.WARNING, "Input Missing", "Serial Number is required.");
             return;
         }
+
+        // This is a new check: if IMEI is required but empty, stop.
+        if (assetImeiCheckbox.isSelected() && (imei == null || imei.isEmpty())) {
+            showAlert(Alert.AlertType.WARNING, "Input Missing", "IMEI is required when the checkbox is selected.");
+            return;
+        }
+
         String zpl = ZplPrinterService.getAssetTagZpl(serial, imei);
+
         if (printerService.sendZplToPrinter(assetPrinterNameField.getValue(), zpl)) {
             updateStatus("Printed asset tag for S/N: " + serial, false);
-            assetSerialField.clear();
-            assetImeiField.clear();
+
+            // --- THIS IS THE NEW RESET LOGIC ---
+            // Use Platform.runLater to ensure the UI updates happen smoothly after printing.
+            Platform.runLater(() -> {
+                assetSerialField.clear();
+                assetImeiField.clear();
+                assetSerialField.requestFocus(); // Move focus back to the start
+            });
+            // --- END OF RESET LOGIC ---
+
         } else {
             updateStatus("Failed to print asset tag.", true);
         }

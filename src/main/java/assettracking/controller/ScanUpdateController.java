@@ -106,9 +106,10 @@ public class ScanUpdateController {
                 skuListView.getItems().clear();
                 return;
             }
-            // --- THIS IS THE ONLY LINE THAT CHANGES ---
-            // It now calls our new, more flexible search method.
-            List<String> suggestions = skuDAO.findSkusWithKeywords(newVal);
+
+            // This line should call your new combined search method.
+            List<String> suggestions = skuDAO.findSkusByKeywordOrSkuNumber(newVal);
+
             skuListView.setItems(FXCollections.observableArrayList(suggestions));
         });
 
@@ -125,6 +126,7 @@ public class ScanUpdateController {
             }
         });
     }
+
 
     private String sanitizeSerialNumber(String input) {
         if (input == null) return "";

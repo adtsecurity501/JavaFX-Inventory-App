@@ -53,9 +53,6 @@ public class ZplPrinterService {
     // --- METHODS MIGRATED FROM ORIGINAL APPLICATION ---
 
     public static String getAssetTagZpl(String serial, String imei) {
-        // This now uses your powerful, unused templating engine.
-        // It will look for 'Standard_Asset_Tag.json' or 'Asset_Tag_with_IMEI.json'
-        // in a folder named 'ADT_Label_Templates' in the user's home directory.
         try {
             TemplateService templateService = new TemplateService();
             ZplGeneratorService generator = new ZplGeneratorService();
@@ -72,11 +69,13 @@ public class ZplPrinterService {
             }
             String generatedZpl = generator.generate(template, data);
 
-            return generatedZpl.replace("^XZ", "^PQ1,1,1,Y^XZ");
+            // --- THIS IS THE CORRECTED COMMAND ---
+            // ^MMC,Y tells the printer to set its mode to "Cutter" and to
+            // cut after each label printed in this job.
+            return generatedZpl.replace("^XZ", "^MMC,Y^XZ");
 
         } catch (IOException e) {
             System.err.println("Database error: " + e.getMessage());
-            // Return a ZPL command that prints an error message on the label itself
             return "^XA^FO50,50^A0N,40,40^FDError: Template Not Found^FS^XZ";
         }
     }
