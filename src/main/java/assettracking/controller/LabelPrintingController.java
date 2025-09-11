@@ -11,7 +11,6 @@ import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
 
 import javax.print.PrintService;
 import javax.print.PrintServiceLookup;
@@ -24,7 +23,6 @@ public class LabelPrintingController {
     // --- Services and DAO ---
     private final SkuDAO skuDAO = new SkuDAO();
     private final ZplPrinterService printerService = new ZplPrinterService();
-    public ToggleGroup barcodeLengthGroup;
 
     // --- FXML Components ---
     @FXML
@@ -58,11 +56,7 @@ public class LabelPrintingController {
     @FXML
     private ListView<String> serialSkuListView;
     @FXML
-    private ToggleGroup assetTagTypeGroup;
-    @FXML
     private RadioButton assetTagStandardRadio;
-    @FXML
-    private VBox assetStandardPane;
     @FXML
     private TextField assetSerialField, assetImeiField;
     @FXML
@@ -72,7 +66,7 @@ public class LabelPrintingController {
     @FXML
     private TextField imageSkuField, imageDeviceSkuField, imagePrefixField, imageCopiesField;
     @FXML
-    private RadioButton barcodeFullRadio, barcode14Radio, barcode20Radio;
+    private RadioButton barcode14Radio, barcode20Radio;
 
     // --- NEW: References to popups ---
     private AutoCompletePopup imageSkuPopup;
@@ -82,9 +76,35 @@ public class LabelPrintingController {
     public void initialize() {
         populatePrinterComboBoxes();
         setupSearchableSkuFields();
-        setupAutocomplete(); // Updated
+        setupAutocomplete();
         setupMenuToggles();
-        assetImeiCheckbox.selectedProperty().addListener((obs, wasSelected, isSelected) -> assetImeiField.setDisable(!isSelected));
+
+        // --- THIS IS THE CORRECTED AND ROBUST WORKFLOW LOGIC ---
+
+        // This listener enables/disables the IMEI field.
+        assetImeiCheckbox.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
+            assetImeiField.setDisable(!isSelected);
+            // Always return focus to the serial field when the mode changes.
+            Platform.runLater(() -> assetSerialField.requestFocus());
+        });
+
+        // Event handler for when "Enter" is pressed in the serial field.
+        assetSerialField.setOnAction(event -> {
+            if (assetImeiCheckbox.isSelected()) {
+                // If IMEI is needed, reliably move focus to the IMEI field.
+                Platform.runLater(() -> assetImeiField.requestFocus());
+            } else {
+                // If IMEI is not needed, print immediately.
+                handlePrintAssetTag();
+            }
+        });
+
+        // Event handler for when "Enter" is pressed in the IMEI field.
+        // NOTE THE FIX: The handler is on 'assetImeiField', not 'imeiField'.
+        assetImeiField.setOnAction(event -> {
+            // Always print after the IMEI has been entered.
+            handlePrintAssetTag();
+        });
     }
 
     private void setupMenuToggles() {

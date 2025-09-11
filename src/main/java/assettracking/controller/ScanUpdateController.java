@@ -28,7 +28,10 @@ import javax.print.PrintService;
 import javax.print.PrintServiceLookup;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.List;
 import java.util.stream.Collectors;
 
 public class ScanUpdateController {
@@ -409,10 +412,6 @@ public class ScanUpdateController {
 
     private void showAlert(String title, String content) {
         StageManager.showAlert(getStage(), Alert.AlertType.WARNING, title, content);
-    }
-
-    private Optional<String> findPrinter(String hint) {
-        return Arrays.stream(PrintServiceLookup.lookupPrintServices(null, null)).map(PrintService::getName).filter(n -> n.toLowerCase().contains(hint.toLowerCase())).findFirst();
     }
 
     private Stage getStage() {

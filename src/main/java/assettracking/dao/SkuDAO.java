@@ -74,15 +74,11 @@ public class SkuDAO {
         String[] keywordArray = keywords.trim().split("\\s+");
 
         // Build the base of the query
-        StringBuilder sqlBuilder = new StringBuilder("SELECT sku_number, description FROM SKU_Table " + "WHERE sku_number IS NOT NULL AND sku_number != '' ");
 
         // Add a LIKE clause for each keyword
-        for (String keyword : keywordArray) {
-            sqlBuilder.append("AND UPPER(description) LIKE ? ");
-        }
-        sqlBuilder.append("LIMIT 15");
+        String sqlBuilder = "SELECT sku_number, description FROM SKU_Table " + "WHERE sku_number IS NOT NULL AND sku_number != '' " + "AND UPPER(description) LIKE ? ".repeat(keywordArray.length) + "LIMIT 15";
 
-        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sqlBuilder.toString())) {
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sqlBuilder)) {
 
             // Bind each keyword to the prepared statement
             for (int i = 0; i < keywordArray.length; i++) {
