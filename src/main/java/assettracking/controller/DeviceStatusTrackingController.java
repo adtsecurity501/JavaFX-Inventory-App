@@ -1,6 +1,7 @@
 package assettracking.controller;
 
 import assettracking.dao.AssetDAO;
+import assettracking.dao.DeviceStatusDAO;
 import assettracking.data.AssetInfo;
 import assettracking.data.DeviceStatusView;
 import assettracking.db.DatabaseConnection;
@@ -88,10 +89,15 @@ public class DeviceStatusTrackingController {
     private TextField boxIdField;
     private DeviceStatusManager deviceStatusManager;
     private DeviceStatusActions deviceStatusActions;
+    private DeviceStatusDAO deviceStatusDAO;
+
 
     @FXML
     public void initialize() {
         this.deviceStatusManager = new DeviceStatusManager(this);
+        // --- THIS LINE IS IMPORTANT ---
+        // It gets the DAO instance created by the manager
+        this.deviceStatusDAO = new DeviceStatusDAO(this.deviceStatusManager, this.deviceStatusManager.getDeviceStatusList());
         this.deviceStatusActions = new DeviceStatusActions(this);
         configureAllUI();
         deviceStatusManager.resetPagination();
@@ -133,9 +139,25 @@ public class DeviceStatusTrackingController {
         }
     }
 
-    // --- ALL OTHER METHODS ARE UNCHANGED ---
-    // (I've omitted them for brevity, but they are the same as the previous version you have)
-    // ...
+    @FXML
+    private void handleBulkUpdateFromList() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/BulkUpdateDialog.fxml"));
+            Parent root = loader.load();
+
+            BulkUpdateDialogController dialogController = loader.getController();
+            // Pass the DAO and a refresh callback to the dialog
+            dialogController.initData(this.deviceStatusDAO, this::refreshData);
+
+            Stage stage = StageManager.createCustomStage(getOwnerWindow(), "Bulk Status Update from List", root);
+            stage.showAndWait();
+
+        } catch (IOException e) {
+            System.err.println("Service error: " + e.getMessage());
+            StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Error", "Could not open the Bulk Update window.");
+        }
+    }
+
     private void configureAllUI() {
         setupTableColumns();
         setupStatusMappings();

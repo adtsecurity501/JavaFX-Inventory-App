@@ -17,6 +17,7 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 public class DeviceStatusDAO {
 
@@ -43,6 +44,60 @@ public class DeviceStatusDAO {
             Platform.runLater(() -> StageManager.showAlert(null, Alert.AlertType.ERROR, "Database Error", "Failed to count records for pagination: " + e.getMessage()));
         }
         return 0;
+    }
+
+    public BulkUpdateResult bulkUpdateStatusBySerial(Set<String> serials, String newStatus, String newSubStatus, String note) throws SQLException {
+        List<String> updatedSerials = new ArrayList<>();
+        List<String> notFoundSerials = new ArrayList<>(serials); // Start with all serials, we'll remove the successful ones
+
+        // This query updates the status of the MOST RECENT receipt event for a given serial number.
+        String sql = """
+                    UPDATE Device_Status
+                    SET status = ?, sub_status = ?, last_update = CURRENT_TIMESTAMP, change_log = ?
+                    WHERE receipt_id IN (
+                        SELECT MAX(re.receipt_id)
+                        FROM Receipt_Events re
+                        WHERE re.serial_number = ?
+                    )
+                """;
+
+        Connection conn = null;
+        try {
+            conn = DatabaseConnection.getInventoryConnection();
+            conn.setAutoCommit(false); // Start transaction
+
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                for (String serial : serials) {
+                    stmt.setString(1, newStatus);
+                    stmt.setString(2, newSubStatus);
+                    stmt.setString(3, note);
+                    stmt.setString(4, serial);
+                    stmt.addBatch();
+                }
+
+                int[] results = stmt.executeBatch();
+
+                // Now, validate the results
+                List<String> serialList = new ArrayList<>(serials);
+                for (int i = 0; i < results.length; i++) {
+                    if (results[i] > 0) { // If rows were affected, it was a success
+                        String successfulSerial = serialList.get(i);
+                        updatedSerials.add(successfulSerial);
+                        notFoundSerials.remove(successfulSerial);
+                    }
+                }
+            }
+            conn.commit(); // Commit all successful updates at once
+        } catch (SQLException e) {
+            if (conn != null) conn.rollback(); // Rollback on any error
+            throw e; // Re-throw the exception to be handled by the controller
+        } finally {
+            if (conn != null) {
+                conn.setAutoCommit(true);
+                conn.close();
+            }
+        }
+        return new BulkUpdateResult(updatedSerials, notFoundSerials);
     }
 
     public void updateTableForPage(int pageIndex) {
@@ -212,5 +267,8 @@ public class DeviceStatusDAO {
             fullQuery += " LIMIT ? OFFSET ?";
         }
         return new DeviceStatusActions.QueryAndParams(fullQuery, params);
+    }
+
+    public record BulkUpdateResult(List<String> updated, List<String> notFound) {
     }
 }
