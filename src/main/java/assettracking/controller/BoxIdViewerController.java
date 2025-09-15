@@ -16,6 +16,10 @@ import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
+import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.DataFormat;
+import javafx.scene.input.Dragboard;
+import javafx.scene.input.TransferMode;
 import javafx.scene.layout.GridPane;
 import javafx.stage.FileChooser;
 import javafx.stage.Window;
@@ -36,6 +40,8 @@ import java.util.stream.Collectors;
 
 public class BoxIdViewerController {
 
+    // THIS LINE IS NOW CORRECT because of the import above
+    private static final DataFormat SERIAL_NUMBERS_FORMAT = new DataFormat("application/x-serial-numbers");
     private final ObservableList<BoxIdSummary> summaryList = FXCollections.observableArrayList();
     private final ObservableList<BoxIdDetail> detailList = FXCollections.observableArrayList();
     private final ZplPrinterService printerService = new ZplPrinterService();
@@ -69,6 +75,7 @@ public class BoxIdViewerController {
     @FXML
     public void initialize() {
         setupTables();
+        setupDragAndDrop();
         loadSummaryDataAsync();
 
         printLabelButton.setDisable(true);
@@ -106,6 +113,64 @@ public class BoxIdViewerController {
         statusCol.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().status()));
         subStatusCol.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().subStatus()));
         detailTable.setItems(detailList);
+    }
+
+    private void setupDragAndDrop() {
+        detailTable.setRowFactory(tv -> {
+            TableRow<BoxIdDetail> row = new TableRow<>();
+            row.setOnDragDetected(event -> {
+                if (!row.isEmpty()) {
+                    Dragboard db = row.startDragAndDrop(TransferMode.MOVE);
+                    db.setDragView(row.snapshot(null, null));
+                    ClipboardContent cc = new ClipboardContent();
+                    List<String> selectedSerials = detailTable.getSelectionModel().getSelectedItems().stream()
+                            .map(BoxIdDetail::serialNumber)
+                            .collect(Collectors.toList());
+                    cc.put(SERIAL_NUMBERS_FORMAT, String.join(",", selectedSerials));
+                    db.setContent(cc);
+                    event.consume();
+                }
+            });
+            return row;
+        });
+
+        summaryTable.setRowFactory(tv -> {
+            TableRow<BoxIdSummary> row = new TableRow<>();
+            row.setOnDragOver(event -> {
+                Dragboard db = event.getDragboard();
+                if (db.hasContent(SERIAL_NUMBERS_FORMAT)) {
+                    BoxIdSummary sourceBox = summaryTable.getSelectionModel().getSelectedItem();
+                    if (sourceBox != null && !row.isEmpty() && !sourceBox.boxId().equals(row.getItem().boxId())) {
+                        event.acceptTransferModes(TransferMode.MOVE);
+                        row.getStyleClass().add("drag-over");
+                    }
+                }
+                event.consume();
+            });
+
+            row.setOnDragExited(event -> row.getStyleClass().remove("drag-over"));
+
+            row.setOnDragDropped(event -> {
+                Dragboard db = event.getDragboard();
+                boolean success = false;
+                if (db.hasContent(SERIAL_NUMBERS_FORMAT)) {
+                    BoxIdSummary targetBox = row.getItem();
+                    String serialsString = (String) db.getContent(SERIAL_NUMBERS_FORMAT);
+                    List<String> serialsToMove = Arrays.asList(serialsString.split(","));
+                    Task<Integer> moveTask = createMoveItemsTask(serialsToMove, targetBox.boxId());
+                    moveTask.setOnSucceeded(e -> {
+                        statusLabel.setText(String.format("Moved %d item(s) to Box ID '%s'.", moveTask.getValue(), targetBox.boxId()));
+                        refreshAllData();
+                    });
+                    moveTask.setOnFailed(e -> StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Move Failed", "A database error occurred."));
+                    new Thread(moveTask).start();
+                    success = true;
+                }
+                event.setDropCompleted(success);
+                event.consume();
+            });
+            return row;
+        });
     }
 
     @FXML
@@ -148,7 +213,7 @@ public class BoxIdViewerController {
             );
 
             if (printerService.sendZplToPrinter(selectedPrinter, zpl)) {
-                statusLabel.getStyleClass().setAll("status-label-success"); // Clears old styles and adds the new one
+                statusLabel.getStyleClass().setAll("status-label-success");
                 statusLabel.setText("Printed label for Box ID: " + selectedBox.boxId() + " to " + selectedPrinter);
             } else {
                 StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Print Failed", "Failed to send label to printer: " + selectedPrinter);
@@ -193,7 +258,7 @@ public class BoxIdViewerController {
             Task<Integer> updateTask = createBulkUpdateTask(selectedBox.boxId(), status, subStatus);
             updateTask.setOnSucceeded(e -> {
                 int updatedCount = updateTask.getValue();
-                statusLabel.getStyleClass().setAll("status-label-success"); // More robust
+                statusLabel.getStyleClass().setAll("status-label-success");
                 statusLabel.setText(String.format("Updated %d items in Box ID %s to %s / %s.", updatedCount, selectedBox.boxId(), status, subStatus));
                 refreshAllData();
             });
@@ -220,7 +285,7 @@ public class BoxIdViewerController {
             List<String> serialsToRemove = selectedItems.stream().map(BoxIdDetail::serialNumber).collect(Collectors.toList());
             Task<Void> removeTask = createRemoveItemsTask(serialsToRemove);
             removeTask.setOnSucceeded(e -> {
-                statusLabel.getStyleClass().setAll("status-label-success"); // More robust
+                statusLabel.getStyleClass().setAll("status-label-success");
                 statusLabel.setText("Removed " + serialsToRemove.size() + " item(s) from the box.");
                 refreshAllData();
             });
@@ -382,9 +447,8 @@ public class BoxIdViewerController {
         }
 
         BoxIdSummary currentBox = summaryTable.getSelectionModel().getSelectedItem();
-        if (currentBox == null) return; // Should not happen, but a good safeguard
+        if (currentBox == null) return;
 
-        // Ask the user for the destination box ID
         Optional<String> result = StageManager.showTextInputDialog(
                 getOwnerWindow(),
                 "Move Items",
@@ -396,7 +460,7 @@ public class BoxIdViewerController {
         result.ifPresent(newBoxIdRaw -> {
             String newBoxId = newBoxIdRaw.trim();
             if (newBoxId.isEmpty() || newBoxId.equalsIgnoreCase(currentBox.boxId())) {
-                return; // Do nothing if the new box is empty or the same as the old one
+                return;
             }
 
             List<String> serialsToMove = selectedItems.stream().map(BoxIdDetail::serialNumber).collect(Collectors.toList());
@@ -406,21 +470,18 @@ public class BoxIdViewerController {
                 int updatedCount = moveTask.getValue();
                 statusLabel.getStyleClass().setAll("status-label-success");
                 statusLabel.setText(String.format("Moved %d item(s) to Box ID '%s'.", updatedCount, newBoxId));
-                refreshAllData(); // Refresh the entire view to show updated counts
+                refreshAllData();
             });
             moveTask.setOnFailed(e -> StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Move Failed", "A database error occurred while moving the items."));
             new Thread(moveTask).start();
         });
     }
 
-    // Add this new helper method to create the background task
     private Task<Integer> createMoveItemsTask(List<String> serials, String newBoxId) {
         return new Task<>() {
             @Override
             protected Integer call() throws Exception {
                 String placeholders = String.join(",", Collections.nCopies(serials.size(), "?"));
-
-                // This SQL is designed to only update the MOST RECENT status record for each serial number
                 String sql = String.format("""
                             UPDATE Device_Status SET box_id = ?
                             WHERE receipt_id IN (
@@ -435,7 +496,7 @@ public class BoxIdViewerController {
                      PreparedStatement stmt = conn.prepareStatement(sql)) {
 
                     stmt.setString(1, newBoxId);
-                    int i = 2; // Parameter index starts at 2
+                    int i = 2;
                     for (String serial : serials) {
                         stmt.setString(i++, serial);
                     }
@@ -450,12 +511,10 @@ public class BoxIdViewerController {
             @Override
             protected Void call() throws Exception {
                 String placeholders = String.join(",", Collections.nCopies(serials.size(), "?"));
-
                 String sql = """
                             UPDATE Device_Status ds SET status = 'Disposed', sub_status = 'Ready for Wipe', box_id = NULL, change_log = 'Removed from box'
-                            WHERE ds.receipt_id IN ( ... )
-                        """.replace("( ... )", String.format("(SELECT MAX(re.receipt_id) FROM Receipt_Events re WHERE re.serial_number IN (%s) GROUP BY re.serial_number)", placeholders));
-                // --- END OF FIX ---
+                            WHERE ds.receipt_id IN (SELECT MAX(re.receipt_id) FROM Receipt_Events re WHERE re.serial_number IN (%s) GROUP BY re.serial_number)
+                        """.formatted(placeholders);
                 try (Connection conn = DatabaseConnection.getInventoryConnection();
                      PreparedStatement stmt = conn.prepareStatement(sql)) {
                     for (int i = 0; i < serials.size(); i++) {

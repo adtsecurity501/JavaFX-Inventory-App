@@ -202,3 +202,27 @@
 .status-label-error {
     -fx-text-fill: -color-fg-danger;
 }
+
+/* Style for highlighting a table row when dragging over it */
+.drag-over {
+    -fx-background-color: -color-accent-emphasis-plus;
+    -fx-cursor: move;
+}
+
+/* AUTOCOMPLETE POPUP STYLES */
+.autocomplete-popup .list-view {
+    -fx-border-color: -color-border-default;
+    -fx-border-width: 1;
+    -fx-background-insets: 0;
+    -fx-background-radius: 4;
+}
+
+.autocomplete-popup .list-cell {
+    -fx-padding: 5 10;
+}
+
+.autocomplete-popup .list-cell:filled:hover,
+.autocomplete-popup .list-cell:filled:selected {
+    -fx-background-color: -color-accent-subtle;
+    -fx-text-fill: -color-fg-default;
+}

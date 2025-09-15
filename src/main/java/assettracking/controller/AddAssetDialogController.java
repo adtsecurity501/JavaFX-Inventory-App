@@ -33,10 +33,7 @@ import javax.print.PrintService;
 import javax.print.PrintServiceLookup;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class AddAssetDialogController {
@@ -397,7 +394,37 @@ public class AddAssetDialogController {
         this.currentPackage = pkg;
         loadCategories();
         bulkAddCheckBox.setSelected(true);
-        assetEntries.setAll(entries);
+
+        Task<List<AssetEntry>> lookupTask = new Task<>() {
+            @Override
+            protected List<AssetEntry> call() {
+                List<AssetEntry> populatedEntries = new ArrayList<>();
+                for (AssetEntry entry : entries) {
+                    String serial = entry.getSerialNumber();
+                    if (serial == null || serial.isEmpty()) continue;
+
+                    Optional<AssetInfo> assetOpt = assetDAO.findAssetBySerialNumber(serial);
+
+                    if (assetOpt.isPresent()) {
+                        AssetInfo assetInfo = assetOpt.get();
+                        populatedEntries.add(new AssetEntry(serial, assetInfo.getImei(), assetInfo.getCategory(), assetInfo.getMake(), assetInfo.getModelNumber(), assetInfo.getDescription(), ""));
+                    } else {
+                        populatedEntries.add(entry);
+                    }
+                }
+                return populatedEntries;
+            }
+        };
+
+        lookupTask.setOnSucceeded(e -> {
+            assetEntries.setAll(lookupTask.getValue());
+        });
+
+        lookupTask.setOnFailed(e -> {
+            StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Lookup Failed", "An error occurred while looking up serial numbers.");
+        });
+
+        new Thread(lookupTask).start();
     }
 
     @FXML
