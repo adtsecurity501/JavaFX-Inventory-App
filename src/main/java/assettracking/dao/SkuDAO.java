@@ -117,17 +117,12 @@ public class SkuDAO {
         }
         String[] keywordArray = keywords.trim().split("\\s+");
 
-        StringBuilder sqlBuilder = new StringBuilder(
-                "SELECT sku_number, description FROM sku_table " +
-                        "WHERE sku_number IS NOT NULL AND sku_number != '' "
-        );
-        for (int i = 0; i < keywordArray.length; i++) {
-            sqlBuilder.append("AND description ILIKE ? ");
-        }
-        sqlBuilder.append("LIMIT 15");
+        String sqlBuilder = "SELECT sku_number, description FROM sku_table " +
+                "WHERE sku_number IS NOT NULL AND sku_number != '' " + "AND description ILIKE ? ".repeat(keywordArray.length) +
+                "LIMIT 15";
 
         try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sqlBuilder.toString())) {
+             PreparedStatement stmt = conn.prepareStatement(sqlBuilder)) {
             for (int i = 0; i < keywordArray.length; i++) {
                 stmt.setString(i + 1, "%" + keywordArray[i] + "%");
             }
@@ -138,6 +133,49 @@ public class SkuDAO {
             }
         } catch (SQLException e) {
             System.err.println("Database error during keyword search: " + e.getMessage());
+        }
+        return suggestions;
+    }
+
+    public List<String> findSkusLike(String fragment) {
+        List<String> suggestions = new ArrayList<>();
+        String sql = "SELECT sku_number, description FROM SKU_Table " +
+                "WHERE (sku_number ILIKE ? OR description ILIKE ?) " +
+                "LIMIT 15";
+        try (Connection conn = DatabaseConnection.getInventoryConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            String queryFragment = "%" + fragment + "%";
+            stmt.setString(1, queryFragment);
+            stmt.setString(2, queryFragment);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    suggestions.add(formatSkuSuggestion(rs.getString("sku_number"), rs.getString("description")));
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Database error finding SKUs: " + e.getMessage());
+        }
+        return suggestions;
+    }
+
+    public List<String> findSkusWithSkuNumberLike(String fragment) {
+        List<String> suggestions = new ArrayList<>();
+        String sql = "SELECT sku_number, description FROM SKU_Table " +
+                "WHERE (sku_number ILIKE ? OR description ILIKE ?) " +
+                "AND sku_number IS NOT NULL AND sku_number != '' " +
+                "LIMIT 15";
+        try (Connection conn = DatabaseConnection.getInventoryConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            String queryFragment = "%" + fragment + "%";
+            stmt.setString(1, queryFragment);
+            stmt.setString(2, queryFragment);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    suggestions.add(formatSkuSuggestion(rs.getString("sku_number"), rs.getString("description")));
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Database error finding printable SKUs: " + e.getMessage());
         }
         return suggestions;
     }

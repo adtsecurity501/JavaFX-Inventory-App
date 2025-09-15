@@ -41,6 +41,7 @@
                 <Insets top="5" bottom="5"/>
             </padding>
             <Button onAction="#onScanUpdateAction" text="Scan Update..."/>
+            <Button onAction="#handleBulkUpdateFromList" text="Bulk Update from List..."/>
             <Button onAction="#onViewHistoryAction" text="View History"/>
             <Button onAction="#handleExportToCSV" text="Export to CSV..."/>
             <Button onAction="#handleManageFlags" text="Manage Flags..." styleClass="accent"/>

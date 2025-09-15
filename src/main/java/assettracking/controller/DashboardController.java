@@ -3,10 +3,7 @@ package assettracking.controller;
 import assettracking.dao.AppSettingsDAO;
 import assettracking.data.TopModelStat;
 import assettracking.db.DatabaseConnection;
-import assettracking.manager.ConfettiManager;
-import assettracking.manager.DashboardDataService;
-import assettracking.manager.DeviceImportService;
-import assettracking.manager.StageManager;
+import assettracking.manager.*;
 import assettracking.ui.FlaggedDeviceImporter;
 import assettracking.ui.MelRulesImporter;
 import javafx.animation.ScaleTransition;
@@ -27,6 +24,13 @@ import javafx.stage.Stage;
 import javafx.util.Duration;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 public class DashboardController {
@@ -401,64 +405,98 @@ public class DashboardController {
     private void handleImportDeviceFiles() {
         AppSettingsDAO settingsDAO = new AppSettingsDAO();
         final String FOLDERS_KEY = "bulk.import.scan.folders";
-
-        List<String> foldersToScan;
         Optional<String> savedPathsOpt = settingsDAO.getSetting(FOLDERS_KEY);
 
-        if (savedPathsOpt.isPresent() && !savedPathsOpt.get().isBlank()) {
-            foldersToScan = new ArrayList<>(Arrays.asList(savedPathsOpt.get().split(",")));
-        } else {
-            // --- ONE-TIME SETUP WITH LOOPING DIALOG ---
-            StageManager.showAlert(getStage(), Alert.AlertType.INFORMATION, "Initial Folder Setup", "Please select the folder(s) where your device files are stored.\nYou can add multiple folders.");
-
-            Optional<List<String>> chosenFoldersOpt = showFolderManagementDialog(new ArrayList<>());
-
-            if (chosenFoldersOpt.isPresent() && !chosenFoldersOpt.get().isEmpty()) {
-                foldersToScan = chosenFoldersOpt.get();
-                String pathsToSave = String.join(",", foldersToScan);
-                settingsDAO.saveSetting(FOLDERS_KEY, pathsToSave);
-                StageManager.showAlert(getStage(), Alert.AlertType.INFORMATION, "Settings Saved", "Your folder paths have been saved. The import will now begin.");
-            } else {
-                statusLabel.setText("Folder setup cancelled. Import aborted.");
-                return; // User cancelled or selected no folders
-            }
+        if (savedPathsOpt.isEmpty() || savedPathsOpt.get().isBlank()) {
+            StageManager.showAlert(getStage(), Alert.AlertType.WARNING, "Setup Required", "Please configure the import folders first using the 'Manage Import Folders' button.");
+            return;
         }
 
-        // --- The rest of the import logic is unchanged ---
+        List<String> foldersToScan = new ArrayList<>(Arrays.asList(savedPathsOpt.get().split(",")));
         DeviceImportService importService = new DeviceImportService();
 
-        Task<String> importTask = new Task<>() {
+        Task<List<ImportResult>> importTask = new Task<>() {
             @Override
-            protected String call() throws Exception {
+            protected List<ImportResult> call() throws IOException {
                 return importService.runFolderImport(foldersToScan, this::updateMessage);
             }
         };
 
         importTask.messageProperty().addListener((obs, oldMsg, newMsg) -> statusLabel.setText(newMsg));
-
-        importTask.setOnRunning(e -> {
-            importDeviceFilesButton.setDisable(true);
-            statusLabel.setText("Starting import...");
-        });
+        importDeviceFilesButton.setDisable(true);
+        statusLabel.setText("Starting import...");
 
         importTask.setOnSucceeded(e -> {
             importDeviceFilesButton.setDisable(false);
-            StageManager.showAlert(getStage(), Alert.AlertType.INFORMATION, "Import Complete", importTask.getValue());
-            statusLabel.setText("Import finished successfully.");
-            refreshAllData();
+            List<ImportResult> results = importTask.getValue();
+
+            if (results.isEmpty()) {
+                statusLabel.setText("Import finished: No new files were found to process.");
+                return;
+            }
+
+            StringBuilder summary = new StringBuilder("Import Complete:\n\n");
+            int totalSuccess = results.stream().mapToInt(ImportResult::successfulCount).sum();
+            long totalErrors = results.stream().mapToLong(r -> r.errors().size()).sum();
+
+            summary.append(String.format("Successfully processed: %d records\n", totalSuccess));
+            summary.append(String.format("Rejected records: %d\n", totalErrors));
+
+            List<String> topErrors = results.stream().flatMap(r -> r.errors().stream()).limit(10).toList();
+
+            if (!topErrors.isEmpty()) {
+                summary.append("\nTop Reasons for Rejection:\n");
+                topErrors.forEach(err -> summary.append(String.format("- %s\n", err)));
+            }
+
+            String logMessage = logImportErrors(results);
+            summary.append(logMessage);
+
+            statusLabel.setText(String.format("Import finished. Processed: %d, Rejected: %d. Refreshing dashboard...", totalSuccess, totalErrors));
+            StageManager.showAlert(getStage(), Alert.AlertType.INFORMATION, "Import Results", summary.toString());
+
+            Platform.runLater(this::refreshAllData);
         });
 
         importTask.setOnFailed(e -> {
             importDeviceFilesButton.setDisable(false);
             Throwable ex = importTask.getException();
             statusLabel.setText("Import failed. See error dialog.");
-            StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Import Failed", "An error occurred: " + ex.getMessage());
-            System.err.println("Device import failed: " + ex.getMessage());
+            StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Import Failed", "A critical error occurred: " + ex.getMessage());
         });
 
         new Thread(importTask).start();
     }
 
+    private String logImportErrors(List<ImportResult> results) {
+        List<String> allErrors = results.stream().flatMap(r -> r.errors().stream()).toList();
+
+        if (allErrors.isEmpty()) {
+            return "";
+        }
+
+        try {
+            Path logDir = Paths.get(System.getProperty("user.home"), ".asset_tracker_logs");
+            Files.createDirectories(logDir);
+            String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+            Path logFile = logDir.resolve("import_errors_" + timestamp + ".txt");
+
+            try (PrintWriter writer = new PrintWriter(logFile.toFile())) {
+                writer.println("Asset Tracking Import Error Log - " + LocalDateTime.now());
+                writer.println("=======================================================");
+                for (ImportResult result : results) {
+                    if (!result.errors().isEmpty()) {
+                        writer.printf("\nErrors for file: %s\n", result.file().getName());
+                        writer.println("----------------------------------------");
+                        result.errors().forEach(writer::println);
+                    }
+                }
+            }
+            return String.format("\nA full report of all %d rejected records has been saved to:\n%s", allErrors.size(), logFile.toAbsolutePath());
+        } catch (IOException e) {
+            return "\nCould not write full error log to file due to an error: " + e.getMessage();
+        }
+    }
 
     @FXML
     private void handleImportFlags() {
