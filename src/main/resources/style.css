@@ -2,25 +2,58 @@
 .flagged-row .table-cell,
 .wip-row .table-cell {
     -fx-background-color: -color-warning-emphasis;
-    -fx-text-fill: white; /* Use a static high-contrast color */
+    -fx-text-fill: -color-fg-on-emphasis; /* Use a static high-contrast color */
 }
 
 /* Disposal/EOL Row (Danger) */
 .disposal-row .table-cell {
     -fx-background-color: -color-danger-emphasis;
-    -fx-text-fill: white; /* Use a static high-contrast color */
+    -fx-text-fill: -color-fg-on-emphasis; /* Use a static high-contrast color */
 }
 
 /* Processed Row (Accent/Info) */
 .processed-row .table-cell {
     -fx-background-color: -color-accent-emphasis;
-    -fx-text-fill: white; /* Use a static high-contrast color */
+    -fx-text-fill: -color-fg-on-emphasis; /* Use a static high-contrast color */
 }
 
 /* Shipped Row (Success) */
 .shipped-row .table-cell {
     -fx-background-color: -color-success-emphasis;
-    -fx-text-fill: white; /* Use a static high-contrast color */
+    -fx-text-fill: -color-fg-on-emphasis; /* Use a static high-contrast color */
+}
+
+/* ========================================================================== */
+/* INTERACTIVE TABLE ROW STYLES ---                               */
+/* ========================================================================== */
+
+/*
+ * This style applies a subtle background color when hovering over
+ * any standard (non-status-colored) data row.
+ */
+.table-row-cell:filled:hover {
+    -fx-background-color: -color-bg-inset;
+}
+
+/*
+ * This style applies a high-contrast border highlight when hovering
+ * over a status-colored row, preserving the status color itself.
+ */
+.flagged-row:hover .table-cell,
+.wip-row:hover .table-cell,
+.disposal-row:hover .table-cell,
+.processed-row:hover .table-cell,
+.shipped-row:hover .table-cell {
+    /* --- THIS IS THE DEFINITIVE FIX --- */
+    /*
+     * Instead of using the ambiguous '-fx-border-color' shorthand, we
+     * explicitly define the color for only the sides that have a width.
+     * This is the most robust way to declare complex borders and avoids
+     * the JavaFX CSS parser bug.
+     */
+    -fx-border-width: 2 0 2 0; /* (top right bottom left) */
+    -fx-border-top-color: -color-fg-on-emphasis;
+    -fx-border-bottom-color: -color-fg-on-emphasis;
 }
 
 /* ========================================================================== */
@@ -196,9 +229,37 @@
 /* ========================================================================== */
 
 .status-label-success {
-    -fx-text-fill: -color-fg-success;
+    -fx-text-fill: -color-success-fg;
 }
 
 .status-label-error {
-    -fx-text-fill: -color-fg-danger;
+    -fx-text-fill: -color-danger-fg;
+}
+
+/* Style for highlighting a table row when dragging over it */
+.drag-over {
+    -fx-background-color: -color-accent-emphasis-plus;
+    -fx-cursor: move;
+}
+
+/* Add this new section anywhere in your file */
+/* ========================================================================== */
+/* AUTOCOMPLETE POPUP STYLES ---                                    */
+/* ========================================================================== */
+
+.autocomplete-popup .list-view {
+    -fx-border-color: -color-border-default;
+    -fx-border-width: 1;
+    -fx-background-insets: 0;
+    -fx-background-radius: 4;
+}
+
+.autocomplete-popup .list-cell {
+    -fx-padding: 5 10;
+}
+
+.autocomplete-popup .list-cell:filled:hover,
+.autocomplete-popup .list-cell:filled:selected {
+    -fx-background-color: -color-accent-subtle;
+    -fx-text-fill: -color-fg-default;
 }

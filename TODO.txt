@@ -6,7 +6,6 @@ Priority 1:
 
 
 
-
 Priority 2:
 
 - test printing labels from scan update.

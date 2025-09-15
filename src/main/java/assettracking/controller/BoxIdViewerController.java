@@ -16,6 +16,10 @@ import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
+import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.DataFormat;
+import javafx.scene.input.Dragboard;
+import javafx.scene.input.TransferMode;
 import javafx.scene.layout.GridPane;
 import javafx.stage.FileChooser;
 import javafx.stage.Window;
@@ -36,6 +40,7 @@ import java.util.stream.Collectors;
 
 public class BoxIdViewerController {
 
+    private static final DataFormat SERIAL_NUMBERS_FORMAT = new DataFormat("application/x-serial-numbers");
     private final ObservableList<BoxIdSummary> summaryList = FXCollections.observableArrayList();
     private final ObservableList<BoxIdDetail> detailList = FXCollections.observableArrayList();
     private final ZplPrinterService printerService = new ZplPrinterService();
@@ -69,6 +74,7 @@ public class BoxIdViewerController {
     @FXML
     public void initialize() {
         setupTables();
+        setupDragAndDrop();
         loadSummaryDataAsync();
 
         printLabelButton.setDisable(true);
@@ -91,11 +97,7 @@ public class BoxIdViewerController {
         });
 
         FilteredList<BoxIdSummary> filteredData = new FilteredList<>(summaryList, p -> true);
-        searchField.textProperty().addListener((obs, oldVal, newVal) ->
-                filteredData.setPredicate(summary ->
-                        newVal == null || newVal.isEmpty() || summary.boxId().toLowerCase().contains(newVal.toLowerCase())
-                )
-        );
+        searchField.textProperty().addListener((obs, oldVal, newVal) -> filteredData.setPredicate(summary -> newVal == null || newVal.isEmpty() || summary.boxId().toLowerCase().contains(newVal.toLowerCase())));
         summaryTable.setItems(filteredData);
     }
 
@@ -108,24 +110,88 @@ public class BoxIdViewerController {
         detailTable.setItems(detailList);
     }
 
+
+    private void setupDragAndDrop() {
+        // --- SOURCE: The items in the detail table ---
+        detailTable.setRowFactory(tv -> {
+            TableRow<BoxIdDetail> row = new TableRow<>();
+            row.setOnDragDetected(event -> {
+                if (!row.isEmpty()) {
+                    Dragboard db = row.startDragAndDrop(TransferMode.MOVE);
+                    db.setDragView(row.snapshot(null, null));
+                    ClipboardContent cc = new ClipboardContent();
+
+                    List<String> selectedSerials = detailTable.getSelectionModel().getSelectedItems().stream().map(BoxIdDetail::serialNumber).collect(Collectors.toList());
+
+                    cc.put(SERIAL_NUMBERS_FORMAT, String.join(",", selectedSerials));
+                    db.setContent(cc);
+                    event.consume();
+                }
+            });
+            return row;
+        });
+
+        // --- TARGET: The boxes in the summary table ---
+        summaryTable.setRowFactory(tv -> {
+            TableRow<BoxIdSummary> row = new TableRow<>();
+
+            row.setOnDragOver(event -> {
+                Dragboard db = event.getDragboard();
+                if (db.hasContent(SERIAL_NUMBERS_FORMAT)) {
+                    BoxIdSummary sourceBox = summaryTable.getSelectionModel().getSelectedItem();
+
+                    // --- THIS IS THE FIX ---
+                    // The check now uses .equals() for a case-sensitive comparison,
+                    // allowing you to drag between boxes that only differ by case.
+                    if (sourceBox != null && !row.isEmpty() && !sourceBox.boxId().equals(row.getItem().boxId())) {
+                        event.acceptTransferModes(TransferMode.MOVE);
+                        row.getStyleClass().add("drag-over");
+                    }
+                }
+                event.consume();
+            });
+
+            row.setOnDragExited(event -> row.getStyleClass().remove("drag-over"));
+
+            row.setOnDragDropped(event -> {
+                Dragboard db = event.getDragboard();
+                boolean success = false;
+                if (db.hasContent(SERIAL_NUMBERS_FORMAT)) {
+                    BoxIdSummary targetBox = row.getItem();
+                    String serialsString = (String) db.getContent(SERIAL_NUMBERS_FORMAT);
+                    List<String> serialsToMove = Arrays.asList(serialsString.split(","));
+
+                    Task<Integer> moveTask = createMoveItemsTask(serialsToMove, targetBox.boxId());
+                    moveTask.setOnSucceeded(e -> {
+                        statusLabel.setText(String.format("Moved %d item(s) to Box ID '%s'.", moveTask.getValue(), targetBox.boxId()));
+                        refreshAllData();
+                    });
+                    moveTask.setOnFailed(e -> StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Move Failed", "A database error occurred."));
+                    new Thread(moveTask).start();
+
+                    success = true;
+                }
+                event.setDropCompleted(success);
+                event.consume();
+            });
+
+            return row;
+        });
+    }
+
     @FXML
     private void handlePrintLabel() {
         BoxIdSummary selectedBox = summaryTable.getSelectionModel().getSelectedItem();
         if (selectedBox == null) return;
 
-        List<String> printerNames = Arrays.stream(PrintServiceLookup.lookupPrintServices(null, null))
-                .map(PrintService::getName)
-                .collect(Collectors.toList());
+        List<String> printerNames = Arrays.stream(PrintServiceLookup.lookupPrintServices(null, null)).map(PrintService::getName).collect(Collectors.toList());
 
         if (printerNames.isEmpty()) {
             StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "No Printers Found", "There are no printers installed on this system.");
             return;
         }
 
-        String defaultPrinter = printerNames.stream()
-                .filter(n -> n.toLowerCase().contains("gx"))
-                .findFirst()
-                .orElse(printerNames.getFirst());
+        String defaultPrinter = printerNames.stream().filter(n -> n.toLowerCase().contains("gx")).findFirst().orElse(printerNames.getFirst());
 
         ChoiceDialog<String> dialog = new ChoiceDialog<>(defaultPrinter, printerNames);
         dialog.setTitle("Select Printer");
@@ -136,16 +202,7 @@ public class BoxIdViewerController {
 
         result.ifPresent(selectedPrinter -> {
             String today = LocalDate.now().format(DateTimeFormatter.ofPattern("MM/dd/yyyy"));
-            String zpl = String.format(
-                    "^XA^PW711^LL305" +
-                            "^FO20,20^GB670,265,3^FS" +
-                            "^FT35,70^A0N,40,40^FH\\^FDBox ID: %s^FS" +
-                            "^FT35,120^A0N,30,30^FH\\^FDItems: %d^FS" +
-                            "^FT35,160^A0N,30,30^FH\\^FDDate: %s^FS" +
-                            "^BY2,3,80^FT35,260^BCN,,N,N^FD>:%s^FS" +
-                            "^XZ",
-                    selectedBox.boxId(), selectedBox.itemCount(), today, selectedBox.boxId()
-            );
+            String zpl = String.format("^XA^PW711^LL305" + "^FO20,20^GB670,265,3^FS" + "^FT35,70^A0N,40,40^FH\\^FDBox ID: %s^FS" + "^FT35,120^A0N,30,30^FH\\^FDItems: %d^FS" + "^FT35,160^A0N,30,30^FH\\^FDDate: %s^FS" + "^BY2,3,80^FT35,260^BCN,,N,N^FD>:%s^FS" + "^XZ", selectedBox.boxId(), selectedBox.itemCount(), today, selectedBox.boxId());
 
             if (printerService.sendZplToPrinter(selectedPrinter, zpl)) {
                 statusLabel.getStyleClass().setAll("status-label-success"); // Clears old styles and adds the new one
@@ -210,11 +267,7 @@ public class BoxIdViewerController {
             return;
         }
 
-        boolean confirmed = StageManager.showConfirmationDialog(getOwnerWindow(),
-                "Confirm Removal",
-                "Are you sure you want to remove " + selectedItems.size() + " item(s) from this box?",
-                "Their status will be reverted to 'Disposed / Ready for Wipe'. This action cannot be undone."
-        );
+        boolean confirmed = StageManager.showConfirmationDialog(getOwnerWindow(), "Confirm Removal", "Are you sure you want to remove " + selectedItems.size() + " item(s) from this box?", "Their status will be reverted to 'Disposed / Ready for Wipe'. This action cannot be undone.");
 
         if (confirmed) {
             List<String> serialsToRemove = selectedItems.stream().map(BoxIdDetail::serialNumber).collect(Collectors.toList());
@@ -233,12 +286,7 @@ public class BoxIdViewerController {
         BoxIdSummary selected = summaryTable.getSelectionModel().getSelectedItem();
         loadSummaryDataAsync();
         if (selected != null) {
-            Platform.runLater(() ->
-                    summaryTable.getItems().stream()
-                            .filter(item -> item.boxId().equals(selected.boxId()))
-                            .findFirst()
-                            .ifPresent(item -> summaryTable.getSelectionModel().select(item))
-            );
+            Platform.runLater(() -> summaryTable.getItems().stream().filter(item -> item.boxId().equals(selected.boxId())).findFirst().ifPresent(item -> summaryTable.getSelectionModel().select(item)));
         } else {
             detailList.clear();
         }
@@ -258,9 +306,7 @@ public class BoxIdViewerController {
                             GROUP BY box_id
                             ORDER BY box_id
                         """;
-                try (Connection conn = DatabaseConnection.getInventoryConnection();
-                     PreparedStatement stmt = conn.prepareStatement(sql);
-                     ResultSet rs = stmt.executeQuery()) {
+                try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql); ResultSet rs = stmt.executeQuery()) {
                     while (rs.next()) {
                         results.add(new BoxIdSummary(rs.getString("box_id"), rs.getInt("item_count")));
                     }
@@ -293,8 +339,7 @@ public class BoxIdViewerController {
                             JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id
                             WHERE ds.box_id = ?
                         """;
-                try (Connection conn = DatabaseConnection.getInventoryConnection();
-                     PreparedStatement stmt = conn.prepareStatement(sql)) {
+                try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
                     stmt.setString(1, boxId);
                     ResultSet rs = stmt.executeQuery();
                     while (rs.next()) {
@@ -362,8 +407,7 @@ public class BoxIdViewerController {
                                 WHERE inner_ds.change_log LIKE ?
                             )
                         """;
-                try (Connection conn = DatabaseConnection.getInventoryConnection();
-                     PreparedStatement stmt = conn.prepareStatement(sql)) {
+                try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
                     stmt.setString(1, newStatus);
                     stmt.setString(2, newSubStatus);
                     stmt.setString(3, "Box ID: " + boxId + "%");
@@ -385,13 +429,7 @@ public class BoxIdViewerController {
         if (currentBox == null) return; // Should not happen, but a good safeguard
 
         // Ask the user for the destination box ID
-        Optional<String> result = StageManager.showTextInputDialog(
-                getOwnerWindow(),
-                "Move Items",
-                "Moving " + selectedItems.size() + " item(s) from Box ID: " + currentBox.boxId(),
-                "Enter the destination Box ID:",
-                ""
-        );
+        Optional<String> result = StageManager.showTextInputDialog(getOwnerWindow(), "Move Items", "Moving " + selectedItems.size() + " item(s) from Box ID: " + currentBox.boxId(), "Enter the destination Box ID:", "");
 
         result.ifPresent(newBoxIdRaw -> {
             String newBoxId = newBoxIdRaw.trim();
@@ -414,13 +452,16 @@ public class BoxIdViewerController {
     }
 
     // Add this new helper method to create the background task
-    private Task<Integer> createMoveItemsTask(List<String> serials, String newBoxId) {
+    private Task<Integer> createMoveItemsTask(List<String> serials, String newBoxIdRaw) {
         return new Task<>() {
             @Override
             protected Integer call() throws Exception {
+                // --- THIS IS THE FIX ---
+                // Standardize the Box ID to uppercase before sending it to the database.
+                String newBoxId = newBoxIdRaw.trim().toUpperCase();
+
                 String placeholders = String.join(",", Collections.nCopies(serials.size(), "?"));
 
-                // This SQL is designed to only update the MOST RECENT status record for each serial number
                 String sql = String.format("""
                             UPDATE Device_Status SET box_id = ?
                             WHERE receipt_id IN (
@@ -431,11 +472,10 @@ public class BoxIdViewerController {
                             )
                         """, placeholders);
 
-                try (Connection conn = DatabaseConnection.getInventoryConnection();
-                     PreparedStatement stmt = conn.prepareStatement(sql)) {
+                try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
 
                     stmt.setString(1, newBoxId);
-                    int i = 2; // Parameter index starts at 2
+                    int i = 2;
                     for (String serial : serials) {
                         stmt.setString(i++, serial);
                     }
@@ -444,6 +484,7 @@ public class BoxIdViewerController {
             }
         };
     }
+
 
     private Task<Void> createRemoveItemsTask(List<String> serials) {
         return new Task<>() {
@@ -456,8 +497,7 @@ public class BoxIdViewerController {
                             WHERE ds.receipt_id IN ( ... )
                         """.replace("( ... )", String.format("(SELECT MAX(re.receipt_id) FROM Receipt_Events re WHERE re.serial_number IN (%s) GROUP BY re.serial_number)", placeholders));
                 // --- END OF FIX ---
-                try (Connection conn = DatabaseConnection.getInventoryConnection();
-                     PreparedStatement stmt = conn.prepareStatement(sql)) {
+                try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
                     for (int i = 0; i < serials.size(); i++) {
                         stmt.setString(i + 1, serials.get(i));
                     }
