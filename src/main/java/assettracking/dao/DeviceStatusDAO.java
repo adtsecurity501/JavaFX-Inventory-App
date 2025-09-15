@@ -8,7 +8,7 @@ import assettracking.manager.StageManager;
 import assettracking.ui.DeviceStatusActions;
 import javafx.application.Platform;
 import javafx.collections.ObservableList;
-import javafx.scene.control.Alert; // <-- Make sure this import is present
+import javafx.scene.control.Alert;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -17,6 +17,7 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 public class DeviceStatusDAO {
 
@@ -28,55 +29,9 @@ public class DeviceStatusDAO {
         this.deviceStatusList = deviceStatusList;
     }
 
-    public int fetchPageCount() {
-        DeviceStatusActions.QueryAndParams queryAndParams = buildFilteredQuery(true);
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(queryAndParams.sql())) {
-            for (int i = 0; i < queryAndParams.params().size(); i++) {
-                stmt.setObject(i + 1, queryAndParams.params().get(i));
-            }
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next()) {
-                return rs.getInt(1);
-            }
-        } catch (SQLException e) {
-            // CORRECTED LINE
-            Platform.runLater(() -> StageManager.showAlert(null, Alert.AlertType.ERROR, "Database Error", "Failed to count records for pagination: " + e.getMessage()));
-        }
-        return 0;
-    }
-
-    public void updateTableForPage(int pageIndex) {
-        deviceStatusList.clear();
-        DeviceStatusActions.QueryAndParams queryAndParams = buildFilteredQuery(false);
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(queryAndParams.sql())) {
-            int paramIndex = 1;
-            for (Object param : queryAndParams.params()) {
-                stmt.setObject(paramIndex++, param);
-            }
-            stmt.setInt(paramIndex++, manager.getRowsPerPage());
-            stmt.setInt(paramIndex, pageIndex * manager.getRowsPerPage());
-
-            ResultSet rs = stmt.executeQuery();
-            while (rs.next()) {
-                deviceStatusList.add(new DeviceStatusView(
-                        rs.getInt("receipt_id"), rs.getString("serial_number"), rs.getString("category"),
-                        rs.getString("make"), rs.getString("description"), rs.getString("status"),
-                        rs.getString("sub_status"), rs.getTimestamp("last_update") != null ? rs.getTimestamp("last_update").toString().substring(0, 19) : "",
-                        rs.getString("receive_date"),
-                        rs.getString("change_log"), rs.getBoolean("is_flagged")
-                ));
-            }
-        } catch (SQLException e) {
-            // CORRECTED LINE
-            Platform.runLater(() -> StageManager.showAlert(null, Alert.AlertType.ERROR, "Database Error", "Failed to load page data: " + e.getMessage()));
-        }
-    }
-
+    // --- THIS IS THE MISSING METHOD, NOW RESTORED AND ADAPTED FOR POSTGRESQL ---
     public void updateDeviceStatus(ObservableList<DeviceStatusView> selectedDevices, String newStatus, String newSubStatus, String note, String boxId) {
         if (selectedDevices == null || selectedDevices.isEmpty()) {
-            // CORRECTED LINE
             StageManager.showAlert(null, Alert.AlertType.WARNING, "No Selection", "Please select one or more devices to update.");
             return;
         }
@@ -116,13 +71,11 @@ public class DeviceStatusDAO {
             }
             conn.commit();
         } catch (SQLException e) {
-            // CORRECTED LINE
-            StageManager.showAlert(null, Alert.AlertType.ERROR, "Update Failed", "Failed to update device statuses in the database: " + e.getMessage());
+            StageManager.showAlert(null, Alert.AlertType.ERROR, "Update Failed", "Failed to update device statuses: " + e.getMessage());
             if (conn != null) {
                 try {
                     conn.rollback();
                 } catch (SQLException ex) {
-                    // CORRECTED LINE
                     StageManager.showAlert(null, Alert.AlertType.ERROR, "Rollback Failed", "Failed to rollback database changes: " + ex.getMessage());
                 }
             }
@@ -132,11 +85,110 @@ public class DeviceStatusDAO {
                     conn.setAutoCommit(true);
                     conn.close();
                 } catch (SQLException e) {
-                    // CORRECTED LINE
                     StageManager.showAlert(null, Alert.AlertType.ERROR, "Connection Error", "Failed to close database connection: " + e.getMessage());
                 }
             }
         }
+    }
+
+    public int fetchPageCount() {
+        DeviceStatusActions.QueryAndParams queryAndParams = buildFilteredQuery(true);
+        try (Connection conn = DatabaseConnection.getInventoryConnection();
+             PreparedStatement stmt = conn.prepareStatement(queryAndParams.sql())) {
+            for (int i = 0; i < queryAndParams.params().size(); i++) {
+                stmt.setObject(i + 1, queryAndParams.params().get(i));
+            }
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        } catch (SQLException e) {
+            Platform.runLater(() -> StageManager.showAlert(null, Alert.AlertType.ERROR, "Database Error", "Failed to count records for pagination: " + e.getMessage()));
+        }
+        return 0;
+    }
+
+    // The rest of the methods are the same as the correct version you already have.
+
+    public void updateTableForPage(int pageIndex) {
+        deviceStatusList.clear();
+        DeviceStatusActions.QueryAndParams queryAndParams = buildFilteredQuery(false);
+        try (Connection conn = DatabaseConnection.getInventoryConnection();
+             PreparedStatement stmt = conn.prepareStatement(queryAndParams.sql())) {
+            int paramIndex = 1;
+            for (Object param : queryAndParams.params()) {
+                stmt.setObject(paramIndex++, param);
+            }
+            stmt.setInt(paramIndex++, manager.getRowsPerPage());
+            stmt.setInt(paramIndex, pageIndex * manager.getRowsPerPage());
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    deviceStatusList.add(new DeviceStatusView(
+                            rs.getInt("receipt_id"), rs.getString("serial_number"), rs.getString("category"),
+                            rs.getString("make"), rs.getString("description"), rs.getString("status"),
+                            rs.getString("sub_status"), rs.getTimestamp("last_update") != null ? rs.getTimestamp("last_update").toString().substring(0, 19) : "",
+                            rs.getString("receive_date") != null ? rs.getString("receive_date") : "N/A",
+                            rs.getString("change_log"), rs.getBoolean("is_flagged")
+                    ));
+                }
+            }
+        } catch (SQLException e) {
+            Platform.runLater(() -> StageManager.showAlert(null, Alert.AlertType.ERROR, "Database Error", "Failed to load page data: " + e.getMessage()));
+        }
+    }
+
+    public BulkUpdateResult bulkUpdateStatusBySerial(Set<String> serials, String newStatus, String newSubStatus, String note) throws SQLException {
+        List<String> updatedSerials = new ArrayList<>();
+        List<String> notFoundSerials = new ArrayList<>(serials);
+
+        String sql = """
+                    UPDATE device_status
+                    SET status = ?, sub_status = ?, last_update = CURRENT_TIMESTAMP, change_log = ?
+                    WHERE receipt_id IN (
+                        SELECT MAX(re.receipt_id)
+                        FROM receipt_events re
+                        WHERE re.serial_number = ?
+                    )
+                """;
+
+        Connection conn = null;
+        try {
+            conn = DatabaseConnection.getInventoryConnection();
+            conn.setAutoCommit(false);
+
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                for (String serial : serials) {
+                    stmt.setString(1, newStatus);
+                    stmt.setString(2, newSubStatus);
+                    stmt.setString(3, note);
+                    stmt.setString(4, serial);
+                    stmt.addBatch();
+                }
+
+                int[] results = stmt.executeBatch();
+
+                List<String> serialList = new ArrayList<>(serials);
+                for (int i = 0; i < results.length; i++) {
+                    if (results[i] > 0) {
+                        String successfulSerial = serialList.get(i);
+                        updatedSerials.add(successfulSerial);
+                        notFoundSerials.remove(successfulSerial);
+                    }
+                }
+            }
+            conn.commit();
+        } catch (SQLException e) {
+            if (conn != null) conn.rollback();
+            throw e;
+        } finally {
+            if (conn != null) {
+                conn.setAutoCommit(true);
+                conn.close();
+            }
+        }
+        return new BulkUpdateResult(updatedSerials, notFoundSerials);
     }
 
     private DeviceStatusActions.QueryAndParams buildFilteredQuery(boolean forCount) {
@@ -209,5 +261,8 @@ public class DeviceStatusDAO {
             fullQuery += " LIMIT ? OFFSET ?";
         }
         return new DeviceStatusActions.QueryAndParams(fullQuery, params);
+    }
+
+    public record BulkUpdateResult(List<String> updated, List<String> notFound) {
     }
 }

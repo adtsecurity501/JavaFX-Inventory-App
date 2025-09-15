@@ -11,6 +11,7 @@ import java.util.List;
 public class PackageDAO {
 
     public int addPackage(String tracking, String firstName, String lastName, String city, String state, String zip, LocalDate date) {
+        // PostgreSQL uses RETURNING package_id to get the generated key
         String sql = "INSERT INTO packages (tracking_number, first_name, last_name, city, state, zip_code, receive_date) VALUES (?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = DatabaseConnection.getInventoryConnection();
              PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -22,8 +23,8 @@ public class PackageDAO {
             stmt.setString(5, state);
             stmt.setString(6, zip);
             stmt.setObject(7, date);
-
             stmt.executeUpdate();
+
             try (ResultSet rs = stmt.getGeneratedKeys()) {
                 if (rs.next()) {
                     return rs.getInt(1);

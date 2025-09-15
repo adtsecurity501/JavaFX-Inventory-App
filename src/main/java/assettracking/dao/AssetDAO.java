@@ -37,16 +37,11 @@ public class AssetDAO {
                         asset = new AssetInfo();
                         asset.setSerialNumber(rs.getString("serial_number"));
                     }
-                    String physicalMake = rs.getString("make");
-                    if (physicalMake != null && !physicalMake.isEmpty()) asset.setMake(physicalMake);
-                    String physicalModel = rs.getString("part_number");
-                    if (physicalModel != null && !physicalModel.isEmpty()) asset.setModelNumber(physicalModel);
-                    String physicalDesc = rs.getString("description");
-                    if (physicalDesc != null && !physicalDesc.isEmpty()) asset.setDescription(physicalDesc);
-                    String physicalCat = rs.getString("category");
-                    if (physicalCat != null && !physicalCat.isEmpty()) asset.setCategory(physicalCat);
-                    String physicalImei = rs.getString("imei");
-                    if (physicalImei != null && !physicalImei.isEmpty()) asset.setImei(physicalImei);
+                    asset.setMake(rs.getString("make"));
+                    asset.setModelNumber(rs.getString("part_number"));
+                    asset.setDescription(rs.getString("description"));
+                    asset.setCategory(rs.getString("category"));
+                    asset.setImei(rs.getString("imei"));
                     asset.setEveronSerial(rs.getBoolean("everon_serial"));
                     asset.setCapacity(rs.getString("capacity"));
                 }
@@ -80,6 +75,7 @@ public class AssetDAO {
 
     private List<String> findSuggestions(String column, String fragment) {
         List<String> suggestions = new ArrayList<>();
+        // POSTGRES-SPECIFIC: Use ILIKE for case-insensitive search
         String sql = String.format(
                 "SELECT DISTINCT %s FROM sku_table WHERE %s ILIKE ? AND %s IS NOT NULL AND %s != '' ORDER BY %s LIMIT 10",
                 column, column, column, column, column
@@ -98,6 +94,7 @@ public class AssetDAO {
         return suggestions;
     }
 
+    // --- METHOD RESTORED ---
     public boolean updateAsset(AssetInfo asset) {
         String sql = "UPDATE physical_assets SET category = ?, make = ?, part_number = ?, description = ?, imei = ? WHERE serial_number = ?";
         try (Connection conn = DatabaseConnection.getInventoryConnection();
@@ -130,7 +127,7 @@ public class AssetDAO {
         }
     }
 
-    // RESTORED this public method
+    // --- METHOD RESTORED ---
     public void addAsset(AssetInfo asset) {
         try (Connection conn = DatabaseConnection.getInventoryConnection()) {
             addAsset(conn, asset);
@@ -139,8 +136,10 @@ public class AssetDAO {
         }
     }
 
+    // --- METHOD RESTORED ---
     public Optional<AssetInfo> findSkuDetails(String value, String lookupType) {
-        String sql = "SELECT category, model_number, description, manufac AS make FROM sku_table WHERE " + lookupType + " = ?";
+        // Use a PreparedStatement to safely handle the lookupType
+        String sql = String.format("SELECT category, model_number, description, manufac AS make FROM sku_table WHERE %s = ?", lookupType);
         try (Connection conn = DatabaseConnection.getInventoryConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, value);
@@ -195,6 +194,7 @@ public class AssetDAO {
         return categories;
     }
 
+    // --- METHOD RESTORED ---
     public Optional<String> findDescriptionBySkuNumber(String skuNumber) {
         String sql = "SELECT description FROM sku_table WHERE sku_number = ? AND (model_number IS NULL OR model_number = '')";
         try (Connection conn = DatabaseConnection.getInventoryConnection();

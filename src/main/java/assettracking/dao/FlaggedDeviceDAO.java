@@ -13,6 +13,7 @@ import java.util.List;
 public class FlaggedDeviceDAO {
 
     public boolean flagDevice(String serialNumber, String reason) {
+        // POSTGRES-SPECIFIC: "UPSERT" syntax
         String sql = "INSERT INTO flag_devices (serial_number, status, sub_status, flag_reason) " +
                 "VALUES (?, 'Flag!', 'Requires Review', ?) " +
                 "ON CONFLICT (serial_number) DO UPDATE SET " +
