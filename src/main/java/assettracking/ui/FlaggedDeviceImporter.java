@@ -98,12 +98,7 @@ public class FlaggedDeviceImporter {
             return "No unique, valid data found to import.";
         }
 
-        String upsertSql = "INSERT INTO flag_devices (serial_number, status, sub_status, flag_reason) " +
-                "VALUES (?, 'Flag!', 'Requires Review', ?) " +
-                "ON CONFLICT (serial_number) DO UPDATE SET " +
-                "status = EXCLUDED.status, " +
-                "sub_status = EXCLUDED.sub_status, " +
-                "flag_reason = EXCLUDED.flag_reason";
+        String upsertSql = "INSERT INTO flag_devices (serial_number, status, sub_status, flag_reason) " + "VALUES (?, 'Flag!', 'Requires Review', ?) " + "ON CONFLICT (serial_number) DO UPDATE SET " + "status = EXCLUDED.status, " + "sub_status = EXCLUDED.sub_status, " + "flag_reason = EXCLUDED.flag_reason";
         int successfullyProcessedCount = 0;
 
         try (Connection conn = DatabaseConnection.getInventoryConnection()) {

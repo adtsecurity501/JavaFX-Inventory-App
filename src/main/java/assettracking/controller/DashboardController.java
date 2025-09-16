@@ -269,7 +269,7 @@ public class DashboardController {
     }
 
     private String getDateFilterClause(String columnName) {
-        // POSTGRESQL-FIX: Use INTERVAL syntax and cast the column to DATE
+        // POSTGRESQL-FIX: Use INTERVAL syntax and cast the column to DATE for proper comparison.
         String dateColumn = String.format("CAST(%s AS DATE)", columnName);
 
         RadioButton selected = (RadioButton) dateRangeToggleGroup.getSelectedToggle();
@@ -279,7 +279,7 @@ public class DashboardController {
         if (selected.getText().equals("Today")) {
             return String.format(" %s = CURRENT_DATE", dateColumn);
         }
-        // Last 30 Days
+        // Last 30 Days (assuming you have a radio button for this)
         return String.format(" %s >= (CURRENT_DATE - INTERVAL '30 DAY')", dateColumn);
     }
 
