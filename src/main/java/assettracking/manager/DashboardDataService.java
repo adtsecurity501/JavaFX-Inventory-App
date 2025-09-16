@@ -20,6 +20,7 @@ public class DashboardDataService {
 
     public Map<String, Integer> getGranularMetrics(String intakeDateClause, String statusDateClause) throws SQLException {
         Map<String, Integer> metrics = new HashMap<>();
+        // POSTGRESQL-FIX: Use ILIKE for case-insensitive matching
         String sql = String.format("""
                     SELECT
                         re.category,
@@ -41,19 +42,19 @@ public class DashboardDataService {
             while (rs.next()) {
                 String category = rs.getString("category");
                 if (category == null) continue;
-                if (category.contains("Laptop")) {
+                if (category.toLowerCase().contains("laptop")) {
                     metrics.merge("laptopsIntaken", rs.getInt("IntakenCount"), Integer::sum);
                     metrics.merge("laptopsProcessed", rs.getInt("ProcessedCount"), Integer::sum);
                     metrics.merge("laptopsDisposed", rs.getInt("DisposedCount"), Integer::sum);
-                } else if (category.contains("Tablet")) {
+                } else if (category.toLowerCase().contains("tablet")) {
                     metrics.merge("tabletsIntaken", rs.getInt("IntakenCount"), Integer::sum);
                     metrics.merge("tabletsProcessed", rs.getInt("ProcessedCount"), Integer::sum);
                     metrics.merge("tabletsDisposed", rs.getInt("DisposedCount"), Integer::sum);
-                } else if (category.contains("Desktop")) {
+                } else if (category.toLowerCase().contains("desktop")) {
                     metrics.merge("desktopsIntaken", rs.getInt("IntakenCount"), Integer::sum);
                     metrics.merge("desktopsProcessed", rs.getInt("ProcessedCount"), Integer::sum);
                     metrics.merge("desktopsDisposed", rs.getInt("DisposedCount"), Integer::sum);
-                } else if (category.contains("Monitor")) {
+                } else if (category.toLowerCase().contains("monitor")) {
                     metrics.merge("monitorsIntaken", rs.getInt("IntakenCount"), Integer::sum);
                     metrics.merge("monitorsProcessed", rs.getInt("ProcessedCount"), Integer::sum);
                     metrics.merge("monitorsDisposed", rs.getInt("DisposedCount"), Integer::sum);
@@ -116,6 +117,7 @@ public class DashboardDataService {
     public XYChart.Series<String, Number> getIntakeVolumeData(String dateFilterClause) throws SQLException {
         XYChart.Series<String, Number> series = new XYChart.Series<>();
         series.setName("Devices Received");
+        // POSTGRESQL-FIX: Use TO_CHAR for date formatting
         String sql = "SELECT TO_CHAR(p.receive_date, 'YYYY-MM-DD') AS day, COUNT(re.receipt_id) AS device_count " +
                 "FROM receipt_events re " +
                 "JOIN packages p ON re.package_id = p.package_id " +
@@ -133,13 +135,30 @@ public class DashboardDataService {
         return series;
     }
 
-
-    public Map<String, String> getStaticKpis() throws SQLException {
+    // THIS IS THE CORRECTED METHOD
+    public Map<String, String> getStaticKpis(String dateFilterClause) throws SQLException {
         Map<String, String> kpis = new HashMap<>();
         String triageSql = "SELECT COUNT(*) as count FROM device_status ds JOIN (" + LATEST_RECEIPT_SUBQUERY + ") l ON ds.receipt_id = l.max_receipt_id JOIN receipt_events re ON ds.receipt_id = re.receipt_id WHERE ds.status IN ('Intake', 'Triage & Repair') AND re.category NOT ILIKE '%Monitor%'";
         String awaitingDisposalSql = "SELECT COUNT(*) as count FROM device_status ds JOIN (" + LATEST_RECEIPT_SUBQUERY + ") l ON ds.receipt_id = l.max_receipt_id WHERE ds.status = 'Disposed' AND ds.sub_status IN ('Can-Am, Pending Pickup', 'Ingram, Pending Pickup', 'Ready for Wipe')";
+        // POSTGRESQL-FIX: Use direct date subtraction for average
         String turnaroundSql = "SELECT AVG(CAST(ds.last_update AS DATE) - p.receive_date) as avg_days FROM device_status ds JOIN receipt_events re ON ds.receipt_id = re.receipt_id JOIN packages p ON re.package_id = p.package_id WHERE ds.status = 'Processed' AND ds.sub_status = 'Ready for Deployment' AND ds.last_update >= (CURRENT_DATE - INTERVAL '30 DAY')";
-        String dailySql = "SELECT COUNT(DISTINCT re.serial_number) as count FROM device_status ds JOIN receipt_events re ON ds.receipt_id = re.receipt_id WHERE ds.status = 'Processed' AND ds.sub_status = 'Ready for Deployment' AND ds.last_update >= CURRENT_DATE AND ds.last_update < (CURRENT_DATE + INTERVAL '1 DAY') AND EXISTS (SELECT 1 FROM device_status h_ds JOIN receipt_events h_re ON h_ds.receipt_id = h_re.receipt_id WHERE h_re.serial_number = re.serial_number AND h_ds.status IN ('Intake', 'Triage & Repair'))";
+
+        // THIS QUERY NOW USES THE DYNAMIC DATE FILTER
+        String dailySql = String.format("""
+                    SELECT COUNT(DISTINCT re.serial_number) as count
+                    FROM device_status ds
+                    JOIN receipt_events re ON ds.receipt_id = re.receipt_id
+                    WHERE ds.status = 'Processed'
+                      AND ds.sub_status = 'Ready for Deployment'
+                      AND %s
+                      AND EXISTS (
+                        SELECT 1
+                        FROM device_status h_ds
+                        JOIN receipt_events h_re ON h_ds.receipt_id = h_re.receipt_id
+                        WHERE h_re.serial_number = re.serial_number
+                          AND h_ds.status IN ('Intake', 'Triage & Repair')
+                      )
+                """, dateFilterClause);
 
         try (Connection conn = DatabaseConnection.getInventoryConnection()) {
             try (PreparedStatement stmt = conn.prepareStatement(triageSql); ResultSet rs = stmt.executeQuery()) {

@@ -198,7 +198,8 @@ public class DashboardController {
         Task<Map<String, String>> task = new Task<>() {
             @Override
             protected Map<String, String> call() throws Exception {
-                return dataService.getStaticKpis();
+                // This is the fix: Pass the date filter to the service method
+                return dataService.getStaticKpis(getDateFilterClause("ds.last_update"));
             }
         };
         task.setOnSucceeded(e -> {
@@ -268,13 +269,18 @@ public class DashboardController {
     }
 
     private String getDateFilterClause(String columnName) {
-        if (todayRadio.isSelected()) {
-            return " " + columnName + " >= CURRENT_DATE AND " + columnName + " < (CURRENT_DATE + INTERVAL '1 DAY')";
+        // POSTGRESQL-FIX: Use INTERVAL syntax and cast the column to DATE
+        String dateColumn = String.format("CAST(%s AS DATE)", columnName);
+
+        RadioButton selected = (RadioButton) dateRangeToggleGroup.getSelectedToggle();
+        if (selected == null || selected.getText().equals("Last 7 Days")) { // Default case
+            return String.format(" %s >= (CURRENT_DATE - INTERVAL '7 DAY')", dateColumn);
         }
-        if (days7Radio.isSelected()) {
-            return " " + columnName + " >= (CURRENT_DATE - INTERVAL '7 DAY')";
+        if (selected.getText().equals("Today")) {
+            return String.format(" %s = CURRENT_DATE", dateColumn);
         }
-        return " " + columnName + " >= (CURRENT_DATE - INTERVAL '30 DAY')";
+        // Last 30 Days
+        return String.format(" %s >= (CURRENT_DATE - INTERVAL '30 DAY')", dateColumn);
     }
 
     private void updateDynamicTitles() {
