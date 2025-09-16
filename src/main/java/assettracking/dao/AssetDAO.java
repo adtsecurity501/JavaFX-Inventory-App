@@ -198,17 +198,22 @@ public class AssetDAO {
     }
 
     public boolean updateAsset(AssetInfo asset) {
-        String sql = "UPDATE Physical_Assets SET category = ?, make = ?, part_number = ?, description = ?, imei = ? WHERE serial_number = ?";
+        // This MERGE command is an "UPSERT" for H2. It updates a record if it exists,
+        // or inserts it if it does not. This prevents the silent-fail scenario.
+        String sql = "MERGE INTO Physical_Assets (serial_number, category, make, part_number, description, imei) " + "KEY(serial_number) " + "VALUES (?, ?, ?, ?, ?, ?)";
         try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, asset.getCategory());
-            stmt.setString(2, asset.getMake());
-            stmt.setString(3, asset.getModelNumber());
-            stmt.setString(4, asset.getDescription());
-            stmt.setString(5, asset.getImei());
-            stmt.setString(6, asset.getSerialNumber());
+
+            stmt.setString(1, asset.getSerialNumber());
+            stmt.setString(2, asset.getCategory());
+            stmt.setString(3, asset.getMake());
+            stmt.setString(4, asset.getModelNumber());
+            stmt.setString(5, asset.getDescription());
+            stmt.setString(6, asset.getImei());
+
+            // An upsert will return 1 for an insert or an update.
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("Database error: " + e.getMessage());
+            System.err.println("Database error during asset upsert: " + e.getMessage());
             return false;
         }
     }
