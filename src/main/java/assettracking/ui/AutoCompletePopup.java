@@ -92,7 +92,11 @@ public class AutoCompletePopup {
 
         task.setOnSucceeded(e -> Platform.runLater(() -> {
             ObservableList<String> suggestions = FXCollections.observableArrayList(task.getValue());
-            if (suggestions.isEmpty() || isSuppressed) {
+
+            // --- THIS IS THE FIX ---
+            // Before showing the popup, we must check if the text field is still part of a visible scene and window.
+            // This prevents the error if the user closes the dialog while the suggestions are loading.
+            if (suggestions.isEmpty() || isSuppressed || textField.getScene() == null || textField.getScene().getWindow() == null) {
                 contextMenu.hide();
             } else {
                 suggestionList.setItems(suggestions);

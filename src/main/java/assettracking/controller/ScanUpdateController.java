@@ -145,7 +145,6 @@ public class ScanUpdateController {
         String skuToPrint = selectedSkuField.getText().trim();
         String printerName = labelPrinterCombo.getValue();
 
-        // --- ENHANCED VALIDATION BLOCK ---
         if (printLabelsToggle.isVisible() && printLabelsToggle.isSelected()) {
             if (printerName == null || printerName.isEmpty()) {
                 showAlert("Printer Not Selected", "A printer must be selected from the list to print labels.");
@@ -169,7 +168,6 @@ public class ScanUpdateController {
             return;
         }
 
-        // The note no longer needs to contain the Box ID.
         String finalNote = changeLogField.getText().trim();
 
         setFeedback("Processing " + serial + "...", Color.BLUE);
@@ -177,12 +175,18 @@ public class ScanUpdateController {
         Task<ScanUpdateService.UpdateResult> updateTask = new Task<>() {
             @Override
             protected ScanUpdateService.UpdateResult call() throws Exception {
-                // Pass the boxId as a new, separate argument.
                 return updateService.updateBySerial(serial, newStatus, newSubStatus, finalNote, boxId);
             }
         };
 
         updateTask.setOnSucceeded(event -> {
+            // --- THIS IS THE FIX ---
+            // Before updating UI, check if the window still exists.
+            if (scanSerialField.getScene() == null || scanSerialField.getScene().getWindow() == null) {
+                return; // The window was closed, so do nothing.
+            }
+            // --- END OF FIX ---
+
             switch (updateTask.getValue()) {
                 case SUCCESS:
                     setFeedback("✓ Success: " + serial, Color.GREEN);
@@ -193,7 +197,7 @@ public class ScanUpdateController {
                     }
                     break;
                 case NOT_FOUND:
-                    setFeedback("✖ Not Found: " + serial, Color.RED);
+                    setFeedback("✗ Not Found: " + serial, Color.RED);
                     resultManager.addFailure(serial, "Not Found in Database");
                     break;
             }
@@ -202,7 +206,14 @@ public class ScanUpdateController {
         });
 
         updateTask.setOnFailed(event -> {
-            setFeedback("â Œ DB Error: " + updateTask.getException().getMessage(), Color.RED);
+            // --- THIS IS THE FIX ---
+            // Also add the check to the failure handler.
+            if (scanSerialField.getScene() == null || scanSerialField.getScene().getWindow() == null) {
+                return; // The window was closed, so do nothing.
+            }
+            // --- END OF FIX ---
+
+            setFeedback("DB Error: " + updateTask.getException().getMessage(), Color.RED);
             resultManager.addFailure(serial, "Database Error");
         });
 
