@@ -128,12 +128,28 @@ public class DashboardDataService {
     }
 
 
-    public Map<String, String> getStaticKpis() throws SQLException {
+    public Map<String, String> getStaticKpis(String dateFilterClause) throws SQLException {
         Map<String, String> kpis = new HashMap<>();
         String triageSql = "SELECT COUNT(*) as count FROM Device_Status ds JOIN (" + LATEST_RECEIPT_SUBQUERY + ") l ON ds.receipt_id = l.max_receipt_id JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id WHERE ds.status IN ('Intake', 'Triage & Repair') AND re.category NOT LIKE '%Monitor%'";
         String awaitingDisposalSql = "SELECT COUNT(*) as count FROM Device_Status ds JOIN (" + LATEST_RECEIPT_SUBQUERY + ") l ON ds.receipt_id = l.max_receipt_id WHERE ds.status = 'Disposed' AND ds.sub_status IN ('Can-Am, Pending Pickup', 'Ingram, Pending Pickup', 'Ready for Wipe')";
         String turnaroundSql = "SELECT AVG(DATEDIFF('DAY', p.receive_date, ds.last_update)) as avg_days FROM Device_Status ds JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id JOIN Packages p ON re.package_id = p.package_id WHERE ds.status = 'Processed' AND ds.sub_status = 'Ready for Deployment' AND ds.last_update >= DATEADD('DAY', -30, CURRENT_DATE)";
-        String dailySql = "SELECT COUNT(DISTINCT re.serial_number) as count FROM Device_Status ds JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id WHERE ds.status = 'Processed' AND ds.sub_status = 'Ready for Deployment' AND CAST(ds.last_update AS DATE) = CURRENT_DATE AND EXISTS (SELECT 1 FROM Device_Status h_ds JOIN Receipt_Events h_re ON h_ds.receipt_id = h_re.receipt_id WHERE h_re.serial_number = re.serial_number AND h_ds.status IN ('Intake', 'Triage & Repair'))";
+
+        // This query now correctly uses the dateFilterClause passed from the controller
+        String dailySql = String.format("""
+                    SELECT COUNT(DISTINCT re.serial_number) as count
+                    FROM Device_Status ds
+                    JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id
+                    WHERE ds.status = 'Processed'
+                      AND ds.sub_status = 'Ready for Deployment'
+                      AND %s
+                      AND EXISTS (
+                        SELECT 1
+                        FROM Device_Status h_ds
+                        JOIN Receipt_Events h_re ON h_ds.receipt_id = h_re.receipt_id
+                        WHERE h_re.serial_number = re.serial_number
+                          AND h_ds.status IN ('Intake', 'Triage & Repair')
+                      )
+                """, dateFilterClause);
 
         try (Connection conn = DatabaseConnection.getInventoryConnection()) {
             try (PreparedStatement stmt = conn.prepareStatement(triageSql); ResultSet rs = stmt.executeQuery()) {
@@ -145,6 +161,7 @@ public class DashboardDataService {
             try (PreparedStatement stmt = conn.prepareStatement(turnaroundSql); ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) kpis.put("avgTurnaround", String.format("%.1f Days", rs.getDouble("avg_days")));
             }
+            // This query will now execute with the correct date filter
             try (PreparedStatement stmt = conn.prepareStatement(dailySql); ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) kpis.put("boxesAssembled", String.valueOf(rs.getInt("count")));
             }

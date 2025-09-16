@@ -187,7 +187,8 @@ public class DashboardController {
         Task<Map<String, String>> task = new Task<>() {
             @Override
             protected Map<String, String> call() throws Exception {
-                return dataService.getStaticKpis();
+                // This is the fix: We now get the date filter and pass it to the service.
+                return dataService.getStaticKpis(getDateFilterClause("ds.last_update"));
             }
         };
         task.setOnSucceeded(e -> {
