@@ -1,5 +1,6 @@
 package assettracking.dao;
 
+import assettracking.data.AssetInfo;
 import assettracking.data.Sku;
 import assettracking.db.DatabaseConnection;
 
@@ -143,6 +144,60 @@ public class SkuDAO {
             System.err.println("Database error: " + e.getMessage());
             return false;
         }
+    }
+
+    public List<String> findModelNumbersLike(String modelFragment) {
+        List<String> suggestions = new ArrayList<>();
+        String sql = "SELECT DISTINCT model_number FROM SKU_Table " + "WHERE model_number ILIKE ? AND model_number IS NOT NULL AND model_number != '' " + "ORDER BY model_number LIMIT 10";
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, "%" + modelFragment + "%");
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    suggestions.add(rs.getString("model_number"));
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Database error finding model numbers: " + e.getMessage());
+        }
+        return suggestions;
+    }
+
+    public List<String> findDescriptionsLike(String descriptionFragment) {
+        List<String> suggestions = new ArrayList<>();
+        String sql = "SELECT DISTINCT description FROM SKU_Table " + "WHERE description ILIKE ? AND description IS NOT NULL AND description != '' " + "ORDER BY description LIMIT 10";
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, "%" + descriptionFragment + "%");
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    suggestions.add(rs.getString("description"));
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Database error finding descriptions: " + e.getMessage());
+        }
+        return suggestions;
+    }
+
+    public Optional<AssetInfo> findSkuDetails(String value, String lookupType) {
+        String column = "model_number".equalsIgnoreCase(lookupType) ? "model_number" : "description";
+        String sql = "SELECT category, model_number, description, manufac AS make FROM SKU_Table WHERE " + column + " = ?";
+
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, value);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    AssetInfo asset = new AssetInfo();
+                    asset.setCategory(rs.getString("category"));
+                    asset.setModelNumber(rs.getString("model_number"));
+                    asset.setDescription(rs.getString("description"));
+                    asset.setMake(rs.getString("make"));
+                    return Optional.of(asset);
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Database error finding SKU details: " + e.getMessage());
+        }
+        return Optional.empty();
     }
 
     public boolean deleteSku(String skuNumber) {

@@ -136,7 +136,7 @@ public class IntakeService {
         }
     }
 
-    private void processSingleAsset(Connection conn, String serial, AssetInfo details, boolean isScrap, String scrapStatus, String scrapSubStatus, String scrapReason, String boxId) throws SQLException {
+    public void processSingleAsset(Connection conn, String serial, AssetInfo details, boolean isScrap, String scrapStatus, String scrapSubStatus, String scrapReason, String boxId) throws SQLException {
         if (assetDAO.findAssetBySerialNumber(conn, serial).isEmpty()) {
             // --- THIS IS THE FIX ---
             // Ensure the serial number is set on the details object before inserting.

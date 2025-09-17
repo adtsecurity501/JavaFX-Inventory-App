@@ -78,6 +78,13 @@
                         <TextField fx:id="scanLocationField" onAction="#onUpdateByLocation" HBox.hgrow="ALWAYS"/>
                         <Button onAction="#onUpdateByLocation" text="Update All in Box" styleClass="accent"/>
                     </HBox>
+                    <Separator/>
+                    <VBox spacing="8">
+                        <Label styleClass="h4" text="Intake New Devices"/>
+                        <HBox alignment="CENTER_LEFT" spacing="10">
+                            <Button onAction="#handleBulkIntake" text="Bulk Intake from List..."/>
+                        </HBox>
+                    </VBox>
                 </VBox>
             </VBox>
         </TitledPane>

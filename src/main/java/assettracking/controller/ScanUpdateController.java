@@ -294,6 +294,24 @@ public class ScanUpdateController {
     }
 
     @FXML
+    private void handleBulkIntake() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/BulkIntakeDialog.fxml"));
+            Parent root = loader.load();
+
+            BulkIntakeDialogController dialogController = loader.getController();
+            dialogController.init(this.parentController); // Pass a reference to the main controller
+
+            Stage stage = StageManager.createCustomStage(getStage(), "Bulk Intake from List", root);
+            stage.showAndWait();
+
+        } catch (IOException e) {
+            System.err.println("Service error: " + e.getMessage());
+            showAlert("Error", "Could not open the Bulk Intake window.");
+        }
+    }
+
+    @FXML
     private void onUpdateByLocation() {
         String location = scanLocationField.getText().trim();
         if (location.isEmpty()) return;
