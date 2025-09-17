@@ -2,6 +2,7 @@ package assettracking.controller;
 
 import assettracking.dao.AssetDAO;
 import assettracking.dao.DeviceStatusDAO;
+import assettracking.dao.PackageDAO;
 import assettracking.data.AssetInfo;
 import assettracking.data.DeviceStatusView;
 import assettracking.db.DatabaseConnection;
@@ -36,6 +37,7 @@ import java.util.Optional;
 public class DeviceStatusTrackingController {
 
     private static List<String> cachedCategories = null;
+
     private final AssetDAO assetDAO = new AssetDAO(); // <-- THIS LINE IS ADDED
     @FXML
     public Pagination pagination;
@@ -312,21 +314,20 @@ public class DeviceStatusTrackingController {
     }
 
     private void loadFilterCategories() {
+        // If the categories have already been loaded, just use the cached list.
         if (cachedCategories != null) {
             categoryFilterCombo.getItems().addAll(cachedCategories);
             return;
         }
-        cachedCategories = new ArrayList<>();
 
-        // --- THIS IS THE NEW, SMARTER QUERY ---
-        // It gets the distinct, current categories from Physical_Assets, but only for
-        // devices that are currently active in the inventory (have a receipt event).
+        // If this is the first time, query the database.
+        cachedCategories = new ArrayList<>();
         String sql = """
                     SELECT DISTINCT pa.category
-                    FROM Physical_Assets pa
+                    FROM physical_assets pa
                     JOIN (
                         SELECT serial_number, MAX(receipt_id) AS max_receipt_id
-                        FROM Receipt_Events
+                        FROM receipt_events
                         GROUP BY serial_number
                     ) latest ON pa.serial_number = latest.serial_number
                     WHERE pa.category IS NOT NULL AND pa.category != ''
@@ -375,19 +376,36 @@ public class DeviceStatusTrackingController {
             stage.showAndWait();
 
             dialogController.getResult().ifPresent(result -> {
+                // This part is for selecting an EXISTING package
                 if (!result.createNew() && result.selectedPackage() != null) {
-                    assettracking.data.Package newPackage = result.selectedPackage(); // Use the fully qualified name to avoid conflict
-
-                    // You will need to create this DAO method
+                    assettracking.data.Package newPackage = result.selectedPackage();
                     boolean success = new assettracking.dao.ReceiptEventDAO().updatePackageId(selectedDevice.getReceiptId(), newPackage.getPackageId());
-
                     if (success) {
                         StageManager.showAlert(getOwnerWindow(), Alert.AlertType.INFORMATION, "Success", "Device was successfully moved to package " + newPackage.getTrackingNumber());
                         refreshData();
                     } else {
                         StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Error", "Failed to update the package in the database.");
                     }
+                    // --- THIS IS THE NEW LOGIC TO FIX THE BUG ---
+                } else if (result.createNew()) {
+                    // This part handles creating a NEW package for the device
+                    String trackingNumber = "REASSIGNED_" + selectedDevice.getSerialNumber();
+                    PackageDAO packageDAO = new PackageDAO();
+                    int newPackageId = packageDAO.addPackage(trackingNumber, "SYSTEM", "REASSIGNED", "DEPOT", "UT", "84660", java.time.LocalDate.now());
+
+                    if (newPackageId != -1) {
+                        boolean success = new assettracking.dao.ReceiptEventDAO().updatePackageId(selectedDevice.getReceiptId(), newPackageId);
+                        if (success) {
+                            StageManager.showAlert(getOwnerWindow(), Alert.AlertType.INFORMATION, "Success", "Device was successfully moved to a new package with tracking number: " + trackingNumber);
+                            refreshData();
+                        } else {
+                            StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Error", "Failed to update the package in the database after creating the new package.");
+                        }
+                    } else {
+                        StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Error", "Failed to create a new package for the device.");
+                    }
                 }
+                // --- END OF FIX ---
             });
         } catch (IOException e) {
             System.err.println("Service error: " + e.getMessage());

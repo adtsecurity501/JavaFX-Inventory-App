@@ -32,7 +32,7 @@
                       visible="false" managed="false">
                     <Label text="Label Printer:"/>
                     <ComboBox fx:id="labelPrinterCombo" prefWidth="300.0" promptText="Select Printer..."/>
-                    <Label text="Label SKU:" style="-fx-padding: 5 0 0 0;"/>
+                    <Label text="Label SKU:" style="-fx-padding: 5 0 0 0; -fx-font-weight: bold;"/>
                     <TextField fx:id="skuSearchField" promptText="Search for SKU to print..."/>
                     <ListView fx:id="skuListView" prefHeight="100.0"/>
 

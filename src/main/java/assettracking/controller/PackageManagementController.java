@@ -124,11 +124,7 @@ public class PackageManagementController {
             updateTableForPage(pagination.getCurrentPageIndex());
         });
 
-        countTask.setOnFailed(e -> {
-            Platform.runLater(() -> {
-                showAlert(Alert.AlertType.ERROR, "Database Error", "Failed to count packages.");
-            });
-        });
+        countTask.setOnFailed(e -> Platform.runLater(() -> showAlert(Alert.AlertType.ERROR, "Database Error", "Failed to count packages.")));
         new Thread(countTask).start();
     }
 
@@ -145,11 +141,7 @@ public class PackageManagementController {
         };
 
         fetchTask.setOnSucceeded(e -> packageList.setAll(fetchTask.getValue()));
-        fetchTask.setOnFailed(e -> {
-            Platform.runLater(() -> {
-                showAlert(Alert.AlertType.ERROR, "Database Error", "Failed to load package data.");
-            });
-        });
+        fetchTask.setOnFailed(e -> Platform.runLater(() -> showAlert(Alert.AlertType.ERROR, "Database Error", "Failed to load package data.")));
         new Thread(fetchTask).start();
     }
 
@@ -192,6 +184,8 @@ public class PackageManagementController {
                 return;
             }
 
+            // --- THIS IS THE FIX ---
+            // Use the safer, custom confirmation dialog that matches the rest of the app.
             if (StageManager.showDeleteConfirmationDialog(getOwnerWindow(), "package", selectedPackage.getTrackingNumber())) {
                 if (packageDAO.deletePackage(selectedPackage.getPackageId())) {
                     showAlert(Alert.AlertType.INFORMATION, "Success", "Package " + selectedPackage.getTrackingNumber() + " was deleted.");
@@ -200,6 +194,8 @@ public class PackageManagementController {
                     showAlert(Alert.AlertType.ERROR, "Deletion Failed", "An error occurred while deleting the package from the database.");
                 }
             }
+            // --- END OF FIX ---
+
         } catch (SQLException e) {
             showAlert(Alert.AlertType.ERROR, "Database Error", "Could not check package contents: " + e.getMessage());
         }

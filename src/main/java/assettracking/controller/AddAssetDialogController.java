@@ -395,41 +395,34 @@ public class AddAssetDialogController {
         loadCategories();
         bulkAddCheckBox.setSelected(true);
 
-        // Don't just add the serials; run a background task to look them up first.
         Task<List<AssetEntry>> lookupTask = new Task<>() {
             @Override
-            protected List<AssetEntry> call() {
+            protected List<AssetEntry> call() throws Exception {
                 List<AssetEntry> populatedEntries = new ArrayList<>();
-                for (AssetEntry entry : entries) {
-                    String serial = entry.getSerialNumber();
-                    if (serial == null || serial.isEmpty()) continue;
+                // Open ONE connection for the entire loop
+                try (Connection conn = getDbConnection()) {
+                    for (AssetEntry entry : entries) {
+                        String serial = entry.getSerialNumber();
+                        if (serial == null || serial.isEmpty()) continue;
 
-                    // Perform the same lookup as the single-serial field
-                    Optional<AssetInfo> assetOpt = assetDAO.findAssetBySerialNumber(serial);
+                        // Use the new, efficient DAO method that reuses the connection
+                        Optional<AssetInfo> assetOpt = assetDAO.findAssetBySerialNumber(conn, serial);
 
-                    if (assetOpt.isPresent()) {
-                        AssetInfo assetInfo = assetOpt.get();
-                        // Create a new, fully populated entry
-                        populatedEntries.add(new AssetEntry(serial, assetInfo.getImei(), assetInfo.getCategory(), assetInfo.getMake(), assetInfo.getModelNumber(), assetInfo.getDescription(), "" // Probable cause is left blank initially
-                        ));
-                    } else {
-                        // If not found, add the entry with just the serial number
-                        populatedEntries.add(entry);
+                        if (assetOpt.isPresent()) {
+                            AssetInfo assetInfo = assetOpt.get();
+                            populatedEntries.add(new AssetEntry(serial, assetInfo.getImei(), assetInfo.getCategory(), assetInfo.getMake(), assetInfo.getModelNumber(), assetInfo.getDescription(), ""));
+                        } else {
+                            populatedEntries.add(entry);
+                        }
                     }
                 }
                 return populatedEntries;
             }
         };
 
-        lookupTask.setOnSucceeded(e -> {
-            // Once the lookup is complete, update the table on the UI thread
-            assetEntries.setAll(lookupTask.getValue());
-        });
+        lookupTask.setOnSucceeded(e -> assetEntries.setAll(lookupTask.getValue()));
 
-        lookupTask.setOnFailed(e -> {
-            // Handle any potential database errors during the lookup
-            StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Lookup Failed", "An error occurred while looking up serial numbers.");
-        });
+        lookupTask.setOnFailed(e -> StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Lookup Failed", "A database error occurred while looking up serial numbers."));
 
         new Thread(lookupTask).start();
     }

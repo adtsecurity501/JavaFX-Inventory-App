@@ -231,6 +231,9 @@ public class ScanUpdateController {
         disposalLocationLabel.setManaged(isDisposal);
         boxIdHBox.setVisible(isDisposal);
         boxIdHBox.setManaged(isDisposal);
+        if (!needsBoxId) {
+            disposalLocationField.clear();
+        }
 
         boolean isReadyForDeployment = "Processed".equals(status) && "Ready for Deployment".equals(subStatus);
         printLabelsToggle.setVisible(isReadyForDeployment);

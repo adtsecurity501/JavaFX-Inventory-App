@@ -139,20 +139,22 @@ public class AssetDAO {
 
     // New method that operates within an existing transaction
     public Optional<AssetInfo> findAssetBySerialNumber(Connection conn, String serialNumber) throws SQLException {
-        // This query is simplified for brevity but functionally the same
-        String sql = "SELECT * FROM Physical_Assets WHERE serial_number = ?";
+        // This query is simplified but functionally the same as your existing one.
+        // It's designed to run on an existing connection.
+        String sql = "SELECT * FROM physical_assets WHERE serial_number = ?";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, serialNumber);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
                     AssetInfo asset = new AssetInfo();
-                    // Populate asset fields from result set
                     asset.setSerialNumber(rs.getString("serial_number"));
                     asset.setMake(rs.getString("make"));
                     asset.setModelNumber(rs.getString("part_number"));
                     asset.setDescription(rs.getString("description"));
                     asset.setCategory(rs.getString("category"));
                     asset.setImei(rs.getString("imei"));
+                    asset.setEveronSerial(rs.getBoolean("everon_serial"));
+                    asset.setCapacity(rs.getString("capacity"));
                     return Optional.of(asset);
                 }
             }
