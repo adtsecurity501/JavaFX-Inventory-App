@@ -25,9 +25,9 @@ public class DatabaseConnection {
                 System.out.println("PostgreSQL JDBC Driver loaded successfully.");
 
                 HikariConfig config = new HikariConfig();
-                config.setJdbcUrl("jdbc:postgresql://10.68.47.138:5432/inventory");
+                config.setJdbcUrl("jdbc:postgresql://10.68.47.100:5432/inventory");
                 config.setUsername("postgres");
-                config.setPassword("admin");
+                config.setPassword("@dmin");
                 config.setMaximumPoolSize(10);
                 config.setMinimumIdle(2);
                 config.setConnectionTimeout(15000);
