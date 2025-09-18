@@ -21,6 +21,8 @@
         <Button fx:id="manageFoldersButton" text="Manage Import Folders..." onAction="#handleManageFolders"/>
         <Button text="Import Flags..." onAction="#handleImportFlags"/>
         <Button onAction="#handleManageMelRules" text="Update MEL Rules..."/>
+        <Button onAction="#handleImportAutofill" text="Import Autofill Data..."/>
+
     </HBox>
 
     <GridPane fx:id="mainGridPane" hgap="20" vgap="20" VBox.vgrow="ALWAYS">

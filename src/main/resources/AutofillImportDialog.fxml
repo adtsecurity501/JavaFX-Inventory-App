@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<ScrollPane xmlns:fx="http://javafx.com/fxml/1" xmlns="http://javafx.com/javafx/21"
+            fx:controller="assettracking.controller.AutofillImportDialogController"
+            fitToWidth="true" style="-fx-background-color: transparent;">
+    <VBox spacing="15" style="-fx-padding: 20;" prefWidth="760.0">
+        <Label styleClass="h4" text="Import Device Autofill Data"/>
+        <Separator/>
+        <TitledPane text="Step 1: Select Excel File" collapsible="false">
+            <HBox spacing="10" alignment="CENTER_LEFT" style="-fx-padding: 10;">
+                <Button text="Select File..." onAction="#handleSelectFile"/>
+                <TextField fx:id="filePathField" editable="false" HBox.hgrow="ALWAYS" promptText="No file selected"/>
+            </HBox>
+        </TitledPane>
+        <TitledPane text="Step 2: Map Your File's Columns to Database Fields" collapsible="false">
+            <GridPane fx:id="mappingGrid" hgap="10" vgap="10" style="-fx-padding: 15;">
+                <columnConstraints>
+                    <ColumnConstraints hgrow="NEVER" minWidth="150.0"/>
+                    <ColumnConstraints hgrow="ALWAYS"/>
+                </columnConstraints>
+            </GridPane>
+        </TitledPane>
+        <TitledPane text="Step 3: Add/Override Details for All Imported Devices (Optional)" collapsible="false">
+            <GridPane hgap="10" vgap="8" style="-fx-padding: 15;">
+                <columnConstraints>
+                    <ColumnConstraints hgrow="NEVER" minWidth="150.0"/>
+                    <ColumnConstraints hgrow="ALWAYS"/>
+                </columnConstraints>
+                <Label text="Make:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+                <TextField fx:id="makeField" promptText="e.g., Apple (Will be used if not mapped in Step 2)"
+                           GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+                <Label text="Category:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+                <TextField fx:id="categoryField" promptText="e.g., Laptop (Will be used if not mapped in Step 2)"
+                           GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+                <Label text="Part Number (Mfg #):" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+                <TextField fx:id="partNumberField" promptText="Will be used if not mapped in Step 2"
+                           GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+                <Label text="Description:" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
+                <TextField fx:id="descriptionField" promptText="Will be used if not mapped in Step 2"
+                           GridPane.rowIndex="3" GridPane.columnIndex="1"/>
+            </GridPane>
+        </TitledPane>
+        <HBox alignment="CENTER_RIGHT" spacing="10">
+            <Label fx:id="statusLabel" HBox.hgrow="ALWAYS" maxWidth="Infinity" style="-fx-font-weight: bold;"/>
+            <Button fx:id="importButton" text="Import Data" onAction="#handleImport" styleClass="success"
+                    disable="true"/>
+            <Button text="Close" onAction="#handleClose"/>
+        </HBox>
+    </VBox>
+</ScrollPane>

@@ -14,6 +14,8 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
 import javafx.scene.chart.BarChart;
 import javafx.scene.chart.PieChart;
 import javafx.scene.chart.XYChart;
@@ -132,9 +134,7 @@ public class DashboardController {
             refreshAllData();
         });
 
-        initialLoadTask.setOnFailed(e -> Platform.runLater(() -> {
-            StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Database Connection Failed", "Could not connect to the database. Please ensure the H2 server is running and the network is accessible.\n\nError: " + initialLoadTask.getException().getMessage());
-        }));
+        initialLoadTask.setOnFailed(e -> Platform.runLater(() -> StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Database Connection Failed", "Could not connect to the database. Please ensure the H2 server is running and the network is accessible.\n\nError: " + initialLoadTask.getException().getMessage())));
 
         new Thread(initialLoadTask).start();
     }
@@ -401,6 +401,18 @@ public class DashboardController {
             settingsDAO.saveSetting(FOLDERS_KEY, pathsToSave);
             StageManager.showAlert(getStage(), Alert.AlertType.INFORMATION, "Settings Saved", "Your import folder list has been updated.");
         });
+    }
+
+    @FXML
+    private void handleImportAutofill() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/AutofillImportDialog.fxml"));
+            Parent root = loader.load();
+            Stage stage = StageManager.createCustomStage(getStage(), "Bulk Import Autofill Data", root);
+            stage.showAndWait();
+        } catch (IOException e) {
+            StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Error", "Could not open the import dialog: " + e.getMessage());
+        }
     }
 
     @FXML

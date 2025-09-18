@@ -9,6 +9,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 public class AssetDAO {
 
@@ -67,30 +69,19 @@ public class AssetDAO {
     }
 
     /**
-     * Finds descriptions case-insensitively, ranking results that start with the fragment higher.
+     * Finds descriptions case-insensitively, fetching a broad list from the DB
+     * and then performing intelligent, prioritized sorting within the Java code.
+     * This avoids a bug in H2's CASE statement implementation.
      */
     public List<String> findDescriptionsLike(String descriptionFragment) {
         List<String> suggestions = new ArrayList<>();
-        // This query now uses LOWER() on all columns and parameters for a case-insensitive search.
-        String sql = "SELECT DISTINCT description, " + "CASE " + "    WHEN LOWER(description) LIKE ? THEN 1 " + // Priority 1: Starts with the term
-                "    WHEN LOWER(description) LIKE ? THEN 2 " + // Priority 2: Contains the term as a whole word
-                "    ELSE 3 " +                                // Priority 3: Just contains the term
-                "END AS priority " + "FROM SKU_Table " + "WHERE (LOWER(description) LIKE ? OR LOWER(model_number) LIKE ?) " + "AND description IS NOT NULL AND description != '' " + "ORDER BY priority, description " + "LIMIT 10";
+        // Use a simple, stable query to fetch all potential matches.
+        String sql = "SELECT DISTINCT description FROM SKU_Table " + "WHERE (description ILIKE ? OR model_number ILIKE ?) " + "AND description IS NOT NULL AND description != '' " + "LIMIT 30"; // Fetch a larger set to sort from
 
         try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
-
-            // Convert search terms to lowercase here
-            String lowerFragment = descriptionFragment.toLowerCase();
-            String startsWithTerm = lowerFragment + "%";
-            String wholeWordTerm = "% " + lowerFragment + "%";
-            String searchTerm = "%" + lowerFragment + "%";
-
-            // Set the parameters in the correct order for the query
-            stmt.setString(1, startsWithTerm);      // For priority 1
-            stmt.setString(2, wholeWordTerm);      // For priority 2
-            stmt.setString(3, searchTerm);         // For WHERE clause (description)
-            stmt.setString(4, searchTerm);         // For WHERE clause (model_number)
-
+            String searchTerm = "%" + descriptionFragment + "%";
+            stmt.setString(1, searchTerm);
+            stmt.setString(2, searchTerm);
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
                     suggestions.add(rs.getString("description"));
@@ -99,33 +90,34 @@ public class AssetDAO {
         } catch (SQLException e) {
             System.err.println("Database error: " + e.getMessage());
         }
-        return suggestions;
+
+        // --- NEW: Perform the intelligent sorting in Java ---
+        final String lowerFragment = descriptionFragment.toLowerCase();
+        suggestions.sort((s1, s2) -> {
+            int score1 = getScore(s1, lowerFragment);
+            int score2 = getScore(s2, lowerFragment);
+            if (score1 != score2) {
+                return Integer.compare(score1, score2); // Lower score is better
+            }
+            return s1.compareToIgnoreCase(s2); // Alphabetical tie-breaker
+        });
+
+        // Return only the top 10 results from the sorted list
+        return suggestions.stream().limit(10).collect(Collectors.toList());
     }
 
     /**
-     * Finds model numbers case-insensitively, ranking results that start with the fragment higher.
+     * Finds model numbers case-insensitively, fetching a broad list from the DB
+     * and then performing intelligent, prioritized sorting within the Java code.
      */
     public List<String> findModelNumbersLike(String modelFragment) {
         List<String> suggestions = new ArrayList<>();
-        // This query also uses LOWER() for a case-insensitive search.
-        String sql = "SELECT DISTINCT model_number, " + "CASE " + "    WHEN LOWER(model_number) LIKE ? THEN 1 " + // Priority 1: Starts with the term
-                "    WHEN LOWER(model_number) LIKE ? THEN 2 " + // Priority 2: Contains the term as a whole word
-                "    ELSE 3 " +                                // Priority 3: Just contains the term
-                "END AS priority " + "FROM SKU_Table " + "WHERE (LOWER(model_number) LIKE ? OR LOWER(description) LIKE ?) " + "AND model_number IS NOT NULL AND model_number != '' " + "ORDER BY priority, model_number " + "LIMIT 10";
+        String sql = "SELECT DISTINCT model_number FROM SKU_Table " + "WHERE (model_number ILIKE ? OR description ILIKE ?) " + "AND model_number IS NOT NULL AND model_number != '' " + "LIMIT 30";
+
         try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
-
-            // Convert search terms to lowercase here
-            String lowerFragment = modelFragment.toLowerCase();
-            String startsWithTerm = lowerFragment + "%";
-            String wholeWordTerm = "% " + lowerFragment + "%";
-            String searchTerm = "%" + lowerFragment + "%";
-
-            // Set the parameters in the correct order for the query
-            stmt.setString(1, startsWithTerm);      // For priority 1
-            stmt.setString(2, wholeWordTerm);      // For priority 2
-            stmt.setString(3, searchTerm);         // For WHERE clause (model_number)
-            stmt.setString(4, searchTerm);         // For WHERE clause (description)
-
+            String searchTerm = "%" + modelFragment + "%";
+            stmt.setString(1, searchTerm);
+            stmt.setString(2, searchTerm);
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
                     suggestions.add(rs.getString("model_number"));
@@ -134,7 +126,31 @@ public class AssetDAO {
         } catch (SQLException e) {
             System.err.println("Database error: " + e.getMessage());
         }
-        return suggestions;
+
+        // --- NEW: Perform the intelligent sorting in Java ---
+        final String lowerFragment = modelFragment.toLowerCase();
+        suggestions.sort((s1, s2) -> {
+            int score1 = getScore(s1, lowerFragment);
+            int score2 = getScore(s2, lowerFragment);
+            if (score1 != score2) {
+                return Integer.compare(score1, score2);
+            }
+            return s1.compareToIgnoreCase(s2);
+        });
+
+        return suggestions.stream().limit(10).collect(Collectors.toList());
+    }
+
+    // --- NEW: Private helper method for sorting logic ---
+    private int getScore(String suggestion, String searchTerm) {
+        String lowerSuggestion = suggestion.toLowerCase();
+        if (lowerSuggestion.startsWith(searchTerm)) {
+            return 1; // Best score: starts with term
+        }
+        if (lowerSuggestion.contains(" " + searchTerm)) {
+            return 2; // Good score: contains term as a whole word
+        }
+        return 3; // Base score: just contains the term
     }
 
     // New method that operates within an existing transaction
@@ -160,6 +176,95 @@ public class AssetDAO {
             }
         }
         return Optional.empty();
+    }
+
+    public List<String> findDistinctValuesLike(String columnName, String fragment) {
+        List<String> suggestions = new ArrayList<>();
+        // Basic validation to prevent SQL injection, though parameters make it safe.
+        if (!columnName.matches("^[a-zA-Z0-9_]+$")) {
+            return suggestions;
+        }
+
+        String sql = String.format("SELECT DISTINCT %s FROM device_autofill_data WHERE %s IS NOT NULL AND %s != '' AND %s LIKE ? ORDER BY %s LIMIT 10", columnName, columnName, columnName, columnName, columnName);
+
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setString(1, "%" + fragment + "%");
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    suggestions.add(rs.getString(1));
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Database error finding distinct values for autofill: " + e.getMessage());
+        }
+        return suggestions;
+    }
+
+    public CompletableFuture<List<AssetInfo>> getAllAutofillEntries() {
+        return CompletableFuture.supplyAsync(() -> {
+            List<AssetInfo> entries = new ArrayList<>();
+            String sql = "SELECT * FROM device_autofill_data ORDER BY serial_number";
+            try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql); ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    AssetInfo asset = new AssetInfo();
+                    asset.setSerialNumber(rs.getString("serial_number"));
+                    asset.setMake(rs.getString("make"));
+                    asset.setModelNumber(rs.getString("part_number"));
+                    asset.setDescription(rs.getString("description"));
+                    asset.setCategory(rs.getString("category"));
+                    // SKU field is removed from here
+                    entries.add(asset);
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+            return entries;
+        });
+    }
+
+    public CompletableFuture<Boolean> addAutofillEntry(AssetInfo asset) {
+        return CompletableFuture.supplyAsync(() -> {
+            String sql = "INSERT INTO device_autofill_data (serial_number, make, part_number, description, category) VALUES (?, ?, ?, ?, ?)";
+            try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setString(1, asset.getSerialNumber());
+                stmt.setString(2, asset.getMake());
+                stmt.setString(3, asset.getModelNumber());
+                stmt.setString(4, asset.getDescription());
+                stmt.setString(5, asset.getCategory());
+                return stmt.executeUpdate() > 0;
+            } catch (SQLException e) {
+                return false;
+            }
+        });
+    }
+
+    public CompletableFuture<Boolean> updateAutofillEntry(AssetInfo asset) {
+        return CompletableFuture.supplyAsync(() -> {
+            String sql = "UPDATE device_autofill_data SET make = ?, part_number = ?, description = ?, category = ? WHERE serial_number = ?";
+            try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setString(1, asset.getMake());
+                stmt.setString(2, asset.getModelNumber());
+                stmt.setString(3, asset.getDescription());
+                stmt.setString(4, asset.getCategory());
+                stmt.setString(5, asset.getSerialNumber());
+                return stmt.executeUpdate() > 0;
+            } catch (SQLException e) {
+                return false;
+            }
+        });
+    }
+
+    public CompletableFuture<Boolean> deleteAutofillEntry(String serialNumber) {
+        return CompletableFuture.supplyAsync(() -> {
+            String sql = "DELETE FROM device_autofill_data WHERE serial_number = ?";
+            try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setString(1, serialNumber);
+                return stmt.executeUpdate() > 0;
+            } catch (SQLException e) {
+                return false;
+            }
+        });
     }
 
     // New method that operates within an existing transaction
