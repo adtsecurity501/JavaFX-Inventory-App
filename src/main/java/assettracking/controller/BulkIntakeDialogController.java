@@ -18,7 +18,6 @@ import javafx.stage.Stage;
 import javafx.util.StringConverter;
 
 import java.sql.Connection;
-import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -34,6 +33,7 @@ public class BulkIntakeDialogController {
     private AutoCompletePopup makePopup;
     private AutoCompletePopup modelPopup;
     private AutoCompletePopup descriptionPopup;
+
     @FXML
     private ComboBox<Package> packageComboBox;
     @FXML
@@ -69,35 +69,56 @@ public class BulkIntakeDialogController {
     }
 
     private void setupPackageComboBox() {
-        // This allows the ComboBox to display the package tracking number
+        // This converter now handles both displaying the Package and finding it from text
         packageComboBox.setConverter(new StringConverter<>() {
             @Override
             public String toString(Package object) {
-                return object != null ? object.getTrackingNumber() + " - " + object.getFirstName() + " " + object.getLastName() : "";
+                if (object == null) {
+                    return "";
+                }
+                return object.getTrackingNumber() + " - " + object.getFirstName() + " " + object.getLastName();
             }
 
             @Override
             public Package fromString(String string) {
-                return null; // Not needed for this use case
+                // This is the crucial new logic. It finds the matching package from the items in the dropdown.
+                return packageComboBox.getItems().stream().filter(item -> toString(item).equals(string)).findFirst().orElse(null);
             }
         });
 
-        // This will allow for searching
+        // This listener is still needed to perform the search as the user types
         packageComboBox.getEditor().textProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal == null || newVal.isEmpty()) {
                 packageComboBox.getItems().clear();
                 return;
             }
-            try {
-                List<Package> results = packageDAO.searchPackagesByTracking(newVal);
-                packageComboBox.setItems(FXCollections.observableArrayList(results));
-                packageComboBox.show();
-            } catch (SQLException e) {
-                // --- THIS IS THE FIX ---
-                // Replace the raw stack trace with a cleaner, more informative error message for the log.
-                System.err.println("Database error searching for packages: " + e.getMessage());
-                // --- END OF FIX ---
+
+            // This ensures we don't search if the user just selected an item
+            Package selected = packageComboBox.getSelectionModel().getSelectedItem();
+            if (selected != null && newVal.equals(packageComboBox.getConverter().toString(selected))) {
+                return;
             }
+
+            Task<List<Package>> searchTask = new Task<>() {
+                @Override
+                protected List<Package> call() throws Exception {
+                    return packageDAO.searchPackagesByTracking(newVal);
+                }
+            };
+
+            searchTask.setOnSucceeded(e -> {
+                List<Package> results = searchTask.getValue();
+                packageComboBox.getItems().setAll(results);
+                if (!results.isEmpty()) {
+                    packageComboBox.show();
+                } else {
+                    packageComboBox.hide();
+                }
+            });
+
+            searchTask.setOnFailed(e -> System.err.println("Database error searching for packages: " + e.getSource().getException().getMessage()));
+
+            new Thread(searchTask).start();
         });
     }
 
