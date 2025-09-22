@@ -58,7 +58,6 @@ public class PackageIntakeController {
     @FXML
     private void handleTrackingLookup() {
         String rawTracking = trackingField.getText().trim();
-        // Automatically sanitize FedEx/UPS tracking numbers to the last 14 digits
         String currentTracking = rawTracking.length() > 14 ? rawTracking.substring(rawTracking.length() - 14) : rawTracking;
         trackingField.setText(currentTracking);
 
@@ -70,23 +69,12 @@ public class PackageIntakeController {
             return;
         }
 
-        // --- NEW LOGIC: Check for existing package first ---
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement("SELECT * FROM Packages WHERE tracking_number = ?")) {
-
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement("SELECT * FROM packages WHERE tracking_number = ?")) {
             stmt.setString(1, currentTracking);
             ResultSet rs = stmt.executeQuery();
-
             if (rs.next()) {
                 Package existingPkg = new Package(rs.getInt("package_id"), rs.getString("tracking_number"), rs.getString("first_name"), rs.getString("last_name"), rs.getString("city"), rs.getString("state"), rs.getString("zip_code"), rs.getDate("receive_date").toLocalDate());
-
-                boolean openExisting = StageManager.showConfirmationDialog(
-                        getOwnerWindow(),
-                        "Duplicate Package Found",
-                        "A package with this tracking number already exists in the database.",
-                        "Do you want to open the existing package details?"
-                );
-
+                boolean openExisting = StageManager.showConfirmationDialog(getOwnerWindow(), "Duplicate Package Found", "A package with this tracking number already exists in the database.", "Do you want to open the existing package details?");
                 if (openExisting) {
                     openPackageDetailWindow(existingPkg);
                     clearForm();
@@ -94,17 +82,16 @@ public class PackageIntakeController {
                     trackingErrorLabel.setText("Package already exists.");
                     startButton.setDisable(true);
                 }
-                return; // Stop further processing
+                return;
             }
         } catch (SQLException e) {
             showAlert(Alert.AlertType.ERROR, "Database Error", "Error checking for duplicate package: " + e.getMessage());
             return;
         }
 
-        // --- Existing logic to look up from Return_Labels if no duplicate is found ---
-        String returnLabelSql = "SELECT contact_name, city, state, zip_code FROM Return_Labels WHERE SUBSTRING(tracking_number, LENGTH(tracking_number) - 13) = ?";
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(returnLabelSql)) {
+        String returnLabelSql = "SELECT contact_name, city, state, zip_code FROM return_labels WHERE RIGHT(tracking_number, 14) = ?";
+
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(returnLabelSql)) {
             stmt.setString(1, currentTracking);
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
@@ -115,7 +102,6 @@ public class PackageIntakeController {
                 cityField.setText(rs.getString("city"));
                 stateField.setText(rs.getString("state"));
                 zipField.setText(rs.getString("zip_code"));
-                // Automatically proceed to start intake if a match is found
                 Platform.runLater(this::handleStartIntake);
             }
         } catch (SQLException e) {
@@ -131,19 +117,13 @@ public class PackageIntakeController {
             return;
         }
 
-        // This part now only runs if the tracking number is new
-        int packageId = packageDAO.addPackage(tracking, firstNameField.getText().trim(), lastNameField.getText().trim(),
-                cityField.getText().trim(), stateField.getText().trim(),
-                zipField.getText().trim(), LocalDate.now());
+        int packageId = packageDAO.addPackage(tracking, firstNameField.getText().trim(), lastNameField.getText().trim(), cityField.getText().trim(), stateField.getText().trim(), zipField.getText().trim(), LocalDate.now());
 
         if (packageId != -1) {
-            Package pkg = new Package(packageId, tracking, firstNameField.getText().trim(), lastNameField.getText().trim(),
-                    cityField.getText().trim(), stateField.getText().trim(),
-                    zipField.getText().trim(), LocalDate.now());
+            Package pkg = new Package(packageId, tracking, firstNameField.getText().trim(), lastNameField.getText().trim(), cityField.getText().trim(), stateField.getText().trim(), zipField.getText().trim(), LocalDate.now());
             openPackageDetailWindow(pkg);
             clearForm();
         } else {
-            // This alert will now correctly trigger for other potential insert errors, as duplicates are handled above.
             showAlert(Alert.AlertType.ERROR, "Error", "Failed to create package. It might already exist.");
         }
     }
@@ -151,8 +131,7 @@ public class PackageIntakeController {
     private void handleZipLookup() {
         String zip = zipField.getText().trim();
         if (zip.matches("\\d{5}")) {
-            try (Connection conn = DatabaseConnection.getInventoryConnection();
-                 PreparedStatement stmt = conn.prepareStatement("SELECT primary_city, state_code FROM ZipCodeData WHERE zip_code = ?")) {
+            try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement("SELECT primary_city, state_code FROM zip_code_data WHERE zip_code = ?")) {
                 stmt.setString(1, zip);
                 ResultSet rs = stmt.executeQuery();
                 if (rs.next()) {

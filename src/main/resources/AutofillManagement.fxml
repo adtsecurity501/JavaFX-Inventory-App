@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<BorderPane xmlns:fx="http://javafx.com/fxml/1" fx:controller="assettracking.controller.AutofillManagementController">
+    <padding>
+        <Insets top="10" right="10" bottom="10" left="10"/>
+    </padding>
+    <top>
+        <HBox alignment="CENTER_LEFT" spacing="10" style="-fx-padding: 0 0 10 0;">
+            <Label text="Search:"/>
+            <TextField fx:id="searchField" promptText="Filter by any field..." HBox.hgrow="ALWAYS"/>
+        </HBox>
+    </top>
+    <center>
+        <TableView fx:id="autofillTable" editable="true">
+            <columns>
+                <TableColumn fx:id="serialCol" prefWidth="150.0" text="Serial Number"/>
+                <TableColumn fx:id="makeCol" prefWidth="100.0" text="Make"/>
+                <TableColumn fx:id="partNumberCol" prefWidth="150.0" text="Part Number"/>
+                <TableColumn fx:id="descriptionCol" prefWidth="300.0" text="Description"/>
+                <TableColumn fx:id="categoryCol" prefWidth="120.0" text="Category"/>
+            </columns>
+        </TableView>
+    </center>
+    <bottom>
+        <VBox spacing="10" style="-fx-padding: 10 0 0 0;">
+            <TitledPane text="Add / Edit Entry" collapsible="false">
+                <GridPane hgap="10" vgap="8" style="-fx-padding: 15;">
+                    <columnConstraints>
+                        <ColumnConstraints hgrow="NEVER" minWidth="100"/>
+                        <ColumnConstraints hgrow="ALWAYS"/>
+                        <ColumnConstraints hgrow="NEVER" minWidth="100"/>
+                        <ColumnConstraints hgrow="ALWAYS"/>
+                    </columnConstraints>
+                    <Label text="Serial Number:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+                    <TextField fx:id="serialField" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+                    <Label text="Make:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+                    <TextField fx:id="makeField" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+                    <Label text="Part Number:" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+                    <TextField fx:id="partNumberField" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+                    <Label text="Category:" GridPane.rowIndex="0" GridPane.columnIndex="2"/>
+                    <TextField fx:id="categoryField" GridPane.rowIndex="0" GridPane.columnIndex="3"/>
+                    <Label text="Description:" GridPane.rowIndex="2" GridPane.columnIndex="2"/>
+                    <TextField fx:id="descriptionField" GridPane.rowIndex="2" GridPane.columnIndex="3"/>
+                </GridPane>
+            </TitledPane>
+            <HBox alignment="CENTER_RIGHT" spacing="10">
+                <Label fx:id="statusLabel" HBox.hgrow="ALWAYS" maxWidth="Infinity" style="-fx-font-weight: bold;"/>
+                <Button onAction="#handleNew" text="New Entry"/>
+                <Button onAction="#handleDelete" text="Delete Selected"/>
+                <Button onAction="#handleSave" styleClass="success" text="Save Changes"/>
+            </HBox>
+        </VBox>
+    </bottom>
+</BorderPane>

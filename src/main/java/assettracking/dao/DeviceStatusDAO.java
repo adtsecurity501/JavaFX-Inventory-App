@@ -16,6 +16,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
@@ -29,114 +30,20 @@ public class DeviceStatusDAO {
         this.deviceStatusList = deviceStatusList;
     }
 
-    // --- THIS IS THE MISSING METHOD, NOW RESTORED AND ADAPTED FOR POSTGRESQL ---
-    public void updateDeviceStatus(ObservableList<DeviceStatusView> selectedDevices, String newStatus, String newSubStatus, String note, String boxId) {
-        if (selectedDevices == null || selectedDevices.isEmpty()) {
-            StageManager.showAlert(null, Alert.AlertType.WARNING, "No Selection", "Please select one or more devices to update.");
-            return;
-        }
-
-        String updateStatusSql = "UPDATE device_status SET status = ?, sub_status = ?, last_update = CURRENT_TIMESTAMP, change_log = ?, box_id = ? WHERE receipt_id = ?";
-        String deleteFlagSql = "DELETE FROM flag_devices WHERE serial_number = ?";
-
-        Connection conn = null;
-        try {
-            conn = DatabaseConnection.getInventoryConnection();
-            conn.setAutoCommit(false);
-
-            try (PreparedStatement updateStmt = conn.prepareStatement(updateStatusSql);
-                 PreparedStatement deleteStmt = conn.prepareStatement(deleteFlagSql)) {
-
-                for (DeviceStatusView device : selectedDevices) {
-                    updateStmt.setString(1, newStatus);
-                    updateStmt.setString(2, newSubStatus);
-                    updateStmt.setString(3, note.isEmpty() ? null : note);
-
-                    if ("Deleted (Mistake)".equals(newSubStatus)) {
-                        updateStmt.setNull(4, java.sql.Types.VARCHAR);
-                    } else {
-                        updateStmt.setString(4, (boxId != null && !boxId.isEmpty()) ? boxId : null);
-                    }
-
-                    updateStmt.setInt(5, device.getReceiptId());
-                    updateStmt.addBatch();
-
-                    if ("Flag!".equals(device.getStatus())) {
-                        deleteStmt.setString(1, device.getSerialNumber());
-                        deleteStmt.addBatch();
-                    }
-                }
-                updateStmt.executeBatch();
-                deleteStmt.executeBatch();
-            }
-            conn.commit();
-        } catch (SQLException e) {
-            StageManager.showAlert(null, Alert.AlertType.ERROR, "Update Failed", "Failed to update device statuses: " + e.getMessage());
-            if (conn != null) {
-                try {
-                    conn.rollback();
-                } catch (SQLException ex) {
-                    StageManager.showAlert(null, Alert.AlertType.ERROR, "Rollback Failed", "Failed to rollback database changes: " + ex.getMessage());
-                }
-            }
-        } finally {
-            if (conn != null) {
-                try {
-                    conn.setAutoCommit(true);
-                    conn.close();
-                } catch (SQLException e) {
-                    StageManager.showAlert(null, Alert.AlertType.ERROR, "Connection Error", "Failed to close database connection: " + e.getMessage());
-                }
-            }
-        }
-    }
-
     public int fetchPageCount() {
         DeviceStatusActions.QueryAndParams queryAndParams = buildFilteredQuery(true);
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(queryAndParams.sql())) {
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(queryAndParams.sql())) {
             for (int i = 0; i < queryAndParams.params().size(); i++) {
                 stmt.setObject(i + 1, queryAndParams.params().get(i));
             }
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getInt(1);
-                }
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt(1);
             }
         } catch (SQLException e) {
             Platform.runLater(() -> StageManager.showAlert(null, Alert.AlertType.ERROR, "Database Error", "Failed to count records for pagination: " + e.getMessage()));
         }
         return 0;
-    }
-
-    // The rest of the methods are the same as the correct version you already have.
-
-    public void updateTableForPage(int pageIndex) {
-        deviceStatusList.clear();
-        DeviceStatusActions.QueryAndParams queryAndParams = buildFilteredQuery(false);
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(queryAndParams.sql())) {
-            int paramIndex = 1;
-            for (Object param : queryAndParams.params()) {
-                stmt.setObject(paramIndex++, param);
-            }
-            stmt.setInt(paramIndex++, manager.getRowsPerPage());
-            stmt.setInt(paramIndex, pageIndex * manager.getRowsPerPage());
-
-            try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    deviceStatusList.add(new DeviceStatusView(
-                            rs.getInt("receipt_id"), rs.getString("serial_number"), rs.getString("category"),
-                            rs.getString("make"), rs.getString("description"), rs.getString("status"),
-                            rs.getString("sub_status"), rs.getTimestamp("last_update") != null ? rs.getTimestamp("last_update").toString().substring(0, 19) : "",
-                            rs.getString("receive_date") != null ? rs.getString("receive_date") : "N/A",
-                            rs.getString("change_log"), rs.getBoolean("is_flagged")
-                    ));
-                }
-            }
-        } catch (SQLException e) {
-            Platform.runLater(() -> StageManager.showAlert(null, Alert.AlertType.ERROR, "Database Error", "Failed to load page data: " + e.getMessage()));
-        }
     }
 
     public BulkUpdateResult bulkUpdateStatusBySerial(Set<String> serials, String newStatus, String newSubStatus, String note) throws SQLException {
@@ -191,25 +98,130 @@ public class DeviceStatusDAO {
         return new BulkUpdateResult(updatedSerials, notFoundSerials);
     }
 
+    public void updateTableForPage(int pageIndex) {
+        deviceStatusList.clear();
+        DeviceStatusActions.QueryAndParams queryAndParams = buildFilteredQuery(false);
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(queryAndParams.sql())) {
+            int paramIndex = 1;
+            for (Object param : queryAndParams.params()) {
+                stmt.setObject(paramIndex++, param);
+            }
+            stmt.setInt(paramIndex++, manager.getRowsPerPage());
+            stmt.setInt(paramIndex, pageIndex * manager.getRowsPerPage());
+
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                deviceStatusList.add(new DeviceStatusView(rs.getInt("receipt_id"), rs.getString("serial_number"), rs.getString("category"), rs.getString("make"), rs.getString("description"), rs.getString("status"), rs.getString("sub_status"), rs.getTimestamp("last_update") != null ? rs.getTimestamp("last_update").toString().substring(0, 19) : "", rs.getString("receive_date") != null ? rs.getString("receive_date") : "N/A", rs.getString("change_log"), rs.getBoolean("is_flagged")));
+            }
+        } catch (SQLException e) {
+            Platform.runLater(() -> StageManager.showAlert(null, Alert.AlertType.ERROR, "Database Error", "Failed to load page data: " + e.getMessage()));
+        }
+    }
+
+    public void updateDeviceStatus(ObservableList<DeviceStatusView> selectedDevices, String newStatus, String newSubStatus, String note, String boxId) {
+        if (selectedDevices == null || selectedDevices.isEmpty()) {
+            StageManager.showAlert(null, Alert.AlertType.WARNING, "No Selection", "Please select one or more devices to update.");
+            return;
+        }
+
+        String updateStatusSql = "UPDATE device_status SET status = ?, sub_status = ?, last_update = CURRENT_TIMESTAMP, change_log = ?, box_id = ? WHERE receipt_id = ?";
+        String deleteFlagSql = "DELETE FROM flag_devices WHERE serial_number = ?";
+
+        Connection conn = null;
+        try {
+            conn = DatabaseConnection.getInventoryConnection();
+            conn.setAutoCommit(false);
+
+            try (PreparedStatement updateStmt = conn.prepareStatement(updateStatusSql); PreparedStatement deleteStmt = conn.prepareStatement(deleteFlagSql)) {
+
+                for (DeviceStatusView device : selectedDevices) {
+                    updateStmt.setString(1, newStatus);
+                    updateStmt.setString(2, newSubStatus);
+                    updateStmt.setString(3, note.isEmpty() ? null : note);
+
+                    if ("Deleted (Mistake)".equals(newSubStatus)) {
+                        updateStmt.setNull(4, java.sql.Types.VARCHAR);
+                    } else {
+                        updateStmt.setString(4, (boxId != null && !boxId.isEmpty()) ? boxId : null);
+                    }
+
+                    updateStmt.setInt(5, device.getReceiptId());
+                    updateStmt.addBatch();
+
+                    if ("Flag!".equals(device.getStatus())) {
+                        deleteStmt.setString(1, device.getSerialNumber());
+                        deleteStmt.addBatch();
+                    }
+                }
+                updateStmt.executeBatch();
+                deleteStmt.executeBatch();
+            }
+            conn.commit();
+        } catch (SQLException e) {
+            StageManager.showAlert(null, Alert.AlertType.ERROR, "Update Failed", "Failed to update device statuses in the database: " + e.getMessage());
+            if (conn != null) {
+                try {
+                    conn.rollback();
+                } catch (SQLException ex) {
+                    StageManager.showAlert(null, Alert.AlertType.ERROR, "Rollback Failed", "Failed to rollback database changes: " + ex.getMessage());
+                }
+            }
+        } finally {
+            if (conn != null) {
+                try {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                } catch (SQLException e) {
+                    StageManager.showAlert(null, Alert.AlertType.ERROR, "Connection Error", "Failed to close database connection: " + e.getMessage());
+                }
+            }
+        }
+    }
+
+    public int permanentlyDeleteDevicesBySerial(Set<String> serials) throws SQLException {
+        if (serials == null || serials.isEmpty()) {
+            return 0;
+        }
+
+        String placeholders = String.join(",", Collections.nCopies(serials.size(), "?"));
+
+        String[] deleteQueries = {String.format("DELETE FROM device_status WHERE receipt_id IN (SELECT receipt_id FROM receipt_events WHERE serial_number IN (%s))", placeholders), String.format("DELETE FROM disposition_info WHERE receipt_id IN (SELECT receipt_id FROM receipt_events WHERE serial_number IN (%s))", placeholders), String.format("DELETE FROM flag_devices WHERE serial_number IN (%s)", placeholders), String.format("DELETE FROM receipt_events WHERE serial_number IN (%s)", placeholders), String.format("DELETE FROM physical_assets WHERE serial_number IN (%s)", placeholders), String.format("DELETE FROM device_autofill_data WHERE serial_number IN (%s)", placeholders)};
+
+        int totalRowsAffected = 0;
+        Connection conn = null;
+        try {
+            conn = DatabaseConnection.getInventoryConnection();
+            conn.setAutoCommit(false); // Start transaction
+
+            for (String sql : deleteQueries) {
+                try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                    int i = 1;
+                    for (String serial : serials) {
+                        stmt.setString(i++, serial);
+                    }
+                    totalRowsAffected += stmt.executeUpdate();
+                }
+            }
+            conn.commit();
+            return totalRowsAffected;
+
+        } catch (SQLException e) {
+            if (conn != null) conn.rollback();
+            throw e;
+        } finally {
+            if (conn != null) {
+                conn.setAutoCommit(true);
+                conn.close();
+            }
+        }
+    }
+
     private DeviceStatusActions.QueryAndParams buildFilteredQuery(boolean forCount) {
         DeviceStatusTrackingController controller = manager.getController();
 
-        String baseQuery =
-                " FROM receipt_events re " +
-                        "INNER JOIN ( " +
-                        "    SELECT serial_number, MAX(receipt_id) AS max_receipt_id " +
-                        "    FROM receipt_events " +
-                        "    GROUP BY serial_number " +
-                        ") latest ON re.serial_number = latest.serial_number AND re.receipt_id = latest.max_receipt_id " +
-                        "LEFT JOIN physical_assets pa ON re.serial_number = pa.serial_number " +
-                        "LEFT JOIN packages p ON re.package_id = p.package_id " +
-                        "LEFT JOIN device_status ds ON re.receipt_id = ds.receipt_id";
+        String baseQuery = " FROM receipt_events re " + "INNER JOIN ( " + "    SELECT serial_number, MAX(receipt_id) AS max_receipt_id " + "    FROM receipt_events " + "    GROUP BY serial_number " + ") latest ON re.serial_number = latest.serial_number AND re.receipt_id = latest.max_receipt_id " + "LEFT JOIN physical_assets pa ON re.serial_number = pa.serial_number " + "LEFT JOIN packages p ON re.package_id = p.package_id " + "LEFT JOIN device_status ds ON re.receipt_id = ds.receipt_id";
 
-        String selectClause = forCount
-                ? "SELECT COUNT(DISTINCT re.serial_number)"
-                : "SELECT p.receive_date, re.receipt_id, re.serial_number, pa.category, pa.make, pa.description, " +
-                "ds.status, ds.sub_status, ds.last_update, ds.change_log, " +
-                "EXISTS(SELECT 1 FROM flag_devices fd WHERE fd.serial_number = re.serial_number) AS is_flagged";
+        String selectClause = forCount ? "SELECT COUNT(DISTINCT re.serial_number)" : "SELECT p.receive_date, re.receipt_id, re.serial_number, pa.category, pa.make, pa.description, " + "ds.status, ds.sub_status, ds.last_update, ds.change_log, " + "EXISTS(SELECT 1 FROM flag_devices fd WHERE fd.serial_number = re.serial_number) AS is_flagged";
 
         List<Object> params = new ArrayList<>();
         StringBuilder whereClause = new StringBuilder(" WHERE 1=1");

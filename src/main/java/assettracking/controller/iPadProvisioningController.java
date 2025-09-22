@@ -41,8 +41,6 @@ public class iPadProvisioningController {
     private final ObservableList<BulkDevice> dbDeviceList = FXCollections.observableArrayList();
     // --- FXML Fields ---
     @FXML
-    private Button importDeviceListButton, importRosterButton, exportButton, stageUnassignedButton;
-    @FXML
     private Label deviceListStatusLabel, statusLabel;
     @FXML
     private TextField snRefFilterField, serialScanField, dbSearchField;
@@ -62,6 +60,9 @@ public class iPadProvisioningController {
     private ToggleButton bulkModeToggle;
     @FXML
     private Button clearStagingButton;
+    @FXML
+    private Button exportButton, stageUnassignedButton;
+
 
     private FilteredList<RosterEntry> filteredRosterList;
     private boolean isDeviceListLoaded = false;
@@ -75,15 +76,19 @@ public class iPadProvisioningController {
         updateWorkflowControls();
     }
 
+    // --- THIS IS THE NEWLY ADDED METHOD ---
+    public void refreshData() {
+        checkInitialDeviceState();
+    }
+    // --- END OF NEWLY ADDED METHOD ---
+
     private void setupTablesAndFilters() {
-        // Roster Table
         rosterNameCol.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getFirstName() + " " + cellData.getValue().getLastName()));
         rosterSnRefCol.setCellValueFactory(new PropertyValueFactory<>("snReferenceNumber"));
         filteredRosterList = new FilteredList<>(rosterList, p -> true);
         rosterTable.setItems(filteredRosterList);
         snRefFilterField.textProperty().addListener((obs, o, n) -> filteredRosterList.setPredicate(entry -> n == null || n.isEmpty() || entry.getSnReferenceNumber().toLowerCase().endsWith(n.toLowerCase())));
 
-        // Staging Table
         stageCarrierCol.setCellValueFactory(new PropertyValueFactory<>("carrier"));
         stageCarrierAccountCol.setCellValueFactory(new PropertyValueFactory<>("carrierAccountNumber"));
         stageFirstNameCol.setCellValueFactory(new PropertyValueFactory<>("firstName"));
@@ -106,7 +111,6 @@ public class iPadProvisioningController {
             }
         });
 
-        // DB Search Table
         dbSerialCol.setCellValueFactory(new PropertyValueFactory<>("serialNumber"));
         dbImeiCol.setCellValueFactory(new PropertyValueFactory<>("imei"));
         dbSimCol.setCellValueFactory(new PropertyValueFactory<>("iccid"));
@@ -160,16 +164,13 @@ public class iPadProvisioningController {
     }
 
     private void updateWorkflowControls() {
-        boolean isStagingEmpty = stagedDeviceList.isEmpty(); // Calculate once for efficiency
-
+        boolean isStagingEmpty = stagedDeviceList.isEmpty();
         boolean assignmentReady = isDeviceListLoaded && isRosterLoaded && bulkModeToggle.isSelected();
         serialScanField.setDisable(!isDeviceListLoaded);
         stageUnassignedButton.setDisable(!isDeviceListLoaded);
         bulkModeToggle.setDisable(!isDeviceListLoaded);
         snRefFilterField.setDisable(!assignmentReady);
         rosterTable.setDisable(!assignmentReady);
-
-        // This now correctly enables/disables BOTH buttons based on the list's state
         exportButton.setDisable(isStagingEmpty);
         clearStagingButton.setDisable(isStagingEmpty);
 

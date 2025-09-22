@@ -9,14 +9,15 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 public class AssetDAO {
 
     public Optional<AssetInfo> findAssetBySerialNumber(String serialNumber) {
         AssetInfo asset = null;
+
         String sqlAutofill = "SELECT * FROM device_autofill_data WHERE serial_number = ?";
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sqlAutofill)) {
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sqlAutofill)) {
             stmt.setString(1, serialNumber);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
@@ -28,8 +29,7 @@ public class AssetDAO {
         }
 
         String sqlPhysicalAssets = "SELECT * FROM physical_assets WHERE serial_number = ?";
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sqlPhysicalAssets)) {
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sqlPhysicalAssets)) {
             stmt.setString(1, serialNumber);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
@@ -75,13 +75,8 @@ public class AssetDAO {
 
     private List<String> findSuggestions(String column, String fragment) {
         List<String> suggestions = new ArrayList<>();
-        // POSTGRES-SPECIFIC: Use ILIKE for case-insensitive search
-        String sql = String.format(
-                "SELECT DISTINCT %s FROM sku_table WHERE %s ILIKE ? AND %s IS NOT NULL AND %s != '' ORDER BY %s LIMIT 10",
-                column, column, column, column, column
-        );
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        String sql = String.format("SELECT DISTINCT %s FROM sku_table WHERE %s ILIKE ? AND %s IS NOT NULL AND %s != '' ORDER BY %s LIMIT 10", column, column, column, column, column);
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, "%" + fragment + "%");
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
@@ -94,20 +89,99 @@ public class AssetDAO {
         return suggestions;
     }
 
-    // --- METHOD RESTORED ---
+    public List<String> findDistinctValuesLike(String columnName, String fragment) {
+        List<String> suggestions = new ArrayList<>();
+        if (!columnName.matches("^[a-zA-Z0-9_]+$")) {
+            return suggestions;
+        }
+
+        String sql = String.format("SELECT DISTINCT %s FROM device_autofill_data WHERE %s IS NOT NULL AND %s != '' AND %s ILIKE ? ORDER BY %s LIMIT 10", columnName, columnName, columnName, columnName, columnName);
+
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setString(1, "%" + fragment + "%");
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    suggestions.add(rs.getString(1));
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Database error finding distinct values for autofill: " + e.getMessage());
+        }
+        return suggestions;
+    }
+
+    public CompletableFuture<List<AssetInfo>> getAllAutofillEntries() {
+        return CompletableFuture.supplyAsync(() -> {
+            List<AssetInfo> entries = new ArrayList<>();
+            String sql = "SELECT * FROM device_autofill_data ORDER BY serial_number";
+            try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql); ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    entries.add(mapRowToAssetInfo(rs));
+                }
+            } catch (SQLException e) {
+                System.err.println("Database error getting autofill entries: " + e.getMessage());
+            }
+            return entries;
+        });
+    }
+
+    public CompletableFuture<Boolean> addAutofillEntry(AssetInfo asset) {
+        return CompletableFuture.supplyAsync(() -> {
+            String sql = "INSERT INTO device_autofill_data (serial_number, make, part_number, description, category) VALUES (?, ?, ?, ?, ?)";
+            try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setString(1, asset.getSerialNumber());
+                stmt.setString(2, asset.getMake());
+                stmt.setString(3, asset.getModelNumber());
+                stmt.setString(4, asset.getDescription());
+                stmt.setString(5, asset.getCategory());
+                return stmt.executeUpdate() > 0;
+            } catch (SQLException e) {
+                return false;
+            }
+        });
+    }
+
+    public CompletableFuture<Boolean> updateAutofillEntry(AssetInfo asset) {
+        return CompletableFuture.supplyAsync(() -> {
+            String sql = "UPDATE device_autofill_data SET make = ?, part_number = ?, description = ?, category = ? WHERE serial_number = ?";
+            try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setString(1, asset.getMake());
+                stmt.setString(2, asset.getModelNumber());
+                stmt.setString(3, asset.getDescription());
+                stmt.setString(4, asset.getCategory());
+                stmt.setString(5, asset.getSerialNumber());
+                return stmt.executeUpdate() > 0;
+            } catch (SQLException e) {
+                return false;
+            }
+        });
+    }
+
+    public CompletableFuture<Boolean> deleteAutofillEntry(String serialNumber) {
+        return CompletableFuture.supplyAsync(() -> {
+            String sql = "DELETE FROM device_autofill_data WHERE serial_number = ?";
+            try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setString(1, serialNumber);
+                return stmt.executeUpdate() > 0;
+            } catch (SQLException e) {
+                return false;
+            }
+        });
+    }
+
     public boolean updateAsset(AssetInfo asset) {
-        String sql = "UPDATE physical_assets SET category = ?, make = ?, part_number = ?, description = ?, imei = ? WHERE serial_number = ?";
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, asset.getCategory());
-            stmt.setString(2, asset.getMake());
-            stmt.setString(3, asset.getModelNumber());
-            stmt.setString(4, asset.getDescription());
-            stmt.setString(5, asset.getImei());
-            stmt.setString(6, asset.getSerialNumber());
+        String sql = "INSERT INTO physical_assets (serial_number, category, make, part_number, description, imei) " + "VALUES (?, ?, ?, ?, ?, ?) " + "ON CONFLICT (serial_number) DO UPDATE SET " + "category = EXCLUDED.category, " + "make = EXCLUDED.make, " + "part_number = EXCLUDED.part_number, " + "description = EXCLUDED.description, " + "imei = EXCLUDED.imei";
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, asset.getSerialNumber());
+            stmt.setString(2, asset.getCategory());
+            stmt.setString(3, asset.getMake());
+            stmt.setString(4, asset.getModelNumber());
+            stmt.setString(5, asset.getDescription());
+            stmt.setString(6, asset.getImei());
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("Database error updating asset: " + e.getMessage());
+            System.err.println("Database error during asset upsert: " + e.getMessage());
             return false;
         }
     }
@@ -127,7 +201,6 @@ public class AssetDAO {
         }
     }
 
-    // --- METHOD RESTORED ---
     public void addAsset(AssetInfo asset) {
         try (Connection conn = DatabaseConnection.getInventoryConnection()) {
             addAsset(conn, asset);
@@ -136,12 +209,10 @@ public class AssetDAO {
         }
     }
 
-    // --- METHOD RESTORED ---
     public Optional<AssetInfo> findSkuDetails(String value, String lookupType) {
-        // Use a PreparedStatement to safely handle the lookupType
-        String sql = String.format("SELECT category, model_number, description, manufac AS make FROM sku_table WHERE %s = ?", lookupType);
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        String column = "model_number".equalsIgnoreCase(lookupType) ? "model_number" : "description";
+        String sql = String.format("SELECT category, model_number, description, manufac AS make FROM sku_table WHERE %s = ?", column);
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, value);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
@@ -161,8 +232,7 @@ public class AssetDAO {
 
     public Optional<MelRule> findMelRule(String modelNumber, String description) {
         String sql = "SELECT model_number, action, special_notes FROM mel_rules WHERE model_number = ? OR description = ?";
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, modelNumber);
             stmt.setString(2, description);
             try (ResultSet rs = stmt.executeQuery()) {
@@ -178,13 +248,8 @@ public class AssetDAO {
 
     public Set<String> getAllDistinctCategories() {
         Set<String> categories = new TreeSet<>();
-        String sql = "SELECT category FROM physical_assets WHERE category IS NOT NULL AND category != '' " +
-                "UNION " +
-                "SELECT category FROM sku_table WHERE category IS NOT NULL AND category != '' " +
-                "ORDER BY category";
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
+        String sql = "SELECT category FROM physical_assets WHERE category IS NOT NULL AND category != '' " + "UNION " + "SELECT category FROM sku_table WHERE category IS NOT NULL AND category != '' " + "ORDER BY category";
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql); ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
                 categories.add(rs.getString("category"));
             }
@@ -194,11 +259,9 @@ public class AssetDAO {
         return categories;
     }
 
-    // --- METHOD RESTORED ---
     public Optional<String> findDescriptionBySkuNumber(String skuNumber) {
         String sql = "SELECT description FROM sku_table WHERE sku_number = ? AND (model_number IS NULL OR model_number = '')";
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, skuNumber);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {

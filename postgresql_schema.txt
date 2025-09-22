@@ -1,0 +1,240 @@
+-- ====================================================================
+-- PHASE 1: WIPE AND RECREATE POSTGRESQL SCHEMA (Run this in DBeaver)
+-- ====================================================================
+-- Drop tables in reverse order of dependency to ensure a clean slate
+DROP TABLE IF EXISTS
+    device_assignments,
+    device_status,
+    disposition_info,
+    receipt_events,
+    sheets,
+    packages,
+    physical_assets,
+    bulk_devices,
+    app_settings,
+    device_autofill_data,
+    eol_device,
+    flag_devices,
+    mel_rules,
+    return_labels,
+    sku_table,
+    zip_code_data CASCADE;
+
+-- Create Tables with consistent snake_case naming
+CREATE TABLE public.app_settings (
+    setting_key VARCHAR(255) PRIMARY KEY,
+    setting_value VARCHAR(255)
+);
+
+CREATE TABLE public.bulk_devices (
+    serial_number VARCHAR(255) PRIMARY KEY,
+    imei VARCHAR(255),
+    iccid VARCHAR(255),
+    capacity VARCHAR(255),
+    device_name VARCHAR(255),
+    last_import_date VARCHAR(255) NOT NULL
+);
+
+CREATE TABLE public.sheets (
+    sheet_id SERIAL PRIMARY KEY,
+    sheet_name VARCHAR(100) NOT NULL UNIQUE
+);
+
+CREATE TABLE public.packages (
+    package_id SERIAL PRIMARY KEY,
+    tracking_number VARCHAR(50) NOT NULL UNIQUE,
+    first_name VARCHAR(50),
+    last_name VARCHAR(50),
+    city VARCHAR(100),
+    state VARCHAR(2),
+    zip_code VARCHAR(10),
+    receive_date DATE NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_package_tracking ON packages (tracking_number);
+
+CREATE TABLE public.physical_assets (
+    asset_id SERIAL PRIMARY KEY,
+    serial_number VARCHAR(255) NOT NULL UNIQUE,
+    imei VARCHAR(255),
+    category VARCHAR(250),
+    make VARCHAR(255),
+    description TEXT,
+    part_number VARCHAR(255),
+    capacity VARCHAR(255),
+    everon_serial BOOLEAN DEFAULT FALSE NOT NULL
+);
+
+CREATE TABLE public.receipt_events (
+    receipt_id SERIAL PRIMARY KEY,
+    serial_number VARCHAR(255) NOT NULL,
+    package_id INTEGER NOT NULL,
+    imei VARCHAR(255),
+    category VARCHAR(50),
+    make VARCHAR(50),
+    model_number VARCHAR(50),
+    description TEXT,
+    CONSTRAINT fk_receipt_package FOREIGN KEY (package_id) REFERENCES packages (package_id),
+    CONSTRAINT fk_receipt_serial FOREIGN KEY (serial_number) REFERENCES physical_assets (serial_number)
+);
+CREATE INDEX IF NOT EXISTS idx_receipt_event_serial ON receipt_events (serial_number);
+
+CREATE TABLE public.device_status (
+    status_id SERIAL PRIMARY KEY,
+    receipt_id INTEGER NOT NULL UNIQUE,
+    sheet_id INTEGER,
+    status VARCHAR(255) NOT NULL,
+    sub_status VARCHAR(255),
+    receive_date DATE,
+    last_update TIMESTAMP,
+    change_log TEXT,
+    box_id VARCHAR(255),
+    CONSTRAINT fk_device_status_receipt FOREIGN KEY (receipt_id) REFERENCES receipt_events (receipt_id),
+    CONSTRAINT fk_device_status_sheet FOREIGN KEY (sheet_id) REFERENCES sheets (sheet_id)
+);
+CREATE INDEX IF NOT EXISTS idx_status_receipt ON device_status (receipt_id);
+
+CREATE TABLE public.device_assignments (
+    assignment_id SERIAL PRIMARY KEY,
+    serial_number VARCHAR(255) NOT NULL,
+    employee_email VARCHAR(255),
+    employee_first_name VARCHAR(255),
+    employee_last_name VARCHAR(255),
+    sn_reference_number VARCHAR(255),
+    assignment_date DATE NOT NULL,
+    depot_order_number VARCHAR(255),
+    exported BOOLEAN DEFAULT FALSE NOT NULL,
+    CONSTRAINT fk_assignment_serial FOREIGN KEY (serial_number) REFERENCES bulk_devices (serial_number)
+);
+
+CREATE TABLE public.device_autofill_data (
+    serial_number VARCHAR(255) PRIMARY KEY,
+    imei VARCHAR(255),
+    category VARCHAR(255),
+    make VARCHAR(255),
+    description VARCHAR(1024),
+    part_number VARCHAR(255),
+    capacity VARCHAR(255),
+    everon_serial BOOLEAN
+);
+
+CREATE TABLE public.disposition_info (
+    disposition_id SERIAL PRIMARY KEY,
+    receipt_id INTEGER NOT NULL UNIQUE,
+    is_everon BOOLEAN DEFAULT FALSE,
+    is_end_of_life BOOLEAN DEFAULT FALSE,
+    is_under_capacity BOOLEAN DEFAULT FALSE,
+    is_phone BOOLEAN DEFAULT FALSE,
+    other_disqualification TEXT,
+    final_auto_disp TEXT,
+    CONSTRAINT fk_disposition_receipt FOREIGN KEY (receipt_id) REFERENCES receipt_events (receipt_id)
+);
+
+CREATE TABLE public.eol_device (
+    model_name VARCHAR(255),
+    part_numbers VARCHAR(255)
+);
+
+CREATE TABLE public.flag_devices (
+    serial_number VARCHAR(255) PRIMARY KEY,
+    status VARCHAR(255),
+    sub_status VARCHAR(255),
+    flag_reason TEXT
+);
+
+CREATE TABLE public.mel_rules (
+    model_number VARCHAR(255),
+    description TEXT,
+    action VARCHAR(255),
+    special_notes TEXT,
+    manufac VARCHAR(255),
+    redeploy_threshold VARCHAR(255)
+);
+
+CREATE TABLE public.return_labels (
+    tracking_number VARCHAR(255),
+    contact_name VARCHAR(255),
+    email_address VARCHAR(255),
+    city VARCHAR(255),
+    state VARCHAR(255),
+    zip_code VARCHAR(255),
+    log_date DATE
+);
+
+CREATE TABLE public.sku_table (
+    sku_number VARCHAR(255),
+    model_number VARCHAR(255),
+    category VARCHAR(255),
+    manufac VARCHAR(255),
+    description TEXT
+);
+
+CREATE TABLE public.zip_code_data (
+    zip_code VARCHAR(255) PRIMARY KEY,
+    zip_type VARCHAR(255),
+    primary_city VARCHAR(255),
+    state_code VARCHAR(255),
+    country_code VARCHAR(255)
+);
+
+Run this command in cmd:
+
+"C:\Program Files\PostgreSQL\17\bin\psql.exe" -h 10.68.47.138 -U postgres -d inventory
+
+Copy the entire "PHASE 2: IMPORT DATA" block to your clipboard (all 16 \copy commands).
+Go to your psql command prompt window.
+Right-click to paste the entire block of commands.
+Press Enter.
+
+Go back to your psql command prompt window.
+Run the \dt command
+
+-- ====================================================================
+-- PHASE 2: IMPORT DATA (Run this part in psql command line)
+-- ====================================================================
+-- Note: Column lists are added to map CSV headers to snake_case table columns.
+\copy app_settings (setting_key, setting_value) FROM '\\UTSPRJ2C2333\Server\appsettings.csv' WITH (FORMAT CSV, HEADER);
+\copy bulk_devices (serial_number, imei, iccid, capacity, device_name, last_import_date) FROM '\\UTSPRJ2C2333\Server\bulk_devices.csv' WITH (FORMAT CSV, HEADER);
+\copy sheets (sheet_id, sheet_name) FROM '\\UTSPRJ2C2333\Server\sheets.csv' WITH (FORMAT CSV, HEADER);
+\copy packages (package_id, tracking_number, first_name, last_name, city, state, zip_code, receive_date) FROM '\\UTSPRJ2C2333\Server\packages.csv' WITH (FORMAT CSV, HEADER);
+\copy physical_assets (asset_id, serial_number, imei, category, make, description, part_number, capacity, everon_serial) FROM '\\UTSPRJ2C2333\Server\physical_assets.csv' WITH (FORMAT CSV, HEADER);
+\copy receipt_events (receipt_id, serial_number, package_id, imei, category, make, model_number, description) FROM '\\UTSPRJ2C2333\Server\receipt_events.csv' WITH (FORMAT CSV, HEADER);
+\copy disposition_info (disposition_id, receipt_id, is_everon, is_end_of_life, is_under_capacity, is_phone, other_disqualification, final_auto_disp) FROM '\\UTSPRJ2C2333\Server\disposition_info.csv' WITH (FORMAT CSV, HEADER);
+\copy device_status (status_id, receipt_id, sheet_id, status, sub_status, receive_date, last_update, change_log, box_id) FROM '\\UTSPRJ2C2333\Server\device_status.csv' WITH (FORMAT CSV, HEADER);
+\copy device_assignments (assignment_id, serial_number, employee_email, employee_first_name, employee_last_name, sn_reference_number, assignment_date, depot_order_number, exported) FROM '\\UTSPRJ2C2333\Server\device_assignments.csv' WITH (FORMAT CSV, HEADER);
+\copy device_autofill_data (serial_number, imei, category, make, description, part_number, capacity, everon_serial) FROM '\\UTSPRJ2C2333\Server\device_autofill_data.csv' WITH (FORMAT CSV, HEADER);
+\copy eol_device (model_name, part_numbers) FROM '\\UTSPRJ2C2333\Server\eol_device.csv' WITH (FORMAT CSV, HEADER);
+\copy flag_devices (serial_number, status, sub_status, flag_reason) FROM '\\UTSPRJ2C2333\Server\flag_devices.csv' WITH (FORMAT CSV, HEADER);
+\copy mel_rules (model_number, description, action, special_notes, manufac, redeploy_threshold) FROM '\\UTSPRJ2C2333\Server\mel_rules.csv' WITH (FORMAT CSV, HEADER);
+\copy return_labels (tracking_number, contact_name, email_address, city, state, zip_code, log_date) FROM '\\UTSPRJ2C2333\Server\return_labels.csv' WITH (FORMAT CSV, HEADER);
+\copy sku_table (sku_number, model_number, category, manufac, description) FROM '\\UTSPRJ2C2333\Server\sku_table.csv' WITH (FORMAT CSV, HEADER);
+\copy zip_code_data (zip_code, zip_type, primary_city, state_code, country_code) FROM '\\UTSPRJ2C2333\Server\zipcode_data.csv' WITH (FORMAT CSV, HEADER);
+
+
+-- ====================================================================
+-- PHASE 3: UPDATE SEQUENCES (Run this part in DBeaver or psql)
+-- ====================================================================
+SELECT setval('device_status_status_id_seq', COALESCE((SELECT MAX(status_id) FROM device_status), 7846), true);
+SELECT setval('device_assignments_assignment_id_seq', COALESCE((SELECT MAX(assignment_id) FROM device_assignments), 136), true);
+SELECT setval('packages_package_id_seq', COALESCE((SELECT MAX(package_id) FROM packages), 2440), true);
+SELECT setval('physical_assets_asset_id_seq', COALESCE((SELECT MAX(asset_id) FROM physical_assets), 14991), true);
+SELECT setval('receipt_events_receipt_id_seq', COALESCE((SELECT MAX(receipt_id) FROM receipt_events), 2529), true);
+SELECT setval('sheets_sheet_id_seq', COALESCE((SELECT MAX(sheet_id) FROM sheets), 1), true);
+SELECT setval('disposition_info_disposition_id_seq', COALESCE((SELECT MAX(disposition_id) FROM disposition_info), 7583), true);
+
+
+
+-- ====================================================================
+-- PHASE 4: Speeds up all serial number lookups and joins (Run this part in DBeaver or psql)
+-- ====================================================================
+
+CREATE INDEX idx_receipt_events_serial_number ON receipt_events (serial_number);
+CREATE INDEX idx_physical_assets_serial_number ON physical_assets (serial_number);
+CREATE INDEX idx_flag_devices_serial_number ON flag_devices (serial_number);
+
+-- Speeds up joins between tables
+CREATE INDEX idx_device_status_receipt_id ON device_status (receipt_id);
+CREATE INDEX idx_receipt_events_package_id ON receipt_events (package_id);
+
+-- Speeds up dashboard and filtering queries
+CREATE INDEX idx_device_status_last_update ON device_status (last_update DESC);
+CREATE INDEX idx_packages_receive_date ON packages (receive_date DESC);

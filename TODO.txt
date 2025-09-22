@@ -1,6 +1,8 @@
 Priority 1:
 - add way to import information into the device_autofill_data table .
 - When I minimize the window it goes to the bottom left corner and it has no styles
+- The code needs to change for ipadsettings I think Im calling the wrong table name or something when searching serial in the ipad provisioning table for postgres version.
+
 
 
 
@@ -136,6 +138,17 @@ device is a:Optiplex 3000
 - on scan update the sizing is off between succesful scans and failed/unrefnized scans windwos. The sucess. scans windows is smaller and i think it's because it doesn't have the process failed scans button
 - update DB
 - rename the database and change paths everwhere
+-I need to rework how I import devices to the h2 db. For some reason when I click the import device files button on the dashboard the logic isnt working correctly. I want to sit down and completely rething it using best practices and iimprovements. what can you suggest? Currently Im dealing with duplicate sims (ICCIDs) and also duplicate IMEIs across multiple devices.
+- since i updated the template for printing labels I need it to automatically go in and edlete the old template on the computer instead of me manually having to go into C:\Users\lcorsini\ADT_Label_Templates and doing it, but it needs to be dynamic and do it on whatever computer / user
+- Lets update the Boxes assempbled (insert dynamic rnage here) and lables created (insert dynamic rnage here) titles to be dynamic depednign on the time range radio button I select.
+- I have old cateogieys showing up in the device status traking fileter optuins dropdown when 	I click on hem no devices pop up.
+- Make the serach on scan update sku Search for sku to print less specific so I can find devices using upper or lower case and in different order so I can find a 9TH GEN IPAD searching with ipad 9th gen for example H2 db.
+-Auto search serial numbers and try to populate fields when I click the process failed scans on scan upadte window as If I were to click on the serial filed and press enter.
+-update the scan updates processed ready to deploy descriptuion that prints on the lablels when I select a sku to print the description from the SKU not the descriptiuon from the device
+- update the scan update serach to let me also searcj for the sku itself
+- Update the descriptionn on SKU Print H2 db.
+- I need a way to bulk delete a bunch of devices that I just added wiht the wrong serial on accident on accident.
+- Find better spot for Bulk import from list and bulk import from list, Manage flags..., export, Import device files, manage import folders, import flags, update mel rules, and import autofill data buttons, etc.... For the best UX/UI does it make sense to put these all on their own separate tab, or to add them all to an existing tab? Or to move / combine/ separate them on different pages, or to add another button that has a popup with options, idk just thinking of different ideas, what do you think?
 
 
 

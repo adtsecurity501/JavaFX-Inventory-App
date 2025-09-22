@@ -9,9 +9,8 @@ import java.util.Optional;
 public class ReceiptEventDAO {
 
     public int addReceiptEvent(ReceiptEvent event) {
-        String sql = "INSERT INTO Receipt_Events (serial_number, package_id, IMEI, category, make, model_number, description) VALUES (?, ?, ?, ?, ?, ?, ?)";
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        String sql = "INSERT INTO receipt_events (serial_number, package_id, imei, category, make, model_number, description) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
             stmt.setString(1, event.getSerialNumber());
             stmt.setInt(2, event.getPackageId());
@@ -30,16 +29,14 @@ public class ReceiptEventDAO {
                 }
             }
         } catch (SQLException e) {
-            System.err.println("Error adding receipt event: " + e.getMessage());
-            System.err.println("Database error: " + e.getMessage());
+            System.err.println("Database error adding receipt event: " + e.getMessage());
         }
         return -1;
     }
 
     public boolean updatePackageId(int receiptId, int newPackageId) {
         String sql = "UPDATE receipt_events SET package_id = ? WHERE receipt_id = ?";
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, newPackageId);
             stmt.setInt(2, receiptId);
             return stmt.executeUpdate() > 0;
@@ -49,7 +46,6 @@ public class ReceiptEventDAO {
         }
     }
 
-    // New method that operates within an existing transaction
     public int addReceiptEvent(Connection conn, ReceiptEvent event) throws SQLException {
         String sql = "INSERT INTO receipt_events (serial_number, package_id, imei, category, make, model_number, description) VALUES (?, ?, ?, ?, ?, ?, ?)";
         try (PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -74,9 +70,8 @@ public class ReceiptEventDAO {
     }
 
     public Optional<Integer> findMostRecentReceiptId(String serialNumber) {
-        String sql = "SELECT receipt_id FROM Receipt_Events WHERE serial_number = ? ORDER BY receipt_id DESC LIMIT 1";
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        String sql = "SELECT receipt_id FROM receipt_events WHERE serial_number = ? ORDER BY receipt_id DESC LIMIT 1";
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, serialNumber);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
@@ -85,9 +80,7 @@ public class ReceiptEventDAO {
             }
         } catch (SQLException e) {
             System.err.println("Error finding most recent receipt for serial '" + serialNumber + "': " + e.getMessage());
-            System.err.println("Database error: " + e.getMessage());
         }
         return Optional.empty();
     }
 }
-

@@ -49,19 +49,16 @@ public class IntakeService {
                 successCount++;
             }
 
-            conn.commit(); // Commit the transaction if all assets were processed successfully
+            conn.commit(); // Commit the transaction
             return String.format("Successfully processed %d receipts.", successCount);
 
         } catch (SQLException e) {
             try {
                 if (conn != null) conn.rollback();
             } catch (SQLException ex) {
-                // Log rollback failure
                 System.err.println("Critical Error: Failed to rollback transaction.");
             }
-            // Log the original error
             System.err.println("Error in processFromTextArea: " + e.getMessage());
-            // Return a user-friendly message
             return "Transaction failed and was rolled back. Error: " + e.getMessage();
         } finally {
             try {
@@ -70,7 +67,7 @@ public class IntakeService {
                     conn.close();
                 }
             } catch (SQLException e) {
-                System.err.println("Database error: " + e.getMessage());
+                System.err.println("Database error on close: " + e.getMessage());
             }
         }
     }
@@ -117,12 +114,9 @@ public class IntakeService {
             try {
                 if (conn != null) conn.rollback();
             } catch (SQLException ex) {
-                // Log rollback failure
                 System.err.println("Critical Error: Failed to rollback transaction.");
             }
-            // Log the original error
             System.err.println("Error in processFromTable: " + e.getMessage());
-            // Return a user-friendly message
             return "Transaction failed and was rolled back. Error: " + e.getMessage();
         } finally {
             try {
@@ -131,17 +125,15 @@ public class IntakeService {
                     conn.close();
                 }
             } catch (SQLException e) {
-                System.err.println("Database error: " + e.getMessage());
+                System.err.println("Database error on close: " + e.getMessage());
             }
         }
     }
 
-    private void processSingleAsset(Connection conn, String serial, AssetInfo details, boolean isScrap, String scrapStatus, String scrapSubStatus, String scrapReason, String boxId) throws SQLException {
+    // --- THIS IS THE FIX: Changed from 'private' to 'public' ---
+    public void processSingleAsset(Connection conn, String serial, AssetInfo details, boolean isScrap, String scrapStatus, String scrapSubStatus, String scrapReason, String boxId) throws SQLException {
         if (assetDAO.findAssetBySerialNumber(conn, serial).isEmpty()) {
-            // --- THIS IS THE FIX ---
-            // Ensure the serial number is set on the details object before inserting.
             details.setSerialNumber(serial);
-            // --- END OF FIX ---
             assetDAO.addAsset(conn, details);
         }
 
@@ -156,9 +148,8 @@ public class IntakeService {
     }
 
     private void createInitialStatus(Connection conn, int receiptId, boolean isScrap, String scrapStatus, String scrapSubStatus, String scrapReason, String boxId) throws SQLException {
-        // --- BEGIN NEW FLAG CHECK LOGIC ---
         String serialNumber = "";
-        String getSerialSql = "SELECT serial_number FROM Receipt_Events WHERE receipt_id = ?";
+        String getSerialSql = "SELECT serial_number FROM receipt_events WHERE receipt_id = ?";
         try (PreparedStatement stmt = conn.prepareStatement(getSerialSql)) {
             stmt.setInt(1, receiptId);
             ResultSet rs = stmt.executeQuery();
@@ -168,29 +159,25 @@ public class IntakeService {
         }
 
         if (!serialNumber.isEmpty()) {
-            String getFlagSql = "SELECT flag_reason FROM Flag_Devices WHERE serial_number = ?";
+            String getFlagSql = "SELECT flag_reason FROM flag_devices WHERE serial_number = ?";
             try (PreparedStatement stmt = conn.prepareStatement(getFlagSql)) {
                 stmt.setString(1, serialNumber);
                 ResultSet rs = stmt.executeQuery();
                 if (rs.next()) {
-                    // FLAG EXISTS. Override all other logic and set status to "Flag!".
                     String flagReason = rs.getString("flag_reason");
                     String logMessage = "Flagged on intake. Reason: " + flagReason;
 
-                    String statusSql = "INSERT INTO Device_Status (receipt_id, status, sub_status, last_update, change_log) VALUES (?, 'Flag!', 'Requires Review', CURRENT_TIMESTAMP, ?)";
+                    String statusSql = "INSERT INTO device_status (receipt_id, status, sub_status, last_update, change_log) VALUES (?, 'Flag!', 'Requires Review', CURRENT_TIMESTAMP, ?)";
                     try (PreparedStatement insertStmt = conn.prepareStatement(statusSql)) {
                         insertStmt.setInt(1, receiptId);
                         insertStmt.setString(2, logMessage);
                         insertStmt.executeUpdate();
                     }
-                    // The status is now set. Exit the method to prevent other statuses from being set.
                     return;
                 }
             }
         }
-        // --- END NEW FLAG CHECK LOGIC ---
 
-        // --- ORIGINAL LOGIC (runs only if no flag is found) ---
         String finalStatus, finalSubStatus;
         String finalReason = null;
 
@@ -210,7 +197,7 @@ public class IntakeService {
             finalSubStatus = "In Evaluation";
         }
 
-        String statusSql = "INSERT INTO Device_Status (receipt_id, status, sub_status, last_update) VALUES (?, ?, ?, CURRENT_TIMESTAMP)";
+        String statusSql = "INSERT INTO device_status (receipt_id, status, sub_status, last_update) VALUES (?, ?, ?, CURRENT_TIMESTAMP)";
         try (PreparedStatement stmt = conn.prepareStatement(statusSql)) {
             stmt.setInt(1, receiptId);
             stmt.setString(2, finalStatus);
@@ -219,7 +206,7 @@ public class IntakeService {
         }
 
         if (finalReason != null && !finalReason.isBlank()) {
-            String dispositionSql = "INSERT INTO Disposition_Info (receipt_id, other_disqualification) VALUES (?, ?)";
+            String dispositionSql = "INSERT INTO disposition_info (receipt_id, other_disqualification) VALUES (?, ?)";
             try (PreparedStatement stmt = conn.prepareStatement(dispositionSql)) {
                 stmt.setInt(1, receiptId);
                 stmt.setString(2, finalReason);

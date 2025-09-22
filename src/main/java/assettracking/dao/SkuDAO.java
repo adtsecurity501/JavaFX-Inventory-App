@@ -1,5 +1,6 @@
 package assettracking.dao;
 
+import assettracking.data.AssetInfo;
 import assettracking.data.Sku;
 import assettracking.db.DatabaseConnection;
 
@@ -14,9 +15,7 @@ public class SkuDAO {
     public List<Sku> getAllSkus() {
         List<Sku> skus = new ArrayList<>();
         String sql = "SELECT sku_number, model_number, category, manufac, description FROM sku_table ORDER BY sku_number";
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql); ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
                 skus.add(mapRowToSku(rs));
             }
@@ -28,8 +27,7 @@ public class SkuDAO {
 
     public Optional<Sku> findSkuByNumber(String skuNumber) {
         String sql = "SELECT sku_number, model_number, category, manufac, description FROM sku_table WHERE sku_number = ?";
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, skuNumber);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
@@ -44,8 +42,7 @@ public class SkuDAO {
 
     public boolean addSku(Sku sku) {
         String sql = "INSERT INTO sku_table (sku_number, model_number, category, manufac, description) VALUES (?, ?, ?, ?, ?)";
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, sku.getSkuNumber());
             stmt.setString(2, sku.getModelNumber());
             stmt.setString(3, sku.getCategory());
@@ -60,8 +57,7 @@ public class SkuDAO {
 
     public boolean updateSku(Sku sku) {
         String sql = "UPDATE sku_table SET model_number = ?, category = ?, manufac = ?, description = ? WHERE sku_number = ?";
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, sku.getModelNumber());
             stmt.setString(2, sku.getCategory());
             stmt.setString(3, sku.getManufacturer());
@@ -76,8 +72,7 @@ public class SkuDAO {
 
     public boolean deleteSku(String skuNumber) {
         String sql = "DELETE FROM sku_table WHERE sku_number = ?";
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, skuNumber);
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
@@ -86,18 +81,61 @@ public class SkuDAO {
         }
     }
 
+    public List<String> findModelNumbersLike(String modelFragment) {
+        return findSuggestions("model_number", modelFragment);
+    }
+
+    public List<String> findDescriptionsLike(String descriptionFragment) {
+        return findSuggestions("description", descriptionFragment);
+    }
+
+    private List<String> findSuggestions(String column, String fragment) {
+        List<String> suggestions = new ArrayList<>();
+        String sql = String.format("SELECT DISTINCT %s FROM sku_table WHERE %s ILIKE ? AND %s IS NOT NULL AND %s != '' ORDER BY %s LIMIT 10", column, column, column, column, column);
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, "%" + fragment + "%");
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    suggestions.add(rs.getString(1));
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Database error finding suggestions for " + column + ": " + e.getMessage());
+        }
+        return suggestions;
+    }
+
+    public Optional<AssetInfo> findSkuDetails(String value, String lookupType) {
+        String column = "model_number".equalsIgnoreCase(lookupType) ? "model_number" : "description";
+        String sql = String.format("SELECT category, model_number, description, manufac AS make FROM sku_table WHERE %s = ?", column);
+
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, value);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    AssetInfo asset = new AssetInfo();
+                    asset.setCategory(rs.getString("category"));
+                    asset.setModelNumber(rs.getString("model_number"));
+                    asset.setDescription(rs.getString("description"));
+                    asset.setMake(rs.getString("make"));
+                    return Optional.of(asset);
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Database error finding SKU details: " + e.getMessage());
+        }
+        return Optional.empty();
+    }
+
     public List<String> findSkusByKeywordOrSkuNumber(String query) {
         if (query == null || query.trim().isEmpty()) {
             return new ArrayList<>();
         }
         Set<String> suggestions = new LinkedHashSet<>(findSkusWithKeywords(query));
 
-        String skuSearchSql = "SELECT sku_number, description FROM sku_table " +
-                "WHERE sku_number ILIKE ? " +
-                "AND sku_number IS NOT NULL AND sku_number != '' LIMIT 15";
+        String skuSearchSql = "SELECT sku_number, description FROM sku_table " + "WHERE sku_number ILIKE ? " + "AND sku_number IS NOT NULL AND sku_number != '' LIMIT 15";
 
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(skuSearchSql)) {
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(skuSearchSql)) {
             stmt.setString(1, "%" + query + "%");
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
@@ -115,17 +153,18 @@ public class SkuDAO {
         if (keywords == null || keywords.trim().isEmpty()) {
             return suggestions;
         }
+
         String[] keywordArray = keywords.trim().split("\\s+");
 
-        String sqlBuilder = "SELECT sku_number, description FROM sku_table " +
-                "WHERE sku_number IS NOT NULL AND sku_number != '' " + "AND description ILIKE ? ".repeat(keywordArray.length) +
-                "LIMIT 15";
+        String sqlBuilder = "SELECT sku_number, description FROM sku_table WHERE sku_number IS NOT NULL AND sku_number != '' " + "AND description ILIKE ? ".repeat(keywordArray.length) + "LIMIT 15";
 
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sqlBuilder)) {
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sqlBuilder)) {
+
+            // This loop correctly populates the PreparedStatement
             for (int i = 0; i < keywordArray.length; i++) {
                 stmt.setString(i + 1, "%" + keywordArray[i] + "%");
             }
+
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
                     suggestions.add(formatSkuSuggestion(rs.getString("sku_number"), rs.getString("description")));
@@ -139,11 +178,8 @@ public class SkuDAO {
 
     public List<String> findSkusLike(String fragment) {
         List<String> suggestions = new ArrayList<>();
-        String sql = "SELECT sku_number, description FROM SKU_Table " +
-                "WHERE (sku_number ILIKE ? OR description ILIKE ?) " +
-                "LIMIT 15";
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        String sql = "SELECT sku_number, description FROM sku_table " + "WHERE (sku_number ILIKE ? OR description ILIKE ?) " + "LIMIT 15";
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
             String queryFragment = "%" + fragment + "%";
             stmt.setString(1, queryFragment);
             stmt.setString(2, queryFragment);
@@ -160,12 +196,8 @@ public class SkuDAO {
 
     public List<String> findSkusWithSkuNumberLike(String fragment) {
         List<String> suggestions = new ArrayList<>();
-        String sql = "SELECT sku_number, description FROM SKU_Table " +
-                "WHERE (sku_number ILIKE ? OR description ILIKE ?) " +
-                "AND sku_number IS NOT NULL AND sku_number != '' " +
-                "LIMIT 15";
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        String sql = "SELECT sku_number, description FROM sku_table " + "WHERE (sku_number ILIKE ? OR description ILIKE ?) " + "AND sku_number IS NOT NULL AND sku_number != '' " + "LIMIT 15";
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
             String queryFragment = "%" + fragment + "%";
             stmt.setString(1, queryFragment);
             stmt.setString(2, queryFragment);
@@ -185,12 +217,8 @@ public class SkuDAO {
         if (!columnName.matches("^[a-zA-Z0-9_]+$")) {
             return suggestions;
         }
-        String sql = String.format(
-                "SELECT DISTINCT %s FROM sku_table WHERE %s IS NOT NULL AND %s != '' AND %s ILIKE ? ORDER BY %s LIMIT 10",
-                columnName, columnName, columnName, columnName, columnName
-        );
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        String sql = String.format("SELECT DISTINCT %s FROM sku_table WHERE %s IS NOT NULL AND %s != '' AND %s ILIKE ? ORDER BY %s LIMIT 10", columnName, columnName, columnName, columnName, columnName);
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, "%" + fragment + "%");
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
@@ -205,7 +233,7 @@ public class SkuDAO {
 
     private String formatSkuSuggestion(String sku, String description) {
         String desc = (description == null || description.trim().isEmpty()) ? "No Description" : description;
-        return sku + " - " + desc;
+        return (sku != null && !sku.trim().isEmpty()) ? sku + " - " + desc : desc;
     }
 
     private Sku mapRowToSku(ResultSet rs) throws SQLException {

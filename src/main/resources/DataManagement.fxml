@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<ScrollPane xmlns:fx="http://javafx.com/fxml/1" xmlns="http://javafx.com/javafx/21"
+            fx:controller="assettracking.controller.DataManagementController"
+            fitToWidth="true" style="-fx-background-color: transparent;">
+    <VBox spacing="15" style="-fx-padding: 20;">
+        <Label styleClass="h3" text="Data Management &amp; Tools"/>
+        <Label text="Use the sections below to perform bulk data operations, manage system rules, and configure automated imports."
+               wrapText="true"/>
+        <Separator/>
+
+        <TitledPane text="Bulk Device Operations" collapsible="false">
+            <VBox spacing="10" style="-fx-padding: 15;">
+                <Label text="Actions that directly affect a large number of individual device records."
+                       wrapText="true"/>
+                <GridPane hgap="10" vgap="10" style="-fx-padding: 10 0 0 0;">
+                    <Button fx:id="bulkIntakeButton" onAction="#handleBulkIntake" text="Bulk Intake from List..."/>
+                    <Button onAction="#handleBulkUpdate" text="Bulk Status Update from List..."
+                            GridPane.columnIndex="1"/>
+                    <Button onAction="#handleExport" text="Export All Device Data..."
+                            GridPane.columnIndex="2"/>
+                </GridPane>
+            </VBox>
+        </TitledPane>
+
+        <TitledPane text="System Data &amp; Rules" collapsible="false">
+            <VBox spacing="10" style="-fx-padding: 15;">
+                <Label text="Manage the system's underlying lookup tables and business logic rules." wrapText="true"/>
+                <GridPane hgap="10" vgap="10" style="-fx-padding: 10 0 0 0;">
+                    <Button onAction="#handleImportAutofill"
+                            text="Import Autofill Data..."/>
+                    <Button onAction="#handleManageFlags" text="Manage Flagged Devices..."
+                            GridPane.columnIndex="1"/>
+                    <Button onAction="#handleImportFlags"
+                            text="Import/Manage Flagged Devices..." GridPane.columnIndex="1"/>
+                    <Button onAction="#handleUpdateMelRules" text="Update MEL Rules..."
+                            GridPane.columnIndex="2"/>
+                </GridPane>
+            </VBox>
+        </TitledPane>
+        <TitledPane text="Dashboard Configuration" collapsible="false">
+            <VBox spacing="10" style="-fx-padding: 15;">
+                <Label text="Set the weekly performance goals displayed on the Dashboard." wrapText="true"/>
+                <GridPane hgap="10" vgap="10" style="-fx-padding: 10 0 0 0;">
+                    <columnConstraints>
+                        <ColumnConstraints hgrow="NEVER" minWidth="100"/>
+                        <ColumnConstraints hgrow="ALWAYS"/>
+                    </columnConstraints>
+                    <Label text="Device Goal:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+                    <TextField fx:id="deviceGoalField" prefWidth="100" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+                    <Label text="Monitor Goal:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+                    <TextField fx:id="monitorGoalField" prefWidth="100" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+                    <Button onAction="#handleApplyGoals" text="Apply Goals"
+                            styleClass="accent" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+                </GridPane>
+            </VBox>
+        </TitledPane>
+
+        <TitledPane text="Automated Folder Imports" collapsible="false">
+            <VBox spacing="10" style="-fx-padding: 15;">
+                <Label text="Configure and run the automated feature that scans folders for new device files."
+                       wrapText="true"/>
+                <GridPane hgap="10" vgap="10" style="-fx-padding: 10 0 0 0;">
+                    <Button fx:id="runAutoImportButton" onAction="#handleRunAutoImport"
+                            text="Run Automated Import from Folders"/>
+                    <Button onAction="#handleManageFolders" text="Manage Import Folders..."
+                            GridPane.columnIndex="1"/>
+                </GridPane>
+            </VBox>
+        </TitledPane>
+
+        <Label fx:id="statusLabel" style="-fx-padding: 10 0 0 0; -fx-font-weight: bold;" HBox.hgrow="ALWAYS"
+               maxWidth="Infinity"/>
+    </VBox>
+</ScrollPane>
