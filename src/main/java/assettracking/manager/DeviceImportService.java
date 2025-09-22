@@ -36,10 +36,17 @@ public class DeviceImportService {
      * This method is now also used by the iPad Provisioning tab.
      */
     public int importFromFile(File file) throws IOException, SQLException {
-        List<BulkDevice> devices = assettracking.ui.ExcelReader.readDeviceFile(file);
-        if (devices.isEmpty()) return 0;
-        List<BulkDevice> hydratedDevices = mergeWithExistingData(devices);
+        // Step 1: Read the new data from the file.
+        List<BulkDevice> devicesFromFile = assettracking.ui.ExcelReader.readDeviceFile(file);
+        if (devicesFromFile.isEmpty()) {
+            return 0;
+        }
+        // Step 2: Before writing to the database, merge the new data with any existing data.
+        // This prevents accidental deletion of columns that might be missing in the new file.
+        List<BulkDevice> hydratedDevices = mergeWithExistingData(devicesFromFile);
+        // Step 3: Upsert the safe, merged list into the database.
         dao.upsertBulkDevices(hydratedDevices);
+
         return hydratedDevices.size();
     }
 
