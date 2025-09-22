@@ -2,10 +2,7 @@ package assettracking.controller;
 
 import assettracking.dao.AppSettingsDAO;
 import assettracking.dao.DeviceStatusDAO;
-import assettracking.manager.DeviceImportService;
-import assettracking.manager.ImportResult;
-import assettracking.manager.ReportingService;
-import assettracking.manager.StageManager;
+import assettracking.manager.*;
 import assettracking.ui.FlaggedDeviceImporter;
 import assettracking.ui.MelRulesImporter;
 import javafx.concurrent.Task;
@@ -127,22 +124,23 @@ public class DataManagementController {
 
         List<String> foldersToScan = new ArrayList<>(Arrays.asList(savedPathsOpt.get().split(",")));
 
-        Task<List<ImportResult>> importTask = new Task<>() {
-            @Override
-            protected List<ImportResult> call() throws IOException {
-                return deviceImportService.runFolderImport(foldersToScan, this::updateMessage);
-            }
-        };
+        // --- THIS IS THE KEY CHANGE ---
+        // Create an instance of our new custom Task.
+        Task<List<ImportResult>> importTask = new FolderImportTask(foldersToScan, deviceImportService);
 
+        statusLabel.textProperty().bind(importTask.messageProperty());
         runAutoImportButton.setDisable(true);
 
         importTask.setOnSucceeded(e -> {
+            statusLabel.textProperty().unbind();
             runAutoImportButton.setDisable(false);
+
             List<ImportResult> results = importTask.getValue();
             if (results.isEmpty()) {
                 statusLabel.setText("Import finished: No new files were found to process.");
                 return;
             }
+            // ... (rest of the success logic is exactly the same) ...
             StringBuilder summary = new StringBuilder("Import Complete:\n\n");
             int totalSuccess = results.stream().mapToInt(ImportResult::successfulCount).sum();
             long totalErrors = results.stream().mapToLong(r -> r.errors().size()).sum();
@@ -160,6 +158,7 @@ public class DataManagementController {
         });
 
         importTask.setOnFailed(e -> {
+            statusLabel.textProperty().unbind();
             runAutoImportButton.setDisable(false);
             Throwable ex = importTask.getException();
             statusLabel.setText("Import failed. See error dialog.");
@@ -167,7 +166,6 @@ public class DataManagementController {
             StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Import Failed", "A critical error occurred: " + ex.getMessage());
         });
 
-        // THIS IS THE CORRECTED LINE: Use the MainViewController's global progress bar
         MainViewController.getInstance().bindProgressBar(importTask);
         new Thread(importTask).start();
     }

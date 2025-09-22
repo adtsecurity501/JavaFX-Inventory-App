@@ -27,7 +27,10 @@ public class MainViewController {
     private ComboBox<Theme> themeComboBox;
     @FXML
     private ProgressBar globalProgressBar;
-
+    @FXML
+    private HBox globalProgressContainer;
+    @FXML
+    private Label globalProgressLabel;
 
     private double xOffset = 0;
     private double yOffset = 0;
@@ -56,38 +59,37 @@ public class MainViewController {
 
     /**
      * Binds a background task's progress to the global progress bar and makes it visible.
-     * This method preserves any existing onSucceeded or onFailed handlers on the task.
+     * Automatically handles unbinding and hiding when the task finishes.
      *
      * @param task The background task to monitor.
      */
     public void bindProgressBar(Task<?> task) {
-        // Show the bar and bind its progress property
         Platform.runLater(() -> {
-            globalProgressBar.setVisible(true);
-            globalProgressBar.setManaged(true);
+            // Show the container and bind properties
+            globalProgressContainer.setVisible(true);
+            globalProgressContainer.setManaged(true);
             globalProgressBar.progressProperty().bind(task.progressProperty());
+
+            // --- NEW: Bind the label to show the percentage ---
+            task.progressProperty().addListener((obs, oldProgress, newProgress) -> {
+                if (newProgress != null) {
+                    globalProgressLabel.setText(String.format("%.0f%%", newProgress.doubleValue() * 100));
+                }
+            });
         });
 
-        // --- THIS IS THE FIX ---
-        // Store the original event handlers that were set on the task before it was passed to this method.
         var originalOnSucceeded = task.getOnSucceeded();
         var originalOnFailed = task.getOnFailed();
 
-        // Set our new success handler.
         task.setOnSucceeded(e -> {
-            // First, do our new task: hide the progress bar.
             hideProgressBar();
-            // Then, if an original handler existed, execute it.
             if (originalOnSucceeded != null) {
                 originalOnSucceeded.handle(e);
             }
         });
 
-        // Set our new failure handler.
         task.setOnFailed(e -> {
-            // First, do our new task: hide the progress bar.
             hideProgressBar();
-            // Then, if an original handler existed, execute it.
             if (originalOnFailed != null) {
                 originalOnFailed.handle(e);
             }
@@ -95,14 +97,15 @@ public class MainViewController {
     }
 
     /**
-     * Hides the global progress bar and unbinds its progress property.
+     * Hides the global progress bar and unbinds its properties.
      */
     public void hideProgressBar() {
         Platform.runLater(() -> {
             globalProgressBar.progressProperty().unbind();
             globalProgressBar.setProgress(0);
-            globalProgressBar.setVisible(false);
-            globalProgressBar.setManaged(false);
+            globalProgressLabel.setText("0%");
+            globalProgressContainer.setVisible(false);
+            globalProgressContainer.setManaged(false);
         });
     }
 

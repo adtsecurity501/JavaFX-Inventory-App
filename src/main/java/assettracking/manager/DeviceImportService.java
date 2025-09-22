@@ -23,7 +23,6 @@ import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -32,6 +31,10 @@ public class DeviceImportService {
     private static final Logger logger = LoggerFactory.getLogger(DeviceImportService.class);
     private final iPadProvisioningDAO dao = new iPadProvisioningDAO();
 
+    /**
+     * Imports devices from a single file, merging with existing data.
+     * This method is now also used by the iPad Provisioning tab.
+     */
     public int importFromFile(File file) throws IOException, SQLException {
         List<BulkDevice> devices = assettracking.ui.ExcelReader.readDeviceFile(file);
         if (devices.isEmpty()) return 0;
@@ -40,74 +43,66 @@ public class DeviceImportService {
         return hydratedDevices.size();
     }
 
-    public List<ImportResult> runFolderImport(List<String> folderPathsToScan, Consumer<String> progressCallback) throws IOException {
-        progressCallback.accept("Scanning for device files...");
-        List<File> allFiles = findAllDeviceFiles(folderPathsToScan);
-        if (allFiles.isEmpty()) {
-            progressCallback.accept("No new device files found to process.");
-            return Collections.emptyList();
-        }
-
-        List<ImportResult> results = new ArrayList<>();
-        for (int i = 0; i < allFiles.size(); i++) {
-            File file = allFiles.get(i);
-            progressCallback.accept(String.format("Processing file %d/%d: %s", i + 1, allFiles.size(), file.getName()));
-            try {
-                results.add(processAndUpsertData(file));
-            } catch (Exception e) {
-                logger.error("Critical error processing file: {}", file.getName(), e);
-                results.add(new ImportResult(file, 0, List.of("Critical error processing file: " + e.getMessage())));
-            }
-        }
-        return results;
-    }
-
-    private ImportResult processAndUpsertData(File file) throws IOException, CsvException, SQLException {
+    /**
+     * Processes a single file: reads it, merges with DB data, validates, and upserts.
+     * This is now public to be used by FolderImportTask.
+     */
+    public ImportResult processAndUpsertData(File file) throws IOException, CsvException, SQLException {
         List<BulkDevice> parsedDevices = file.getName().toLowerCase().endsWith(".csv") ? streamCsvData(file) : streamExcelData(file);
         if (parsedDevices.isEmpty()) {
             return new ImportResult(file, 0, Collections.emptyList());
         }
 
-        // --- THIS IS THE KEY FIX ---
-        // Hydrate the parsed data with existing DB values before proceeding.
         List<BulkDevice> hydratedDevices = mergeWithExistingData(parsedDevices);
-        // --- END OF FIX ---
 
         DeviceValidationResult validationResult = validateDevices(hydratedDevices);
         int successfulCount = 0;
         if (!validationResult.validDevices().isEmpty()) {
             successfulCount = performDatabaseUpsert(validationResult.validDevices());
         }
-
         return new ImportResult(file, successfulCount, validationResult.errors());
     }
 
-    // --- NEW METHOD TO PREVENT DATA LOSS ---
+    /**
+     * Finds all valid import files within a list of directories.
+     * This is now public to be used by FolderImportTask.
+     */
+    public List<File> findAllDeviceFiles(List<String> folderPaths) throws IOException {
+        List<File> foundFiles = new ArrayList<>();
+        for (String path : folderPaths) {
+            try (Stream<Path> stream = Files.walk(Paths.get(path))) {
+                foundFiles.addAll(stream.filter(Files::isRegularFile).filter(p -> {
+                    String name = p.getFileName().toString().toLowerCase();
+                    return (name.endsWith(".csv") || name.endsWith(".xlsx")) && !name.startsWith("~");
+                }).map(Path::toFile).toList());
+            } catch (IOException e) {
+                throw new IOException("Could not scan directory: " + path, e);
+            }
+        }
+        foundFiles.sort(Comparator.comparingLong(File::lastModified));
+        return foundFiles;
+    }
+
+    // --- Private helper methods below are unchanged ---
+
     private List<BulkDevice> mergeWithExistingData(List<BulkDevice> parsedDevices) throws SQLException {
         List<BulkDevice> hydratedList = new ArrayList<>();
         for (BulkDevice parsed : parsedDevices) {
             Optional<BulkDevice> existingOpt = dao.findDeviceBySerial(parsed.getSerialNumber());
             if (existingOpt.isPresent()) {
                 BulkDevice existing = existingOpt.get();
-                // Create a new, merged device. Prioritize new data, but fall back to existing data if new is null/empty.
-                hydratedList.add(new BulkDevice(parsed.getSerialNumber(), // Serial is the key, always use it
-                        (parsed.getImei() != null && !parsed.getImei().isEmpty()) ? parsed.getImei() : existing.getImei(), (parsed.getIccid() != null && !parsed.getIccid().isEmpty()) ? parsed.getIccid() : existing.getIccid(), (parsed.getCapacity() != null && !parsed.getCapacity().isEmpty()) ? parsed.getCapacity() : existing.getCapacity(), (parsed.getDeviceName() != null && !parsed.getDeviceName().isEmpty()) ? parsed.getDeviceName() : existing.getDeviceName(), parsed.getLastImportDate() // Always update the import date
-                ));
+                hydratedList.add(new BulkDevice(parsed.getSerialNumber(), (parsed.getImei() != null && !parsed.getImei().isEmpty()) ? parsed.getImei() : existing.getImei(), (parsed.getIccid() != null && !parsed.getIccid().isEmpty()) ? parsed.getIccid() : existing.getIccid(), (parsed.getCapacity() != null && !parsed.getCapacity().isEmpty()) ? parsed.getCapacity() : existing.getCapacity(), (parsed.getDeviceName() != null && !parsed.getDeviceName().isEmpty()) ? parsed.getDeviceName() : existing.getDeviceName(), parsed.getLastImportDate()));
             } else {
-                // If it doesn't exist in the DB, just use the parsed data as-is.
                 hydratedList.add(parsed);
             }
         }
         return hydratedList;
     }
 
-    // The rest of the file remains the same...
     private List<BulkDevice> streamExcelData(File file) throws IOException {
         List<BulkDevice> devices = new ArrayList<>();
         String now = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
-
         try (FileInputStream fis = new FileInputStream(file); Workbook workbook = StreamingReader.builder().rowCacheSize(100).bufferSize(4096).open(fis)) {
-
             for (Sheet sheet : workbook) {
                 Map<String, Integer> headerMap = null;
                 for (Row row : sheet) {
@@ -128,20 +123,16 @@ public class DeviceImportService {
     private List<BulkDevice> streamCsvData(File file) throws IOException, CsvException {
         List<BulkDevice> devices = new ArrayList<>();
         String now = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
-
         try (CSVReader reader = new CSVReader(new FileReader(file))) {
             String[] headerArray = reader.readNext();
             if (headerArray == null) return devices;
-
             Map<String, Integer> headerMap = new HashMap<>();
             for (int i = 0; i < headerArray.length; i++) {
                 headerMap.put(headerArray[i].trim().toLowerCase(), i);
             }
-
             if (!headerMap.containsKey("serial number") && !headerMap.containsKey("serial")) {
                 return devices;
             }
-
             String[] line;
             while ((line = reader.readNext()) != null) {
                 processCsvRow(line, headerMap, now).ifPresent(devices::add);
@@ -153,24 +144,20 @@ public class DeviceImportService {
     private Optional<BulkDevice> processRow(Row row, Map<String, Integer> headers, String now) {
         String serial = getCellValue(row, headers, "serial number", "serial");
         if (serial == null || serial.isEmpty()) return Optional.empty();
-
         String iccid = getCleanedNumericValue(row, headers, "iccid", "sim");
         if (iccid != null && (iccid.length() < 18 || iccid.length() > 20)) {
             iccid = null;
         }
-
         return Optional.of(new BulkDevice(serial.toUpperCase(), getCleanedNumericValue(row, headers, "imei/meid", "imei"), iccid, getCellValue(row, headers, "capacity"), getCellValue(row, headers, "name", "device name"), now));
     }
 
     private Optional<BulkDevice> processCsvRow(String[] line, Map<String, Integer> headers, String now) {
         String serial = getCsvValue(line, headers, "serial number", "serial");
         if (serial == null || serial.isEmpty()) return Optional.empty();
-
         String iccid = getCleanedNumericCsvValue(line, headers, "iccid", "sim");
         if (iccid != null && (iccid.length() < 18 || iccid.length() > 20)) {
             iccid = null;
         }
-
         return Optional.of(new BulkDevice(serial.toUpperCase(), getCleanedNumericCsvValue(line, headers, "imei/meid", "imei"), iccid, getCsvValue(line, headers, "capacity"), getCsvValue(line, headers, "name", "device name"), now));
     }
 
@@ -229,18 +216,14 @@ public class DeviceImportService {
             uniqueDevicesBySerial.putIfAbsent(device.getSerialNumber(), device);
         }
         List<BulkDevice> deDuplicatedList = new ArrayList<>(uniqueDevicesBySerial.values());
-
         Map<String, List<BulkDevice>> devicesByImei = deDuplicatedList.stream().filter(d -> d.getImei() != null && !d.getImei().isEmpty()).collect(Collectors.groupingBy(BulkDevice::getImei));
-
         devicesByImei.entrySet().stream().filter(entry -> entry.getValue().size() > 1).forEach(entry -> {
             String imei = entry.getKey();
             String serials = entry.getValue().stream().map(BulkDevice::getSerialNumber).collect(Collectors.joining(", "));
             errors.add(String.format("Rejected: Duplicate IMEI [%s] found for serials: %s.", imei, serials));
         });
-
         Set<String> invalidImeis = devicesByImei.entrySet().stream().filter(entry -> entry.getValue().size() > 1).map(Map.Entry::getKey).collect(Collectors.toSet());
         List<BulkDevice> validDevices = deDuplicatedList.stream().filter(d -> d.getImei() == null || d.getImei().isEmpty() || !invalidImeis.contains(d.getImei())).collect(Collectors.toList());
-
         return new DeviceValidationResult(validDevices, errors);
     }
 
@@ -248,11 +231,9 @@ public class DeviceImportService {
         String unassignSql = "UPDATE Bulk_Devices SET ICCID = NULL WHERE ICCID = ? AND SerialNumber <> ?";
         String upsertSql = "MERGE INTO Bulk_Devices (SerialNumber, IMEI, ICCID, Capacity, DeviceName, LastImportDate) KEY(SerialNumber) VALUES (?, ?, ?, ?, ?, ?)";
         int[] upsertResults;
-
         try (Connection conn = DatabaseConnection.getInventoryConnection()) {
             conn.setAutoCommit(false);
             try (PreparedStatement unassignStmt = conn.prepareStatement(unassignSql); PreparedStatement upsertStmt = conn.prepareStatement(upsertSql)) {
-
                 for (BulkDevice device : devices) {
                     if (device.getIccid() != null && !device.getIccid().isEmpty()) {
                         unassignStmt.setString(1, device.getIccid());
@@ -276,21 +257,5 @@ public class DeviceImportService {
             conn.commit();
         }
         return (int) Arrays.stream(upsertResults).filter(i -> i >= 0).count();
-    }
-
-    private List<File> findAllDeviceFiles(List<String> folderPaths) throws IOException {
-        List<File> foundFiles = new ArrayList<>();
-        for (String path : folderPaths) {
-            try (Stream<Path> stream = Files.walk(Paths.get(path))) {
-                foundFiles.addAll(stream.filter(Files::isRegularFile).filter(p -> {
-                    String name = p.getFileName().toString().toLowerCase();
-                    return (name.endsWith(".csv") || name.endsWith(".xlsx")) && !name.startsWith("~");
-                }).map(Path::toFile).toList());
-            } catch (IOException e) {
-                throw new IOException("Could not scan directory: " + path, e);
-            }
-        }
-        foundFiles.sort(Comparator.comparingLong(File::lastModified));
-        return foundFiles;
     }
 }
