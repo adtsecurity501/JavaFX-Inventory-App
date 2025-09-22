@@ -2,6 +2,8 @@ package assettracking.dao;
 
 import assettracking.data.Package;
 import assettracking.db.DatabaseConnection;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.*;
 import java.time.LocalDate;
@@ -9,6 +11,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class PackageDAO {
+    private static final Logger logger = LoggerFactory.getLogger(PackageDAO.class);
+
 
     public int addPackage(Package pkg) {
         return addPackage(pkg.getTrackingNumber(), pkg.getFirstName(), pkg.getLastName(), pkg.getCity(), pkg.getState(), pkg.getZipCode(), pkg.getReceiveDate());
@@ -35,7 +39,7 @@ public class PackageDAO {
                 }
             }
         } catch (SQLException e) {
-            System.err.println("Error adding package: " + e.getMessage());
+            logger.error("Error adding package: ", e);
         }
         return -1;
     }
@@ -203,10 +207,10 @@ public class PackageDAO {
                 try {
                     conn.rollback();
                 } catch (SQLException ex) {
-                    System.err.println("Database error: " + e.getMessage());
+                    logger.error("Database error: ", e);
                 }
             }
-            System.err.println("Database error: " + e.getMessage());
+            logger.error("Database error: " + e.getMessage());
             return false;
         } finally {
             if (conn != null) {
@@ -214,7 +218,7 @@ public class PackageDAO {
                     conn.setAutoCommit(true);
                     conn.close();
                 } catch (SQLException e) {
-                    System.err.println("Database error: " + e.getMessage());
+                    logger.error("Database error: ", e);
                 }
             }
         }
