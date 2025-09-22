@@ -56,20 +56,42 @@ public class MainViewController {
 
     /**
      * Binds a background task's progress to the global progress bar and makes it visible.
-     * Automatically handles unbinding and hiding when the task finishes.
+     * This method preserves any existing onSucceeded or onFailed handlers on the task.
      *
      * @param task The background task to monitor.
      */
     public void bindProgressBar(Task<?> task) {
+        // Show the bar and bind its progress property
         Platform.runLater(() -> {
             globalProgressBar.setVisible(true);
             globalProgressBar.setManaged(true);
             globalProgressBar.progressProperty().bind(task.progressProperty());
         });
 
-        // Add listeners to automatically hide the bar when the task is done
-        task.setOnSucceeded(e -> hideProgressBar());
-        task.setOnFailed(e -> hideProgressBar());
+        // --- THIS IS THE FIX ---
+        // Store the original event handlers that were set on the task before it was passed to this method.
+        var originalOnSucceeded = task.getOnSucceeded();
+        var originalOnFailed = task.getOnFailed();
+
+        // Set our new success handler.
+        task.setOnSucceeded(e -> {
+            // First, do our new task: hide the progress bar.
+            hideProgressBar();
+            // Then, if an original handler existed, execute it.
+            if (originalOnSucceeded != null) {
+                originalOnSucceeded.handle(e);
+            }
+        });
+
+        // Set our new failure handler.
+        task.setOnFailed(e -> {
+            // First, do our new task: hide the progress bar.
+            hideProgressBar();
+            // Then, if an original handler existed, execute it.
+            if (originalOnFailed != null) {
+                originalOnFailed.handle(e);
+            }
+        });
     }
 
     /**
