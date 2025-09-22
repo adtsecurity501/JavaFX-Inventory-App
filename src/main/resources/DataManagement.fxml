@@ -31,10 +31,29 @@
                 <GridPane hgap="10" vgap="10" style="-fx-padding: 10 0 0 0;">
                     <Button fx:id="importAutofillButton" onAction="#handleImportAutofill"
                             text="Import Autofill Data..."/>
+                    <Button fx:id="manageFlagsButton" onAction="#handleManageFlags" text="Manage Flagged Devices..."
+                            GridPane.columnIndex="1"/>
                     <Button fx:id="importFlagsButton" onAction="#handleImportFlags"
                             text="Import/Manage Flagged Devices..." GridPane.columnIndex="1"/>
                     <Button fx:id="updateMelButton" onAction="#handleUpdateMelRules" text="Update MEL Rules..."
                             GridPane.columnIndex="2"/>
+                </GridPane>
+            </VBox>
+        </TitledPane>
+        <TitledPane text="Dashboard Configuration" collapsible="false">
+            <VBox spacing="10" style="-fx-padding: 15;">
+                <Label text="Set the weekly performance goals displayed on the Dashboard." wrapText="true"/>
+                <GridPane hgap="10" vgap="10" style="-fx-padding: 10 0 0 0;">
+                    <columnConstraints>
+                        <ColumnConstraints hgrow="NEVER" minWidth="100"/>
+                        <ColumnConstraints hgrow="ALWAYS"/>
+                    </columnConstraints>
+                    <Label text="Device Goal:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+                    <TextField fx:id="deviceGoalField" prefWidth="100" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+                    <Label text="Monitor Goal:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+                    <TextField fx:id="monitorGoalField" prefWidth="100" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+                    <Button fx:id="applyGoalsButton" onAction="#handleApplyGoals" text="Apply Goals"
+                            styleClass="accent" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
                 </GridPane>
             </VBox>
         </TitledPane>

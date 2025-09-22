@@ -471,25 +471,6 @@ public class DeviceStatusTrackingController {
         }
     }
 
-    @FXML
-    private void handleManageFlags() {
-        try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/FlagManagementDialog.fxml"));
-            Parent root = loader.load();
-            FlagManagementDialogController dialogController = loader.getController();
-
-            // Pass a callback to the dialog so it can trigger a refresh on the main view when changes are made.
-            dialogController.setOnSaveCallback(this::refreshData);
-
-            Stage stage = StageManager.createCustomStage(getOwnerWindow(), "Manage Flagged Devices", root);
-            stage.showAndWait();
-
-        } catch (IOException e) {
-            // Replace printStackTrace
-            StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Error", "Could not open the Flag Management window.");
-        }
-    }
-
     private void handleViewHistory() {
         DeviceStatusView selectedDevice = statusTable.getSelectionModel().getSelectedItem();
         if (selectedDevice != null) {

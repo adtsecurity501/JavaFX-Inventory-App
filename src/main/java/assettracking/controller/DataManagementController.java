@@ -36,6 +36,9 @@ public class DataManagementController {
 
     private static final Logger logger = LoggerFactory.getLogger(DataManagementController.class);
     private final ReportingService reportingService = new ReportingService();
+    @SuppressWarnings("unused")
+    @FXML
+    private Button manageFlagsButton;
     @FXML
     private Button bulkIntakeButton;
     @SuppressWarnings("unused")
@@ -60,6 +63,15 @@ public class DataManagementController {
     private Button manageFoldersButton;
     @FXML
     private Label statusLabel;
+    @FXML
+    private TextField deviceGoalField;
+    @FXML
+    private TextField monitorGoalField;
+    @SuppressWarnings("unused")
+    @FXML
+    private Button applyGoalsButton;
+
+
     private DeviceStatusDAO deviceStatusDAO;
     private AppSettingsDAO appSettingsDAO;
     private DeviceImportService deviceImportService;
@@ -69,6 +81,25 @@ public class DataManagementController {
         this.deviceStatusDAO = new DeviceStatusDAO(null, null);
         this.appSettingsDAO = new AppSettingsDAO();
         this.deviceImportService = new DeviceImportService();
+
+    }
+
+    @FXML
+    private void handleApplyGoals() {
+        try {
+            double deviceGoal = Double.parseDouble(deviceGoalField.getText());
+            appSettingsDAO.saveSetting("device_goal", String.valueOf(deviceGoal));
+
+            double monitorGoal = Double.parseDouble(monitorGoalField.getText());
+            appSettingsDAO.saveSetting("monitor_goal", String.valueOf(monitorGoal));
+
+            statusLabel.setText("Dashboard goals have been updated. Refresh the Dashboard to see the new pacing.");
+            StageManager.showAlert(getStage(), Alert.AlertType.INFORMATION, "Goals Updated", "Dashboard goals have been saved.");
+
+        } catch (NumberFormatException e) {
+            statusLabel.setText("Error: Goals must be valid numbers.");
+            StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Invalid Input", "Goals must be valid numbers.");
+        }
     }
 
     @FXML
@@ -109,6 +140,24 @@ public class DataManagementController {
             // THIS IS THE CORRECTED LINE: Use the MainViewController's global progress bar
             MainViewController.getInstance().bindProgressBar(exportTask);
             new Thread(exportTask).start();
+        }
+    }
+
+    @FXML
+    private void handleManageFlags() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/FlagManagementDialog.fxml"));
+            Parent root = loader.load();
+            FlagManagementDialogController dialogController = loader.getController();
+
+            // Set a callback to update the status label on this tab.
+            dialogController.setOnSaveCallback(() -> statusLabel.setText("Flag list updated. Refresh the Device Status Tracking tab to see changes."));
+
+            Stage stage = StageManager.createCustomStage(getStage(), "Manage Flagged Devices", root);
+            stage.showAndWait();
+        } catch (IOException e) {
+            logger.error("Failed to open Flag Management window", e);
+            StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Error", "Could not open the Flag Management window.");
         }
     }
 

@@ -62,8 +62,6 @@ public class DashboardController {
     @FXML
     private RadioButton days7Radio;
     @FXML
-    private TextField deviceGoalField, monitorGoalField;
-    @FXML
     private GridPane mainGridPane;
     @FXML
     private ColumnConstraints leftColumn, rightColumn;
@@ -95,7 +93,7 @@ public class DashboardController {
     }
 
     private void setupUIListeners() {
-//        dateRangeToggleGroup.selectedToggleProperty().addListener((obs, oldVal, newVal) -> refreshAllData());
+        dateRangeToggleGroup.selectedToggleProperty().addListener((obs, oldVal, newVal) -> refreshAllData());
         mainGridPane.widthProperty().addListener((obs, oldVal, newVal) -> {
             boolean isSingleColumn = newVal.doubleValue() < 800;
             GridPane.setRowIndex(rightScrollPane, isSingleColumn ? 1 : 0);
@@ -114,18 +112,14 @@ public class DashboardController {
     private void loadInitialDataAsync() {
         Task<Void> initialLoadTask = new Task<>() {
             @Override
-            protected Void call() { // Removed 'throws Exception'
+            protected Void call() {
                 weeklyDeviceGoal = Double.parseDouble(appSettingsDAO.getSetting("device_goal").orElse("100.0"));
                 weeklyMonitorGoal = Double.parseDouble(appSettingsDAO.getSetting("monitor_goal").orElse("50.0"));
                 return null;
             }
         };
 
-        initialLoadTask.setOnSucceeded(e -> {
-            deviceGoalField.setText(String.valueOf((int) weeklyDeviceGoal));
-            monitorGoalField.setText(String.valueOf((int) weeklyMonitorGoal));
-            refreshAllData();
-        });
+        initialLoadTask.setOnSucceeded(e -> refreshAllData());
 
         initialLoadTask.setOnFailed(e -> Platform.runLater(() -> StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Database Connection Failed", "Could not connect to the database. Please ensure the H2 server is running and the network is accessible.\n\nError: " + initialLoadTask.getException().getMessage())));
         new Thread(initialLoadTask).start();
@@ -374,160 +368,6 @@ public class DashboardController {
         st.setAutoReverse(true);
         st.play();
     }
-
-//    @FXML
-//    private void handleManageFolders() {
-//        AppSettingsDAO settingsDAO = new AppSettingsDAO();
-//        final String FOLDERS_KEY = "bulk.import.scan.folders";
-//
-//        List<String> currentFolders = new ArrayList<>(settingsDAO.getSetting(FOLDERS_KEY).map(paths -> Arrays.asList(paths.split(","))).orElse(List.of()));
-//        Optional<List<String>> updatedFoldersOpt = showFolderManagementDialog(currentFolders);
-//
-//        updatedFoldersOpt.ifPresent(updatedFolders -> {
-//            String pathsToSave = String.join(",", updatedFolders);
-//            settingsDAO.saveSetting(FOLDERS_KEY, pathsToSave);
-//            StageManager.showAlert(getStage(), Alert.AlertType.INFORMATION, "Settings Saved", "Your import folder list has been updated.");
-//        });
-//    }
-
-//    @FXML
-//    private void handleImportAutofill() {
-//        try {
-//            FXMLLoader loader = new FXMLLoader(getClass().getResource("/AutofillImportDialog.fxml"));
-//            Parent root = loader.load();
-//            Stage stage = StageManager.createCustomStage(getStage(), "Bulk Import Autofill Data", root);
-//            stage.showAndWait();
-//        } catch (IOException e) {
-//            StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Error", "Could not open the import dialog: " + e.getMessage());
-//        }
-//    }
-
-//    @FXML
-//    private void handleImportDeviceFiles() {
-//        AppSettingsDAO settingsDAO = new AppSettingsDAO();
-//        final String FOLDERS_KEY = "bulk.import.scan.folders";
-//        Optional<String> savedPathsOpt = settingsDAO.getSetting(FOLDERS_KEY);
-//
-//        if (savedPathsOpt.isEmpty() || savedPathsOpt.get().isBlank()) {
-//            StageManager.showAlert(getStage(), Alert.AlertType.WARNING, "Setup Required", "Please configure the import folders first using the 'Manage Import Folders' button.");
-//            return;
-//        }
-//
-//        List<String> foldersToScan = new ArrayList<>(Arrays.asList(savedPathsOpt.get().split(",")));
-//        DeviceImportService importService = new DeviceImportService();
-//
-//        Task<List<ImportResult>> importTask = new Task<>() {
-//            @Override
-//            protected List<ImportResult> call() throws IOException {
-//                return importService.runFolderImport(foldersToScan, this::updateMessage);
-//            }
-//        };
-//
-//        importTask.messageProperty().addListener((obs, oldMsg, newMsg) -> statusLabel.setText(newMsg));
-//        importDeviceFilesButton.setDisable(true);
-//        statusLabel.setText("Starting import...");
-//
-//        importTask.setOnSucceeded(e -> {
-//            importDeviceFilesButton.setDisable(false);
-//            List<ImportResult> results = importTask.getValue();
-//
-//            if (results.isEmpty()) {
-//                statusLabel.setText("Import finished: No new files were found to process.");
-//                return;
-//            }
-//
-//            StringBuilder summary = new StringBuilder("Import Complete:\n\n");
-//            int totalSuccess = results.stream().mapToInt(ImportResult::successfulCount).sum();
-//            long totalErrors = results.stream().mapToLong(r -> r.errors().size()).sum();
-//
-//            summary.append(String.format("Successfully processed: %d records\n", totalSuccess));
-//            summary.append(String.format("Rejected records: %d\n", totalErrors));
-//
-//            List<String> topErrors = results.stream().flatMap(r -> r.errors().stream()).limit(10).toList();
-//
-//            if (!topErrors.isEmpty()) {
-//                summary.append("\nTop Reasons for Rejection:\n");
-//                topErrors.forEach(err -> summary.append(String.format("- %s\n", err)));
-//            }
-//
-//            String logMessage = logImportErrors(results);
-//            summary.append(logMessage);
-//
-//            statusLabel.setText(String.format("Import finished. Processed: %d, Rejected: %d. Refreshing dashboard...", totalSuccess, totalErrors));
-//            StageManager.showAlert(getStage(), Alert.AlertType.INFORMATION, "Import Results", summary.toString());
-//
-//            Platform.runLater(this::refreshAllData);
-//        });
-//
-//        importTask.setOnFailed(e -> {
-//            importDeviceFilesButton.setDisable(false);
-//            Throwable ex = importTask.getException();
-//            statusLabel.setText("Import failed. See error dialog.");
-//            StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Import Failed", "A critical error occurred: " + ex.getMessage());
-//        });
-//
-//        new Thread(importTask).start();
-//    }
-
-
-//    @FXML
-//    private void handleImportFlags() {
-//        new FlaggedDeviceImporter().importFromFile(getStage(), this::refreshAllData);
-//    }
-//
-//    @FXML
-//    private void handleManageMelRules() {
-//        new MelRulesImporter().importFromFile(getStage());
-//    }
-
-//    private String logImportErrors(List<ImportResult> results) {
-//        List<String> allErrors = results.stream().flatMap(r -> r.errors().stream()).toList();
-//
-//        if (allErrors.isEmpty()) {
-//            return "";
-//        }
-//
-//        try {
-//            Path logDir = Paths.get(System.getProperty("user.home"), ".asset_tracker_logs");
-//            Files.createDirectories(logDir);
-//            String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
-//            Path logFile = logDir.resolve("import_errors_" + timestamp + ".txt");
-//
-//            try (PrintWriter writer = new PrintWriter(logFile.toFile())) {
-//                writer.println("Asset Tracking Import Error Log - " + LocalDateTime.now());
-//                writer.println("=======================================================");
-//                for (ImportResult result : results) {
-//                    if (!result.errors().isEmpty()) {
-//                        writer.printf("\nErrors for file: %s\n", result.file().getName());
-//                        writer.println("----------------------------------------");
-//                        result.errors().forEach(writer::println);
-//                    }
-//                }
-//            }
-//            return String.format("\nA full report of all %d rejected records has been saved to:\n%s", allErrors.size(), logFile.toAbsolutePath());
-//        } catch (IOException e) {
-//            return "\nCould not write full error log to file due to an error: " + e.getMessage();
-//        }
-//    }
-
-    @FXML
-    private void handleApplyGoals() {
-        try {
-            weeklyDeviceGoal = Double.parseDouble(deviceGoalField.getText());
-            appSettingsDAO.saveSetting("device_goal", String.valueOf(weeklyDeviceGoal));
-        } catch (NumberFormatException e) {
-            deviceGoalField.setText(String.valueOf((int) weeklyDeviceGoal));
-        }
-        try {
-            weeklyMonitorGoal = Double.parseDouble(monitorGoalField.getText());
-            appSettingsDAO.saveSetting("monitor_goal", String.valueOf(weeklyMonitorGoal));
-        } catch (NumberFormatException e) {
-            monitorGoalField.setText(String.valueOf((int) weeklyMonitorGoal));
-        }
-        goalMetCelebrated = false;
-        refreshAllData();
-    }
-
 
     private Stage getStage() {
         return (Stage) mainGridPane.getScene().getWindow();

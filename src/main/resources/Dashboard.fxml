@@ -183,23 +183,6 @@
                         </VBox>
                     </GridPane>
                 </VBox>
-                <VBox spacing="5"
-                      style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 4;">
-                    <Label text="Set Weekly Goals" styleClass="h4"/>
-                    <Separator/>
-                    <GridPane hgap="10" vgap="5" alignment="CENTER_LEFT">
-                        <columnConstraints>
-                            <ColumnConstraints hgrow="NEVER" minWidth="80"/>
-                            <ColumnConstraints hgrow="ALWAYS"/>
-                        </columnConstraints>
-                        <Label text="Device Goal:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
-                        <TextField fx:id="deviceGoalField" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
-                        <Label text="Monitor Goal:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
-                        <TextField fx:id="monitorGoalField" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
-                        <Button text="Apply Goals" onAction="#handleApplyGoals" GridPane.rowIndex="2"
-                                GridPane.columnIndex="1"/>
-                    </GridPane>
-                </VBox>
                 <VBox spacing="5" VBox.vgrow="ALWAYS"
                       style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 4;">
                     <Label fx:id="inventoryOverviewTitleLabel" text="Asset Status Overview" styleClass="h4"/>
