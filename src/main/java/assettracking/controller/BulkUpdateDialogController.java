@@ -31,6 +31,8 @@ public class BulkUpdateDialogController {
     private Label notFoundLabel;
     @FXML
     private ListView<String> notFoundListView;
+    @FXML
+    private Button deleteButton;
 
     private DeviceStatusDAO deviceStatusDAO;
     private Runnable onFinishedCallback;
@@ -45,6 +47,50 @@ public class BulkUpdateDialogController {
     public void initData(DeviceStatusDAO deviceStatusDAO, Runnable onFinishedCallback) {
         this.deviceStatusDAO = deviceStatusDAO;
         this.onFinishedCallback = onFinishedCallback;
+    }
+
+    @FXML
+    private void handlePermanentDelete() {
+        String text = serialsTextArea.getText();
+        if (text == null || text.trim().isEmpty()) {
+            StageManager.showAlert(getStage(), Alert.AlertType.WARNING, "Input Required", "Please paste at least one serial number.");
+            return;
+        }
+
+        Set<String> serialsToDelete = Arrays.stream(text.split("\\s+")).map(String::trim).filter(s -> !s.isEmpty() && !s.equalsIgnoreCase("Tag")).collect(Collectors.toSet());
+
+        if (serialsToDelete.isEmpty()) {
+            StageManager.showAlert(getStage(), Alert.AlertType.WARNING, "Input Required", "No valid serial numbers were found in the input.");
+            return;
+        }
+
+        // Use the most secure confirmation dialog
+        if (StageManager.showDeleteConfirmationDialog(getStage(), "devices", "permanently from the database")) {
+
+            Task<Integer> deleteTask = new Task<>() {
+                @Override
+                protected Integer call() throws Exception {
+                    return deviceStatusDAO.permanentlyDeleteDevicesBySerial(serialsToDelete);
+                }
+            };
+
+            deleteTask.setOnSucceeded(e -> {
+                int count = deleteTask.getValue();
+                StageManager.showAlert(getStage(), Alert.AlertType.INFORMATION, "Deletion Complete", "Successfully deleted all records related to " + serialsToDelete.size() + " devices.");
+
+                // Clear the UI and refresh the main table
+                serialsTextArea.clear();
+                successListView.getItems().clear();
+                notFoundListView.getItems().clear();
+                if (onFinishedCallback != null) {
+                    onFinishedCallback.run();
+                }
+            });
+
+            deleteTask.setOnFailed(e -> StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Deletion Failed", "A database error occurred and the transaction was rolled back. No devices were deleted. Error: " + e.getSource().getException().getMessage()));
+
+            new Thread(deleteTask).start();
+        }
     }
 
     private void setupStatusComboBoxes() {
@@ -78,9 +124,7 @@ public class BulkUpdateDialogController {
 
         // Parse and clean the input serials
         Set<String> serialsToUpdate = Arrays.stream(text.split("\\s+")) // Split by any whitespace (space, tab, newline)
-                .map(String::trim)
-                .filter(s -> !s.isEmpty() && !s.equalsIgnoreCase("Tag"))
-                .collect(Collectors.toSet());
+                .map(String::trim).filter(s -> !s.isEmpty() && !s.equalsIgnoreCase("Tag")).collect(Collectors.toSet());
 
         if (serialsToUpdate.isEmpty()) {
             StageManager.showAlert(getStage(), Alert.AlertType.WARNING, "Input Required", "No valid serial numbers were found in the input.");

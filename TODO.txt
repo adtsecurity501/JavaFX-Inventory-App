@@ -1,9 +1,9 @@
 Priority 1:
 - add way to import information into the device_autofill_data table .
 - When I minimize the window it goes to the bottom left corner and it has no styles
-- The code needs to change for ipadsettings I think Im calling the wrong table name or something when seraahing serial in the ipad provisioning table for postgres version.
--Find better spot for Bulk import from list and bulk import from list, Manage flags..., export, Import device files, manage import folders, import flags, update mel rules, and import autofill data buttons. For the best UX/UI does it make sense to put these all on their own seperate tab, or to add them all to an exisiting tab? Or to seperarte them on different pages, or to add another button that has a popup with options, idk just thinking of different ideas, what do you think?
-- I need a way to bulk delete a bunch of devices that I just added on accident.
+- The code needs to change for ipadsettings I think Im calling the wrong table name or something when searching serial in the ipad provisioning table for postgres version.
+-Find better spot for Bulk import from list and bulk import from list, Manage flags..., export, Import device files, manage import folders, import flags, update mel rules, and import autofill data buttons, etc.... For the best UX/UI does it make sense to put these all on their own separate tab, or to add them all to an existing tab? Or to move / combine/ separate them on different pages, or to add another button that has a popup with options, idk just thinking of different ideas, what do you think?
+
 
 
 Priority 2:
@@ -147,6 +147,10 @@ device is a:Optiplex 3000
 -update the scan updates processed ready to deploy descriptuion that prints on the lablels when I select a sku to print the description from the SKU not the descriptiuon from the device
 - update the scan update serach to let me also searcj for the sku itself
 - Update the descriptionn on SKU Print H2 db.
+- I need a way to bulk delete a bunch of devices that I just added wiht the wrong serial on accident on accident.
+
+
+
 
 
 

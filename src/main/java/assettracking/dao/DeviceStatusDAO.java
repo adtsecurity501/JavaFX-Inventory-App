@@ -16,6 +16,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
@@ -31,8 +32,7 @@ public class DeviceStatusDAO {
 
     public int fetchPageCount() {
         DeviceStatusActions.QueryAndParams queryAndParams = buildFilteredQuery(true);
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(queryAndParams.sql())) {
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(queryAndParams.sql())) {
             for (int i = 0; i < queryAndParams.params().size(); i++) {
                 stmt.setObject(i + 1, queryAndParams.params().get(i));
             }
@@ -103,8 +103,7 @@ public class DeviceStatusDAO {
     public void updateTableForPage(int pageIndex) {
         deviceStatusList.clear();
         DeviceStatusActions.QueryAndParams queryAndParams = buildFilteredQuery(false);
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(queryAndParams.sql())) {
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(queryAndParams.sql())) {
             int paramIndex = 1;
             for (Object param : queryAndParams.params()) {
                 stmt.setObject(paramIndex++, param);
@@ -114,13 +113,7 @@ public class DeviceStatusDAO {
 
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
-                deviceStatusList.add(new DeviceStatusView(
-                        rs.getInt("receipt_id"), rs.getString("serial_number"), rs.getString("category"),
-                        rs.getString("make"), rs.getString("description"), rs.getString("status"),
-                        rs.getString("sub_status"), rs.getTimestamp("last_update") != null ? rs.getTimestamp("last_update").toString().substring(0, 19) : "",
-                        rs.getString("receive_date"),
-                        rs.getString("change_log"), rs.getBoolean("is_flagged")
-                ));
+                deviceStatusList.add(new DeviceStatusView(rs.getInt("receipt_id"), rs.getString("serial_number"), rs.getString("category"), rs.getString("make"), rs.getString("description"), rs.getString("status"), rs.getString("sub_status"), rs.getTimestamp("last_update") != null ? rs.getTimestamp("last_update").toString().substring(0, 19) : "", rs.getString("receive_date"), rs.getString("change_log"), rs.getBoolean("is_flagged")));
             }
         } catch (SQLException e) {
             Platform.runLater(() -> StageManager.showAlert(null, Alert.AlertType.ERROR, "Database Error", "Failed to load page data: " + e.getMessage()));
@@ -141,8 +134,7 @@ public class DeviceStatusDAO {
             conn = DatabaseConnection.getInventoryConnection();
             conn.setAutoCommit(false);
 
-            try (PreparedStatement updateStmt = conn.prepareStatement(updateStatusSql);
-                 PreparedStatement deleteStmt = conn.prepareStatement(deleteFlagSql)) {
+            try (PreparedStatement updateStmt = conn.prepareStatement(updateStatusSql); PreparedStatement deleteStmt = conn.prepareStatement(deleteFlagSql)) {
 
                 for (DeviceStatusView device : selectedDevices) {
                     updateStmt.setString(1, newStatus);
@@ -189,29 +181,55 @@ public class DeviceStatusDAO {
         }
     }
 
+    public int permanentlyDeleteDevicesBySerial(Set<String> serials) throws SQLException {
+        String[] deleteQueries = {
+                // Order is important due to foreign key constraints
+                "DELETE FROM Device_Status WHERE receipt_id IN (SELECT receipt_id FROM Receipt_Events WHERE serial_number = ?)", "DELETE FROM Disposition_Info WHERE receipt_id IN (SELECT receipt_id FROM Receipt_Events WHERE serial_number = ?)", "DELETE FROM Flag_Devices WHERE serial_number = ?", "DELETE FROM Receipt_Events WHERE serial_number = ?", "DELETE FROM Physical_Assets WHERE serial_number = ?", "DELETE FROM Device_Autofill_Data WHERE serial_number = ?"};
+
+        int totalDeleted = 0;
+        Connection conn = null;
+        try {
+            conn = DatabaseConnection.getInventoryConnection();
+            conn.setAutoCommit(false); // Start transaction
+
+            for (String sql : deleteQueries) {
+                try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                    for (String serial : serials) {
+                        stmt.setString(1, serial);
+                        stmt.addBatch();
+                    }
+                    // We sum the results, but the primary goal is execution
+                    totalDeleted += Arrays.stream(stmt.executeBatch()).sum();
+                }
+            }
+
+            conn.commit(); // Commit all changes if no errors occurred
+            return totalDeleted;
+
+        } catch (SQLException e) {
+            if (conn != null) {
+                conn.rollback(); // Rollback all changes on any error
+            }
+            throw e; // Re-throw the exception to be handled by the controller
+        } finally {
+            if (conn != null) {
+                conn.setAutoCommit(true);
+                conn.close();
+            }
+        }
+    }
+
     private DeviceStatusActions.QueryAndParams buildFilteredQuery(boolean forCount) {
         DeviceStatusTrackingController controller = manager.getController();
 
         // --- QUERY LOGIC HAS BEEN CORRECTED HERE ---
-        String baseQuery =
-                " FROM " +
-                        "    Receipt_Events re " +
-                        "INNER JOIN ( " +
-                        "    SELECT serial_number, MAX(receipt_id) AS max_receipt_id " +
-                        "    FROM Receipt_Events " +
-                        "    GROUP BY serial_number " +
-                        ") latest ON re.serial_number = latest.serial_number AND re.receipt_id = latest.max_receipt_id " +
-                        // --- NEW: JOIN the Physical_Assets table to get the most current data ---
-                        "LEFT JOIN Physical_Assets pa ON re.serial_number = pa.serial_number " +
-                        "LEFT JOIN Packages p ON re.package_id = p.package_id " +
-                        "LEFT JOIN Device_Status ds ON re.receipt_id = ds.receipt_id";
+        String baseQuery = " FROM " + "    Receipt_Events re " + "INNER JOIN ( " + "    SELECT serial_number, MAX(receipt_id) AS max_receipt_id " + "    FROM Receipt_Events " + "    GROUP BY serial_number " + ") latest ON re.serial_number = latest.serial_number AND re.receipt_id = latest.max_receipt_id " +
+                // --- NEW: JOIN the Physical_Assets table to get the most current data ---
+                "LEFT JOIN Physical_Assets pa ON re.serial_number = pa.serial_number " + "LEFT JOIN Packages p ON re.package_id = p.package_id " + "LEFT JOIN Device_Status ds ON re.receipt_id = ds.receipt_id";
 
-        String selectClause = forCount
-                ? "SELECT COUNT(DISTINCT re.serial_number)"
+        String selectClause = forCount ? "SELECT COUNT(DISTINCT re.serial_number)"
                 // --- UPDATED: Select category, make, and description from Physical_Assets (aliased as 'pa') ---
-                : "SELECT p.receive_date, re.receipt_id, re.serial_number, pa.category, pa.make, pa.description, " +
-                "ds.status, ds.sub_status, ds.last_update, ds.change_log, " +
-                "EXISTS(SELECT 1 FROM Flag_Devices fd WHERE fd.serial_number = re.serial_number) AS is_flagged";
+                : "SELECT p.receive_date, re.receipt_id, re.serial_number, pa.category, pa.make, pa.description, " + "ds.status, ds.sub_status, ds.last_update, ds.change_log, " + "EXISTS(SELECT 1 FROM Flag_Devices fd WHERE fd.serial_number = re.serial_number) AS is_flagged";
         // --- END OF CORRECTIONS ---
 
         List<Object> params = new ArrayList<>();

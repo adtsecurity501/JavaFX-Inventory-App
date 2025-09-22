@@ -25,6 +25,7 @@
 
     <HBox alignment="CENTER_RIGHT" spacing="10">
         <Button fx:id="processButton" text="Process List" onAction="#handleProcess" styleClass="success"/>
+        <Button fx:id="deleteButton" text="Permanently Delete" onAction="#handlePermanentDelete" styleClass="danger"/>
         <Button text="Close" onAction="#handleClose"/>
     </HBox>
 
