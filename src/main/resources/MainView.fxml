@@ -68,6 +68,9 @@
                 <Tab text="Autofill Management">
                     <fx:include source="AutofillManagement.fxml"/>
                 </Tab>
+                <Tab text="Data Management">
+                    <fx:include source="DataManagement.fxml"/>
+                </Tab>
                 <Tab text="iPad Provisioning">
                     <fx:include source="iPadProvisioning.fxml"/>
                 </Tab>

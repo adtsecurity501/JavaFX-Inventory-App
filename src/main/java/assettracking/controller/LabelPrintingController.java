@@ -11,6 +11,7 @@ import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 
 import javax.print.PrintService;
 import javax.print.PrintServiceLookup;
@@ -25,6 +26,9 @@ public class LabelPrintingController {
     private final ZplPrinterService printerService = new ZplPrinterService();
 
     // --- FXML Components ---
+    @SuppressWarnings("unused")
+    @FXML
+    private VBox assetStandardPane;
     @FXML
     private ComboBox<String> printerNameField, assetPrinterNameField;
     @FXML
@@ -67,6 +71,15 @@ public class LabelPrintingController {
     private TextField imageSkuField, imageDeviceSkuField, imagePrefixField, imageCopiesField;
     @FXML
     private RadioButton barcode14Radio, barcode20Radio;
+    @SuppressWarnings("unused")
+    @FXML
+    private ToggleGroup assetTagTypeGroup;
+    @SuppressWarnings("unused")
+    @FXML
+    private ToggleGroup barcodeLengthGroup;
+    @SuppressWarnings("unused")
+    @FXML
+    private RadioButton barcodeFullRadio;
 
     // --- NEW: References to popups ---
     private AutoCompletePopup imageSkuPopup;

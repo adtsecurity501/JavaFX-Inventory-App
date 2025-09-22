@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<ScrollPane xmlns:fx="http://javafx.com/fxml/1" xmlns="http://javafx.com/javafx/21"
+            fx:controller="assettracking.controller.DataManagementController"
+            fitToWidth="true" style="-fx-background-color: transparent;">
+    <VBox spacing="15" style="-fx-padding: 20;">
+        <Label styleClass="h3" text="Data Management &amp; Tools"/>
+        <Label text="Use the sections below to perform bulk data operations, manage system rules, and configure automated imports."
+               wrapText="true"/>
+        <Separator/>
+
+        <TitledPane text="Bulk Device Operations" collapsible="false">
+            <VBox spacing="10" style="-fx-padding: 15;">
+                <Label text="Actions that directly affect a large number of individual device records."
+                       wrapText="true"/>
+                <GridPane hgap="10" vgap="10" style="-fx-padding: 10 0 0 0;">
+                    <Button fx:id="bulkIntakeButton" onAction="#handleBulkIntake" text="Bulk Intake from List..."/>
+                    <Button fx:id="bulkUpdateButton" onAction="#handleBulkUpdate" text="Bulk Status Update from List..."
+                            GridPane.columnIndex="1"/>
+                    <Button fx:id="exportButton" onAction="#handleExport" text="Export All Device Data..."
+                            GridPane.columnIndex="2"/>
+                </GridPane>
+            </VBox>
+        </TitledPane>
+
+        <TitledPane text="System Data &amp; Rules" collapsible="false">
+            <VBox spacing="10" style="-fx-padding: 15;">
+                <Label text="Manage the system's underlying lookup tables and business logic rules." wrapText="true"/>
+                <GridPane hgap="10" vgap="10" style="-fx-padding: 10 0 0 0;">
+                    <Button fx:id="importAutofillButton" onAction="#handleImportAutofill"
+                            text="Import Autofill Data..."/>
+                    <Button fx:id="importFlagsButton" onAction="#handleImportFlags"
+                            text="Import/Manage Flagged Devices..." GridPane.columnIndex="1"/>
+                    <Button fx:id="updateMelButton" onAction="#handleUpdateMelRules" text="Update MEL Rules..."
+                            GridPane.columnIndex="2"/>
+                </GridPane>
+            </VBox>
+        </TitledPane>
+
+        <TitledPane text="Automated Folder Imports" collapsible="false">
+            <VBox spacing="10" style="-fx-padding: 15;">
+                <Label text="Configure and run the automated feature that scans folders for new device files."
+                       wrapText="true"/>
+                <GridPane hgap="10" vgap="10" style="-fx-padding: 10 0 0 0;">
+                    <Button fx:id="runAutoImportButton" onAction="#handleRunAutoImport"
+                            text="Run Automated Import from Folders"/>
+                    <Button fx:id="manageFoldersButton" onAction="#handleManageFolders" text="Manage Import Folders..."
+                            GridPane.columnIndex="1"/>
+                </GridPane>
+            </VBox>
+        </TitledPane>
+
+        <Label fx:id="statusLabel" style="-fx-padding: 10 0 0 0; -fx-font-weight: bold;" HBox.hgrow="ALWAYS"
+               maxWidth="Infinity"/>
+    </VBox>
+</ScrollPane>

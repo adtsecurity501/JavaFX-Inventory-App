@@ -16,7 +16,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
@@ -182,11 +182,16 @@ public class DeviceStatusDAO {
     }
 
     public int permanentlyDeleteDevicesBySerial(Set<String> serials) throws SQLException {
-        String[] deleteQueries = {
-                // Order is important due to foreign key constraints
-                "DELETE FROM Device_Status WHERE receipt_id IN (SELECT receipt_id FROM Receipt_Events WHERE serial_number = ?)", "DELETE FROM Disposition_Info WHERE receipt_id IN (SELECT receipt_id FROM Receipt_Events WHERE serial_number = ?)", "DELETE FROM Flag_Devices WHERE serial_number = ?", "DELETE FROM Receipt_Events WHERE serial_number = ?", "DELETE FROM Physical_Assets WHERE serial_number = ?", "DELETE FROM Device_Autofill_Data WHERE serial_number = ?"};
+        if (serials == null || serials.isEmpty()) {
+            return 0;
+        }
 
-        int totalDeleted = 0;
+        // Create a string of placeholders like "?,?,?"
+        String placeholders = String.join(",", Collections.nCopies(serials.size(), "?"));
+
+        String[] deleteQueries = {String.format("DELETE FROM Device_Status WHERE receipt_id IN (SELECT receipt_id FROM Receipt_Events WHERE serial_number IN (%s))", placeholders), String.format("DELETE FROM Disposition_Info WHERE receipt_id IN (SELECT receipt_id FROM Receipt_Events WHERE serial_number IN (%s))", placeholders), String.format("DELETE FROM Flag_Devices WHERE serial_number IN (%s)", placeholders), String.format("DELETE FROM Receipt_Events WHERE serial_number IN (%s)", placeholders), String.format("DELETE FROM Physical_Assets WHERE serial_number IN (%s)", placeholders), String.format("DELETE FROM Device_Autofill_Data WHERE serial_number IN (%s)", placeholders)};
+
+        int totalRowsAffected = 0;
         Connection conn = null;
         try {
             conn = DatabaseConnection.getInventoryConnection();
@@ -194,23 +199,20 @@ public class DeviceStatusDAO {
 
             for (String sql : deleteQueries) {
                 try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                    int i = 1;
                     for (String serial : serials) {
-                        stmt.setString(1, serial);
-                        stmt.addBatch();
+                        stmt.setString(i++, serial);
                     }
-                    // We sum the results, but the primary goal is execution
-                    totalDeleted += Arrays.stream(stmt.executeBatch()).sum();
+                    totalRowsAffected += stmt.executeUpdate();
                 }
             }
 
-            conn.commit(); // Commit all changes if no errors occurred
-            return totalDeleted;
+            conn.commit(); // Commit all changes
+            return totalRowsAffected;
 
         } catch (SQLException e) {
-            if (conn != null) {
-                conn.rollback(); // Rollback all changes on any error
-            }
-            throw e; // Re-throw the exception to be handled by the controller
+            if (conn != null) conn.rollback(); // Rollback on any error
+            throw e;
         } finally {
             if (conn != null) {
                 conn.setAutoCommit(true);

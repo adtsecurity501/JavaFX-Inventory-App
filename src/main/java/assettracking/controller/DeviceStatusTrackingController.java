@@ -1,7 +1,6 @@
 package assettracking.controller;
 
 import assettracking.dao.AssetDAO;
-import assettracking.dao.DeviceStatusDAO;
 import assettracking.dao.PackageDAO;
 import assettracking.data.AssetInfo;
 import assettracking.data.DeviceStatusView;
@@ -20,11 +19,9 @@ import javafx.scene.Parent;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.VBox;
-import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.stage.Window;
 
-import java.io.File;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -91,7 +88,6 @@ public class DeviceStatusTrackingController {
     private TextField boxIdField;
     private DeviceStatusManager deviceStatusManager;
     private DeviceStatusActions deviceStatusActions;
-    private DeviceStatusDAO deviceStatusDAO;
 
 
     @FXML
@@ -99,7 +95,6 @@ public class DeviceStatusTrackingController {
         this.deviceStatusManager = new DeviceStatusManager(this);
         // --- THIS LINE IS IMPORTANT ---
         // It gets the DAO instance created by the manager
-        this.deviceStatusDAO = new DeviceStatusDAO(this.deviceStatusManager, this.deviceStatusManager.getDeviceStatusList());
         this.deviceStatusActions = new DeviceStatusActions(this);
         configureAllUI();
         deviceStatusManager.resetPagination();
@@ -141,24 +136,24 @@ public class DeviceStatusTrackingController {
         }
     }
 
-    @FXML
-    private void handleBulkUpdateFromList() {
-        try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/BulkUpdateDialog.fxml"));
-            Parent root = loader.load();
-
-            BulkUpdateDialogController dialogController = loader.getController();
-            // Pass the DAO and a refresh callback to the dialog
-            dialogController.initData(this.deviceStatusDAO, this::refreshData);
-
-            Stage stage = StageManager.createCustomStage(getOwnerWindow(), "Bulk Status Update from List", root);
-            stage.showAndWait();
-
-        } catch (IOException e) {
-            System.err.println("Service error: " + e.getMessage());
-            StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Error", "Could not open the Bulk Update window.");
-        }
-    }
+//    @FXML
+//    private void handleBulkUpdateFromList() {
+//        try {
+//            FXMLLoader loader = new FXMLLoader(getClass().getResource("/BulkUpdateDialog.fxml"));
+//            Parent root = loader.load();
+//
+//            BulkUpdateDialogController dialogController = loader.getController();
+//            // Pass the DAO and a refresh callback to the dialog
+//            dialogController.initData(this.deviceStatusDAO, this::refreshData);
+//
+//            Stage stage = StageManager.createCustomStage(getOwnerWindow(), "Bulk Status Update from List", root);
+//            stage.showAndWait();
+//
+//        } catch (IOException e) {
+//            System.err.println("Service error: " + e.getMessage());
+//            StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Error", "Could not open the Bulk Update window.");
+//        }
+//    }
 
     private void configureAllUI() {
         setupTableColumns();
@@ -532,33 +527,33 @@ public class DeviceStatusTrackingController {
         deviceStatusManager.resetPagination();
     }
 
-    @FXML
-    private void handleExport() { // You can rename this method to handleExport() if you prefer
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Save Asset Report");
-
-        // Add filters for both file types
-        FileChooser.ExtensionFilter csvFilter = new FileChooser.ExtensionFilter("CSV Files (*.csv)", "*.csv");
-        FileChooser.ExtensionFilter xlsxFilter = new FileChooser.ExtensionFilter("Excel Files (*.xlsx)", "*.xlsx");
-        fileChooser.getExtensionFilters().addAll(csvFilter, xlsxFilter);
-
-        File file = fileChooser.showSaveDialog(getOwnerWindow());
-
-        if (file != null) {
-            // Check which filter was selected to determine the file type
-            String extension = fileChooser.getSelectedExtensionFilter().getExtensions().getFirst();
-
-            if (extension.equals("*.csv")) {
-                // If the file doesn't end with .csv, append it
-                String csvPath = file.getAbsolutePath().toLowerCase().endsWith(".csv") ? file.getAbsolutePath() : file.getAbsolutePath() + ".csv";
-                deviceStatusActions.exportToCSV(new File(csvPath));
-            } else if (extension.equals("*.xlsx")) {
-                // If the file doesn't end with .xlsx, append it
-                String xlsxPath = file.getAbsolutePath().toLowerCase().endsWith(".xlsx") ? file.getAbsolutePath() : file.getAbsolutePath() + ".xlsx";
-                deviceStatusActions.exportToXLSX(new File(xlsxPath));
-            }
-        }
-    }
+//    @FXML
+//    private void handleExport() { // You can rename this method to handleExport() if you prefer
+//        FileChooser fileChooser = new FileChooser();
+//        fileChooser.setTitle("Save Asset Report");
+//
+//        // Add filters for both file types
+//        FileChooser.ExtensionFilter csvFilter = new FileChooser.ExtensionFilter("CSV Files (*.csv)", "*.csv");
+//        FileChooser.ExtensionFilter xlsxFilter = new FileChooser.ExtensionFilter("Excel Files (*.xlsx)", "*.xlsx");
+//        fileChooser.getExtensionFilters().addAll(csvFilter, xlsxFilter);
+//
+//        File file = fileChooser.showSaveDialog(getOwnerWindow());
+//
+//        if (file != null) {
+//            // Check which filter was selected to determine the file type
+//            String extension = fileChooser.getSelectedExtensionFilter().getExtensions().getFirst();
+//
+//            if (extension.equals("*.csv")) {
+//                // If the file doesn't end with .csv, append it
+//                String csvPath = file.getAbsolutePath().toLowerCase().endsWith(".csv") ? file.getAbsolutePath() : file.getAbsolutePath() + ".csv";
+//                deviceStatusActions.exportToCSV(file, getOwnerWindow());
+//            } else if (extension.equals("*.xlsx")) {
+//                // If the file doesn't end with .xlsx, append it
+//                String xlsxPath = file.getAbsolutePath().toLowerCase().endsWith(".xlsx") ? file.getAbsolutePath() : file.getAbsolutePath() + ".xlsx";
+//                deviceStatusActions.exportToXLSX(file, getOwnerWindow());
+//            }
+//        }
+//    }
 
     @FXML
     private void onScanUpdateAction() {

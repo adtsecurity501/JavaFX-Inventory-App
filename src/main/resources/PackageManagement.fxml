@@ -52,7 +52,6 @@
                     </padding>
                     <Button onAction="#handleOpenPackage" text="Open Selected Package"/>
                     <Button onAction="#handleDeletePackage" text="Delete Selected" styleClass="danger"/>
-                    <Button onAction="#handleOpenPackage" text="Open Selected Package"/>
                 </HBox>
             </right>
         </BorderPane>

@@ -31,6 +31,7 @@ public class BulkUpdateDialogController {
     private Label notFoundLabel;
     @FXML
     private ListView<String> notFoundListView;
+    @SuppressWarnings("unused")
     @FXML
     private Button deleteButton;
 
@@ -75,13 +76,14 @@ public class BulkUpdateDialogController {
             };
 
             deleteTask.setOnSucceeded(e -> {
-                int count = deleteTask.getValue();
                 StageManager.showAlert(getStage(), Alert.AlertType.INFORMATION, "Deletion Complete", "Successfully deleted all records related to " + serialsToDelete.size() + " devices.");
 
-                // Clear the UI and refresh the main table
+                // Clear the UI
                 serialsTextArea.clear();
                 successListView.getItems().clear();
                 notFoundListView.getItems().clear();
+
+                // ADD THIS LINE
                 if (onFinishedCallback != null) {
                     onFinishedCallback.run();
                 }

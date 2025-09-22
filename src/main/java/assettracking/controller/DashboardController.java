@@ -3,9 +3,9 @@ package assettracking.controller;
 import assettracking.dao.AppSettingsDAO;
 import assettracking.data.TopModelStat;
 import assettracking.db.DatabaseConnection;
-import assettracking.manager.*;
-import assettracking.ui.FlaggedDeviceImporter;
-import assettracking.ui.MelRulesImporter;
+import assettracking.manager.ConfettiManager;
+import assettracking.manager.DashboardDataService;
+import assettracking.manager.StageManager;
 import javafx.animation.ScaleTransition;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleObjectProperty;
@@ -14,26 +14,18 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Parent;
 import javafx.scene.chart.BarChart;
 import javafx.scene.chart.PieChart;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.*;
-import javafx.scene.layout.*;
-import javafx.stage.DirectoryChooser;
+import javafx.scene.layout.ColumnConstraints;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
 
 public class DashboardController {
 
@@ -42,8 +34,9 @@ public class DashboardController {
     private final AppSettingsDAO appSettingsDAO = new AppSettingsDAO();
     // --- State and UI Helpers ---
     private final ObservableList<TopModelStat> topModelsList = FXCollections.observableArrayList();
-    public Button manageFoldersButton;
+    //    public Button manageFoldersButton;
     // --- FXML Fields ---
+
     @FXML
     private BarChart<String, Number> weeklyIntakeChart;
     @FXML
@@ -62,8 +55,12 @@ public class DashboardController {
     private Label inventoryOverviewTitleLabel, healthTitleLabel, pacingTitleLabel, topModelsTitleLabel;
     @FXML
     private ToggleGroup dateRangeToggleGroup;
+    @SuppressWarnings("unused")
     @FXML
-    private RadioButton todayRadio, days7Radio;
+    private RadioButton todayRadio;
+    @SuppressWarnings("unused")
+    @FXML
+    private RadioButton days7Radio;
     @FXML
     private TextField deviceGoalField, monitorGoalField;
     @FXML
@@ -79,16 +76,12 @@ public class DashboardController {
     @FXML
     private TableColumn<TopModelStat, Integer> modelCountCol;
     @FXML
-    private Label statusLabel;
-    @FXML
     private Label boxesAssembledTitleLabel, labelsCreatedTitleLabel;
 
     private double weeklyDeviceGoal = 100.0;
     private double weeklyMonitorGoal = 50.0;
     private ConfettiManager confettiManager;
     private boolean goalMetCelebrated = false;
-    @FXML
-    private Button importDeviceFilesButton;
 
     @FXML
     public void initialize() {
@@ -102,7 +95,7 @@ public class DashboardController {
     }
 
     private void setupUIListeners() {
-        dateRangeToggleGroup.selectedToggleProperty().addListener((obs, oldVal, newVal) -> refreshAllData());
+//        dateRangeToggleGroup.selectedToggleProperty().addListener((obs, oldVal, newVal) -> refreshAllData());
         mainGridPane.widthProperty().addListener((obs, oldVal, newVal) -> {
             boolean isSingleColumn = newVal.doubleValue() < 800;
             GridPane.setRowIndex(rightScrollPane, isSingleColumn ? 1 : 0);
@@ -135,7 +128,6 @@ public class DashboardController {
         });
 
         initialLoadTask.setOnFailed(e -> Platform.runLater(() -> StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Database Connection Failed", "Could not connect to the database. Please ensure the H2 server is running and the network is accessible.\n\nError: " + initialLoadTask.getException().getMessage())));
-
         new Thread(initialLoadTask).start();
     }
 
@@ -179,7 +171,7 @@ public class DashboardController {
                 goalMetCelebrated = true;
             }
         });
-        task.setOnFailed(e -> StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Dashboard Error", "Could not load performance metrics."));
+        task.setOnFailed(e -> Platform.runLater(() -> StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Dashboard Error", "Could not load performance metrics.")));
         new Thread(task).start();
     }
 
@@ -212,7 +204,7 @@ public class DashboardController {
             }
         };
         task.setOnSucceeded(e -> topModelsList.setAll(task.getValue()));
-        task.setOnFailed(e -> StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Database Error", "Could not load Top Processed Models data."));
+        task.setOnFailed(e -> Platform.runLater(() -> StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Database Error", "Could not load Top Processed Models data.")));
         new Thread(task).start();
     }
 
@@ -258,12 +250,10 @@ public class DashboardController {
     }
 
     private String getDateFilterClause(String columnName) {
-        // This now wraps the column name in a function that casts it to a date.
-        // This works for both p.receive_date and ds.last_update
         String dateColumn = String.format("CAST(%s AS DATE)", columnName);
 
         RadioButton selected = (RadioButton) dateRangeToggleGroup.getSelectedToggle();
-        if (selected == null || selected.getText().equals("Last 7 Days")) { // Default case
+        if (selected == null || selected.getText().equals("Last 7 Days")) {
             return String.format(" %s >= DATEADD('DAY', -7, CURRENT_DATE)", dateColumn);
         }
         if (selected.getText().equals("Today")) {
@@ -276,32 +266,29 @@ public class DashboardController {
     private void updateDynamicTitles() {
         RadioButton selected = (RadioButton) dateRangeToggleGroup.getSelectedToggle();
         String timeSuffix;
-        String pacingTimeSuffix; // Suffix without parentheses for the titles
+        String pacingTimeSuffix;
 
-        if (selected == null || selected.getText().equals("Last 7 Days")) { // Default case
+        if (selected == null || selected.getText().equals("Last 7 Days")) {
             timeRangeTitleLabel.setText("Metrics for Last 7 Days");
             pacingTitleLabel.setText("Weekly Pacing (Refurbished Only)");
             timeSuffix = "(Last 7 Days)";
-            pacingTimeSuffix = "Last 7 Days"; // New
+            pacingTimeSuffix = "Last 7 Days";
         } else if (selected.getText().equals("Today")) {
             timeRangeTitleLabel.setText("Metrics for Today");
             pacingTitleLabel.setText("Daily Pacing (Refurbished Only)");
             timeSuffix = "(Today)";
-            pacingTimeSuffix = "Today"; // New
+            pacingTimeSuffix = "Today";
         } else { // Last 30 Days
             timeRangeTitleLabel.setText("Metrics for Last 30 Days");
             pacingTitleLabel.setText("Monthly Pacing (Refurbished Only)");
             timeSuffix = "(Last 30 Days)";
-            pacingTimeSuffix = "Last 30 Days"; // New
+            pacingTimeSuffix = "Last 30 Days";
         }
 
-        // Update the main titles
         healthTitleLabel.setText("Overall Health " + timeSuffix);
         breakdownTitleLabel.setText("Processed Breakdown " + timeSuffix);
         topModelsTitleLabel.setText("Top Processed Models " + timeSuffix);
         inventoryOverviewTitleLabel.setText("Asset Status Overview (All Time)");
-
-        // --- ADD THESE TWO LINES TO UPDATE THE PACING TITLES ---
         boxesAssembledTitleLabel.setText("Boxes Assembled " + pacingTimeSuffix);
         labelsCreatedTitleLabel.setText("Labels Created " + pacingTimeSuffix);
     }
@@ -328,52 +315,52 @@ public class DashboardController {
         chart.setData(data);
     }
 
-    private Optional<List<String>> showFolderManagementDialog(List<String> initialFolders) {
-        Dialog<List<String>> dialog = new Dialog<>();
-        dialog.setTitle("Manage Import Folders");
-        dialog.setHeaderText("Add or remove folders that the application will scan for device files.");
-
-        DialogPane dialogPane = dialog.getDialogPane();
-        dialogPane.getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
-
-        ListView<String> listView = new ListView<>();
-        listView.getItems().setAll(initialFolders);
-
-        Button addButton = new Button("Add Folder...");
-        Button removeButton = new Button("Remove Selected");
-        removeButton.setDisable(true);
-
-        listView.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> removeButton.setDisable(newVal == null));
-
-        addButton.setOnAction(e -> {
-            DirectoryChooser chooser = new DirectoryChooser();
-            chooser.setTitle("Select a Folder to Scan");
-            File selected = chooser.showDialog(getStage());
-            if (selected != null) {
-                listView.getItems().add(selected.getAbsolutePath());
-            }
-        });
-
-        removeButton.setOnAction(e -> {
-            String selected = listView.getSelectionModel().getSelectedItem();
-            if (selected != null) {
-                listView.getItems().remove(selected);
-            }
-        });
-
-        HBox buttonBox = new HBox(10, addButton, removeButton);
-        VBox content = new VBox(10, listView, buttonBox);
-        dialogPane.setContent(content);
-
-        dialog.setResultConverter(dialogButton -> {
-            if (dialogButton == ButtonType.OK) {
-                return new ArrayList<>(listView.getItems());
-            }
-            return null;
-        });
-
-        return dialog.showAndWait();
-    }
+//    private Optional<List<String>> showFolderManagementDialog(List<String> initialFolders) {
+//        Dialog<List<String>> dialog = new Dialog<>();
+//        dialog.setTitle("Manage Import Folders");
+//        dialog.setHeaderText("Add or remove folders that the application will scan for device files.");
+//
+//        DialogPane dialogPane = dialog.getDialogPane();
+//        dialogPane.getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+//
+//        ListView<String> listView = new ListView<>();
+//        listView.getItems().setAll(initialFolders);
+//
+//        Button addButton = new Button("Add Folder...");
+//        Button removeButton = new Button("Remove Selected");
+//        removeButton.setDisable(true);
+//
+//        listView.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> removeButton.setDisable(newVal == null));
+//
+//        addButton.setOnAction(e -> {
+//            DirectoryChooser chooser = new DirectoryChooser();
+//            chooser.setTitle("Select a Folder to Scan");
+//            File selected = chooser.showDialog(getStage());
+//            if (selected != null) {
+//                listView.getItems().add(selected.getAbsolutePath());
+//            }
+//        });
+//
+//        removeButton.setOnAction(e -> {
+//            String selected = listView.getSelectionModel().getSelectedItem();
+//            if (selected != null) {
+//                listView.getItems().remove(selected);
+//            }
+//        });
+//
+//        HBox buttonBox = new HBox(10, addButton, removeButton);
+//        VBox content = new VBox(10, listView, buttonBox);
+//        dialogPane.setContent(content);
+//
+//        dialog.setResultConverter(dialogButton -> {
+//            if (dialogButton == ButtonType.OK) {
+//                return new ArrayList<>(listView.getItems());
+//            }
+//            return null;
+//        });
+//
+//        return dialog.showAndWait();
+//    }
 
     private void animateLabelUpdate(Label label, String newValue) {
         if (label == null || label.getText().equals(newValue)) return;
@@ -388,140 +375,140 @@ public class DashboardController {
         st.play();
     }
 
-    @FXML
-    private void handleManageFolders() {
-        AppSettingsDAO settingsDAO = new AppSettingsDAO();
-        final String FOLDERS_KEY = "bulk.import.scan.folders";
+//    @FXML
+//    private void handleManageFolders() {
+//        AppSettingsDAO settingsDAO = new AppSettingsDAO();
+//        final String FOLDERS_KEY = "bulk.import.scan.folders";
+//
+//        List<String> currentFolders = new ArrayList<>(settingsDAO.getSetting(FOLDERS_KEY).map(paths -> Arrays.asList(paths.split(","))).orElse(List.of()));
+//        Optional<List<String>> updatedFoldersOpt = showFolderManagementDialog(currentFolders);
+//
+//        updatedFoldersOpt.ifPresent(updatedFolders -> {
+//            String pathsToSave = String.join(",", updatedFolders);
+//            settingsDAO.saveSetting(FOLDERS_KEY, pathsToSave);
+//            StageManager.showAlert(getStage(), Alert.AlertType.INFORMATION, "Settings Saved", "Your import folder list has been updated.");
+//        });
+//    }
 
-        List<String> currentFolders = new ArrayList<>(settingsDAO.getSetting(FOLDERS_KEY).map(paths -> Arrays.asList(paths.split(","))).orElse(List.of()));
-        Optional<List<String>> updatedFoldersOpt = showFolderManagementDialog(currentFolders);
+//    @FXML
+//    private void handleImportAutofill() {
+//        try {
+//            FXMLLoader loader = new FXMLLoader(getClass().getResource("/AutofillImportDialog.fxml"));
+//            Parent root = loader.load();
+//            Stage stage = StageManager.createCustomStage(getStage(), "Bulk Import Autofill Data", root);
+//            stage.showAndWait();
+//        } catch (IOException e) {
+//            StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Error", "Could not open the import dialog: " + e.getMessage());
+//        }
+//    }
 
-        updatedFoldersOpt.ifPresent(updatedFolders -> {
-            String pathsToSave = String.join(",", updatedFolders);
-            settingsDAO.saveSetting(FOLDERS_KEY, pathsToSave);
-            StageManager.showAlert(getStage(), Alert.AlertType.INFORMATION, "Settings Saved", "Your import folder list has been updated.");
-        });
-    }
-
-    @FXML
-    private void handleImportAutofill() {
-        try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/AutofillImportDialog.fxml"));
-            Parent root = loader.load();
-            Stage stage = StageManager.createCustomStage(getStage(), "Bulk Import Autofill Data", root);
-            stage.showAndWait();
-        } catch (IOException e) {
-            StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Error", "Could not open the import dialog: " + e.getMessage());
-        }
-    }
-
-    @FXML
-    private void handleImportDeviceFiles() {
-        AppSettingsDAO settingsDAO = new AppSettingsDAO();
-        final String FOLDERS_KEY = "bulk.import.scan.folders";
-        Optional<String> savedPathsOpt = settingsDAO.getSetting(FOLDERS_KEY);
-
-        if (savedPathsOpt.isEmpty() || savedPathsOpt.get().isBlank()) {
-            StageManager.showAlert(getStage(), Alert.AlertType.WARNING, "Setup Required", "Please configure the import folders first using the 'Manage Import Folders' button.");
-            return;
-        }
-
-        List<String> foldersToScan = new ArrayList<>(Arrays.asList(savedPathsOpt.get().split(",")));
-        DeviceImportService importService = new DeviceImportService();
-
-        Task<List<ImportResult>> importTask = new Task<>() {
-            @Override
-            protected List<ImportResult> call() throws IOException {
-                return importService.runFolderImport(foldersToScan, this::updateMessage);
-            }
-        };
-
-        importTask.messageProperty().addListener((obs, oldMsg, newMsg) -> statusLabel.setText(newMsg));
-        importDeviceFilesButton.setDisable(true);
-        statusLabel.setText("Starting import...");
-
-        importTask.setOnSucceeded(e -> {
-            importDeviceFilesButton.setDisable(false);
-            List<ImportResult> results = importTask.getValue();
-
-            if (results.isEmpty()) {
-                statusLabel.setText("Import finished: No new files were found to process.");
-                return;
-            }
-
-            StringBuilder summary = new StringBuilder("Import Complete:\n\n");
-            int totalSuccess = results.stream().mapToInt(ImportResult::successfulCount).sum();
-            long totalErrors = results.stream().mapToLong(r -> r.errors().size()).sum();
-
-            summary.append(String.format("Successfully processed: %d records\n", totalSuccess));
-            summary.append(String.format("Rejected records: %d\n", totalErrors));
-
-            List<String> topErrors = results.stream().flatMap(r -> r.errors().stream()).limit(10).toList();
-
-            if (!topErrors.isEmpty()) {
-                summary.append("\nTop Reasons for Rejection:\n");
-                topErrors.forEach(err -> summary.append(String.format("- %s\n", err)));
-            }
-
-            String logMessage = logImportErrors(results);
-            summary.append(logMessage);
-
-            statusLabel.setText(String.format("Import finished. Processed: %d, Rejected: %d. Refreshing dashboard...", totalSuccess, totalErrors));
-            StageManager.showAlert(getStage(), Alert.AlertType.INFORMATION, "Import Results", summary.toString());
-
-            Platform.runLater(this::refreshAllData);
-        });
-
-        importTask.setOnFailed(e -> {
-            importDeviceFilesButton.setDisable(false);
-            Throwable ex = importTask.getException();
-            statusLabel.setText("Import failed. See error dialog.");
-            StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Import Failed", "A critical error occurred: " + ex.getMessage());
-        });
-
-        new Thread(importTask).start();
-    }
+//    @FXML
+//    private void handleImportDeviceFiles() {
+//        AppSettingsDAO settingsDAO = new AppSettingsDAO();
+//        final String FOLDERS_KEY = "bulk.import.scan.folders";
+//        Optional<String> savedPathsOpt = settingsDAO.getSetting(FOLDERS_KEY);
+//
+//        if (savedPathsOpt.isEmpty() || savedPathsOpt.get().isBlank()) {
+//            StageManager.showAlert(getStage(), Alert.AlertType.WARNING, "Setup Required", "Please configure the import folders first using the 'Manage Import Folders' button.");
+//            return;
+//        }
+//
+//        List<String> foldersToScan = new ArrayList<>(Arrays.asList(savedPathsOpt.get().split(",")));
+//        DeviceImportService importService = new DeviceImportService();
+//
+//        Task<List<ImportResult>> importTask = new Task<>() {
+//            @Override
+//            protected List<ImportResult> call() throws IOException {
+//                return importService.runFolderImport(foldersToScan, this::updateMessage);
+//            }
+//        };
+//
+//        importTask.messageProperty().addListener((obs, oldMsg, newMsg) -> statusLabel.setText(newMsg));
+//        importDeviceFilesButton.setDisable(true);
+//        statusLabel.setText("Starting import...");
+//
+//        importTask.setOnSucceeded(e -> {
+//            importDeviceFilesButton.setDisable(false);
+//            List<ImportResult> results = importTask.getValue();
+//
+//            if (results.isEmpty()) {
+//                statusLabel.setText("Import finished: No new files were found to process.");
+//                return;
+//            }
+//
+//            StringBuilder summary = new StringBuilder("Import Complete:\n\n");
+//            int totalSuccess = results.stream().mapToInt(ImportResult::successfulCount).sum();
+//            long totalErrors = results.stream().mapToLong(r -> r.errors().size()).sum();
+//
+//            summary.append(String.format("Successfully processed: %d records\n", totalSuccess));
+//            summary.append(String.format("Rejected records: %d\n", totalErrors));
+//
+//            List<String> topErrors = results.stream().flatMap(r -> r.errors().stream()).limit(10).toList();
+//
+//            if (!topErrors.isEmpty()) {
+//                summary.append("\nTop Reasons for Rejection:\n");
+//                topErrors.forEach(err -> summary.append(String.format("- %s\n", err)));
+//            }
+//
+//            String logMessage = logImportErrors(results);
+//            summary.append(logMessage);
+//
+//            statusLabel.setText(String.format("Import finished. Processed: %d, Rejected: %d. Refreshing dashboard...", totalSuccess, totalErrors));
+//            StageManager.showAlert(getStage(), Alert.AlertType.INFORMATION, "Import Results", summary.toString());
+//
+//            Platform.runLater(this::refreshAllData);
+//        });
+//
+//        importTask.setOnFailed(e -> {
+//            importDeviceFilesButton.setDisable(false);
+//            Throwable ex = importTask.getException();
+//            statusLabel.setText("Import failed. See error dialog.");
+//            StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Import Failed", "A critical error occurred: " + ex.getMessage());
+//        });
+//
+//        new Thread(importTask).start();
+//    }
 
 
-    @FXML
-    private void handleImportFlags() {
-        new FlaggedDeviceImporter().importFromFile(getStage(), this::refreshAllData);
-    }
+//    @FXML
+//    private void handleImportFlags() {
+//        new FlaggedDeviceImporter().importFromFile(getStage(), this::refreshAllData);
+//    }
+//
+//    @FXML
+//    private void handleManageMelRules() {
+//        new MelRulesImporter().importFromFile(getStage());
+//    }
 
-    @FXML
-    private void handleManageMelRules() {
-        new MelRulesImporter().importFromFile(getStage());
-    }
-
-    private String logImportErrors(List<ImportResult> results) {
-        List<String> allErrors = results.stream().flatMap(r -> r.errors().stream()).toList();
-
-        if (allErrors.isEmpty()) {
-            return "";
-        }
-
-        try {
-            Path logDir = Paths.get(System.getProperty("user.home"), ".asset_tracker_logs");
-            Files.createDirectories(logDir);
-            String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
-            Path logFile = logDir.resolve("import_errors_" + timestamp + ".txt");
-
-            try (PrintWriter writer = new PrintWriter(logFile.toFile())) {
-                writer.println("Asset Tracking Import Error Log - " + LocalDateTime.now());
-                writer.println("=======================================================");
-                for (ImportResult result : results) {
-                    if (!result.errors().isEmpty()) {
-                        writer.printf("\nErrors for file: %s\n", result.file().getName());
-                        writer.println("----------------------------------------");
-                        result.errors().forEach(writer::println);
-                    }
-                }
-            }
-            return String.format("\nA full report of all %d rejected records has been saved to:\n%s", allErrors.size(), logFile.toAbsolutePath());
-        } catch (IOException e) {
-            return "\nCould not write full error log to file due to an error: " + e.getMessage();
-        }
-    }
+//    private String logImportErrors(List<ImportResult> results) {
+//        List<String> allErrors = results.stream().flatMap(r -> r.errors().stream()).toList();
+//
+//        if (allErrors.isEmpty()) {
+//            return "";
+//        }
+//
+//        try {
+//            Path logDir = Paths.get(System.getProperty("user.home"), ".asset_tracker_logs");
+//            Files.createDirectories(logDir);
+//            String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+//            Path logFile = logDir.resolve("import_errors_" + timestamp + ".txt");
+//
+//            try (PrintWriter writer = new PrintWriter(logFile.toFile())) {
+//                writer.println("Asset Tracking Import Error Log - " + LocalDateTime.now());
+//                writer.println("=======================================================");
+//                for (ImportResult result : results) {
+//                    if (!result.errors().isEmpty()) {
+//                        writer.printf("\nErrors for file: %s\n", result.file().getName());
+//                        writer.println("----------------------------------------");
+//                        result.errors().forEach(writer::println);
+//                    }
+//                }
+//            }
+//            return String.format("\nA full report of all %d rejected records has been saved to:\n%s", allErrors.size(), logFile.toAbsolutePath());
+//        } catch (IOException e) {
+//            return "\nCould not write full error log to file due to an error: " + e.getMessage();
+//        }
+//    }
 
     @FXML
     private void handleApplyGoals() {
