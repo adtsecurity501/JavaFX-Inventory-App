@@ -62,10 +62,7 @@ public final class StageManager {
         root.setStyle("-fx-background-color: -color-bg-default;");
 
         Scene scene = new Scene(root);
-        scene.getStylesheets().addAll(
-                Application.getUserAgentStylesheet(),
-                Objects.requireNonNull(StageManager.class.getResource("/style.css")).toExternalForm()
-        );
+        scene.getStylesheets().addAll(Application.getUserAgentStylesheet(), Objects.requireNonNull(StageManager.class.getResource("/style.css")).toExternalForm());
 
         stage.setScene(scene);
         stage.sizeToScene();
@@ -86,6 +83,25 @@ public final class StageManager {
         Platform.runLater(content::requestFocus);
         return stage;
     }
+
+//    public static void showProgressDialog(Window owner, String title, Task<?> task) {
+//        ProgressIndicator progressIndicator = new ProgressIndicator();
+//        progressIndicator.progressProperty().bind(task.progressProperty());
+//
+//        Label titleLabel = new Label(title);
+//        titleLabel.getStyleClass().add("h4");
+//
+//        VBox box = new VBox(20, titleLabel, progressIndicator);
+//        box.setAlignment(Pos.CENTER);
+//        box.setPadding(new Insets(30));
+//
+//        Stage dialogStage = createCustomStage(owner, "Working...", box);
+//        dialogStage.initModality(Modality.APPLICATION_MODAL); // Block interaction with parent
+//
+//        task.setOnRunning(e -> dialogStage.show());
+//        task.setOnSucceeded(e -> dialogStage.close());
+//        task.setOnFailed(e -> dialogStage.close());
+//    }
 
     public static boolean showDeleteConfirmationDialog(Window owner, String objectType, String objectName) {
         // Use a boolean array to hold the result, as it needs to be effectively final for the lambda

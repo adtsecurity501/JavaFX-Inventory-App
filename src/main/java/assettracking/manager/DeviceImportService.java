@@ -1,5 +1,3 @@
-// In file: src/main/java/assettracking/manager/DeviceImportService.java
-
 package assettracking.manager;
 
 import assettracking.dao.bulk.iPadProvisioningDAO;
@@ -9,6 +7,8 @@ import com.github.pjfanning.xlsx.StreamingReader;
 import com.opencsv.CSVReader;
 import com.opencsv.exceptions.CsvException;
 import org.apache.poi.ss.usermodel.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -29,13 +29,15 @@ import java.util.stream.Stream;
 
 public class DeviceImportService {
 
+    private static final Logger logger = LoggerFactory.getLogger(DeviceImportService.class);
     private final iPadProvisioningDAO dao = new iPadProvisioningDAO();
 
     public int importFromFile(File file) throws IOException, SQLException {
         List<BulkDevice> devices = assettracking.ui.ExcelReader.readDeviceFile(file);
         if (devices.isEmpty()) return 0;
-        dao.upsertBulkDevices(devices);
-        return devices.size();
+        List<BulkDevice> hydratedDevices = mergeWithExistingData(devices);
+        dao.upsertBulkDevices(hydratedDevices);
+        return hydratedDevices.size();
     }
 
     public List<ImportResult> runFolderImport(List<String> folderPathsToScan, Consumer<String> progressCallback) throws IOException {
@@ -53,6 +55,7 @@ public class DeviceImportService {
             try {
                 results.add(processAndUpsertData(file));
             } catch (Exception e) {
+                logger.error("Critical error processing file: {}", file.getName(), e);
                 results.add(new ImportResult(file, 0, List.of("Critical error processing file: " + e.getMessage())));
             }
         }
@@ -61,12 +64,16 @@ public class DeviceImportService {
 
     private ImportResult processAndUpsertData(File file) throws IOException, CsvException, SQLException {
         List<BulkDevice> parsedDevices = file.getName().toLowerCase().endsWith(".csv") ? streamCsvData(file) : streamExcelData(file);
-
         if (parsedDevices.isEmpty()) {
             return new ImportResult(file, 0, Collections.emptyList());
         }
 
-        DeviceValidationResult validationResult = validateDevices(parsedDevices);
+        // --- THIS IS THE KEY FIX ---
+        // Hydrate the parsed data with existing DB values before proceeding.
+        List<BulkDevice> hydratedDevices = mergeWithExistingData(parsedDevices);
+        // --- END OF FIX ---
+
+        DeviceValidationResult validationResult = validateDevices(hydratedDevices);
         int successfulCount = 0;
         if (!validationResult.validDevices().isEmpty()) {
             successfulCount = performDatabaseUpsert(validationResult.validDevices());
@@ -75,6 +82,26 @@ public class DeviceImportService {
         return new ImportResult(file, successfulCount, validationResult.errors());
     }
 
+    // --- NEW METHOD TO PREVENT DATA LOSS ---
+    private List<BulkDevice> mergeWithExistingData(List<BulkDevice> parsedDevices) throws SQLException {
+        List<BulkDevice> hydratedList = new ArrayList<>();
+        for (BulkDevice parsed : parsedDevices) {
+            Optional<BulkDevice> existingOpt = dao.findDeviceBySerial(parsed.getSerialNumber());
+            if (existingOpt.isPresent()) {
+                BulkDevice existing = existingOpt.get();
+                // Create a new, merged device. Prioritize new data, but fall back to existing data if new is null/empty.
+                hydratedList.add(new BulkDevice(parsed.getSerialNumber(), // Serial is the key, always use it
+                        (parsed.getImei() != null && !parsed.getImei().isEmpty()) ? parsed.getImei() : existing.getImei(), (parsed.getIccid() != null && !parsed.getIccid().isEmpty()) ? parsed.getIccid() : existing.getIccid(), (parsed.getCapacity() != null && !parsed.getCapacity().isEmpty()) ? parsed.getCapacity() : existing.getCapacity(), (parsed.getDeviceName() != null && !parsed.getDeviceName().isEmpty()) ? parsed.getDeviceName() : existing.getDeviceName(), parsed.getLastImportDate() // Always update the import date
+                ));
+            } else {
+                // If it doesn't exist in the DB, just use the parsed data as-is.
+                hydratedList.add(parsed);
+            }
+        }
+        return hydratedList;
+    }
+
+    // The rest of the file remains the same...
     private List<BulkDevice> streamExcelData(File file) throws IOException {
         List<BulkDevice> devices = new ArrayList<>();
         String now = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
@@ -197,17 +224,12 @@ public class DeviceImportService {
 
     private DeviceValidationResult validateDevices(List<BulkDevice> devices) {
         List<String> errors = new ArrayList<>();
-
-        // --- STEP 1: DE-DUPLICATE BY SERIAL NUMBER FIRST ---
-        // This handles the "Redundant Rows" case by keeping only the first entry for each serial.
         Map<String, BulkDevice> uniqueDevicesBySerial = new LinkedHashMap<>();
         for (BulkDevice device : devices) {
             uniqueDevicesBySerial.putIfAbsent(device.getSerialNumber(), device);
         }
         List<BulkDevice> deDuplicatedList = new ArrayList<>(uniqueDevicesBySerial.values());
 
-        // --- STEP 2: VALIDATE FOR DUPLICATE IMEIs on the CLEANED list ---
-        // This now only catches the "Illegitimate Duplicates".
         Map<String, List<BulkDevice>> devicesByImei = deDuplicatedList.stream().filter(d -> d.getImei() != null && !d.getImei().isEmpty()).collect(Collectors.groupingBy(BulkDevice::getImei));
 
         devicesByImei.entrySet().stream().filter(entry -> entry.getValue().size() > 1).forEach(entry -> {
@@ -217,8 +239,6 @@ public class DeviceImportService {
         });
 
         Set<String> invalidImeis = devicesByImei.entrySet().stream().filter(entry -> entry.getValue().size() > 1).map(Map.Entry::getKey).collect(Collectors.toSet());
-
-        // Filter out the invalid devices to create the final list of valid ones
         List<BulkDevice> validDevices = deDuplicatedList.stream().filter(d -> d.getImei() == null || d.getImei().isEmpty() || !invalidImeis.contains(d.getImei())).collect(Collectors.toList());
 
         return new DeviceValidationResult(validDevices, errors);

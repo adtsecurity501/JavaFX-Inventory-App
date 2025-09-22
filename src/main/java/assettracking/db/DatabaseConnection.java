@@ -2,86 +2,86 @@ package assettracking.db;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 public class DatabaseConnection {
 
     private static final CompletableFuture<Void> initializationFuture = new CompletableFuture<>();
-    // --- END MODIFICATION ---
-    // --- MODIFICATION 1: Make the data source accessible ---
+    private static final Properties properties = new Properties();
+    private static final Logger logger = LoggerFactory.getLogger(DatabaseConnection.class);
     private static volatile HikariDataSource dataSource;
 
     static {
-        initializePoolInBackground();
+        // Load properties file once
+        try (InputStream input = DatabaseConnection.class.getResourceAsStream("/config.properties")) {
+            if (input == null) {
+                logger.error("FATAL: Unable to find config.properties in resources.");
+                initializationFuture.completeExceptionally(new IOException("config.properties not found"));
+            } else {
+                properties.load(input);
+                initializePoolInBackground();
+            }
+        } catch (IOException e) {
+            logger.error("FATAL: Error reading config.properties.");
+            initializationFuture.completeExceptionally(e);
+        }
     }
 
     private static void initializePoolInBackground() {
         CompletableFuture.runAsync(() -> {
             try {
-                System.out.println("Attempting to load H2 JDBC Driver...");
                 Class.forName("org.h2.Driver");
-                System.out.println("H2 JDBC Driver loaded successfully.");
 
                 HikariConfig config = new HikariConfig();
-                config.setJdbcUrl("jdbc:h2:file:////UTSPRJ2C2333/Server/inventorybackup;AUTO_SERVER=TRUE");
-                config.setUsername("sa");
-                config.setPassword("");
+                // Use properties from the file
+                config.setJdbcUrl(properties.getProperty("db.url"));
+                config.setUsername(properties.getProperty("db.user"));
+                config.setPassword(properties.getProperty("db.password"));
+
                 config.setMaximumPoolSize(10);
                 config.setMinimumIdle(2);
                 config.setConnectionTimeout(15000);
                 config.setIdleTimeout(600000);
                 config.setMaxLifetime(1800000);
 
-                System.out.println("Initializing HikariCP Connection Pool for H2...");
-                // --- MODIFICATION 2: Assign to the static field ---
                 dataSource = new HikariDataSource(config);
-                // --- END MODIFICATION ---
-                System.out.println("HikariCP Connection Pool for H2 Initialized.");
-
+                System.out.println("HikariCP Connection Pool Initialized.");
                 initializationFuture.complete(null);
-
             } catch (Exception e) {
-                System.err.println("FATAL: Failed to initialize database connection pool.");
+                logger.error("FATAL: Failed to initialize database connection pool.");
                 initializationFuture.completeExceptionally(e);
             }
         });
     }
 
+    // The rest of the class remains the same
     public static Connection getInventoryConnection() throws SQLException {
         try {
-            initializationFuture.get(); // Wait for initialization to complete
+            initializationFuture.get();
             return dataSource.getConnection();
         } catch (InterruptedException | ExecutionException e) {
             throw new SQLException("Failed to get database connection from the pool.", e);
         }
     }
 
-    // --- NEW METHOD ---
-
-    /**
-     * Gracefully evicts all idle connections from the pool.
-     * The next time a connection is requested, the pool will have to create a new, fresh one.
-     */
     public static void refreshConnectionPool() {
         if (dataSource != null) {
-            System.out.println("Refreshing database connection pool...");
             dataSource.getHikariPoolMXBean().softEvictConnections();
-            System.out.println("Connection pool refreshed.");
         }
     }
 
-    /**
-     * Closes the connection pool. This should be called on application shutdown.
-     */
     public static void closeConnectionPool() {
         if (dataSource != null && !dataSource.isClosed()) {
-            System.out.println("Closing database connection pool...");
             dataSource.close();
-            System.out.println("Connection pool closed.");
         }
     }
 }

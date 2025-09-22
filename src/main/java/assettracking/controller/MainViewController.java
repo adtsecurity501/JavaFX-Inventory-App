@@ -4,17 +4,16 @@ import atlantafx.base.theme.*;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
+import javafx.concurrent.Task;
 import javafx.fxml.FXML;
-import javafx.scene.control.Button;
-import javafx.scene.control.ComboBox;
-import javafx.scene.control.ListCell;
-import javafx.scene.control.ListView;
+import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.util.Callback;
 
 public class MainViewController {
+    private static MainViewController instance;
 
     public VBox dashboard;
     public Button closeButton;
@@ -26,12 +25,20 @@ public class MainViewController {
     private Button maximizeButton;
     @FXML
     private ComboBox<Theme> themeComboBox;
+    @FXML
+    private ProgressBar globalProgressBar;
+
 
     private double xOffset = 0;
     private double yOffset = 0;
 
+    public static MainViewController getInstance() {
+        return instance;
+    }
+
     @FXML
     public void initialize() {
+        instance = this;
         // Window dragging logic
         titleBar.setOnMousePressed(event -> {
             xOffset = event.getSceneX();
@@ -47,16 +54,39 @@ public class MainViewController {
         setupThemeComboBox();
     }
 
+    /**
+     * Binds a background task's progress to the global progress bar and makes it visible.
+     * Automatically handles unbinding and hiding when the task finishes.
+     *
+     * @param task The background task to monitor.
+     */
+    public void bindProgressBar(Task<?> task) {
+        Platform.runLater(() -> {
+            globalProgressBar.setVisible(true);
+            globalProgressBar.setManaged(true);
+            globalProgressBar.progressProperty().bind(task.progressProperty());
+        });
+
+        // Add listeners to automatically hide the bar when the task is done
+        task.setOnSucceeded(e -> hideProgressBar());
+        task.setOnFailed(e -> hideProgressBar());
+    }
+
+    /**
+     * Hides the global progress bar and unbinds its progress property.
+     */
+    public void hideProgressBar() {
+        Platform.runLater(() -> {
+            globalProgressBar.progressProperty().unbind();
+            globalProgressBar.setProgress(0);
+            globalProgressBar.setVisible(false);
+            globalProgressBar.setManaged(false);
+        });
+    }
+
+
     private void setupThemeComboBox() {
-        themeComboBox.setItems(FXCollections.observableArrayList(
-                new Dracula(),
-                new CupertinoLight(),
-                new CupertinoDark(),
-                new NordLight(),
-                new NordDark(),
-                new PrimerLight(),
-                new PrimerDark()
-        ));
+        themeComboBox.setItems(FXCollections.observableArrayList(new Dracula(), new CupertinoLight(), new CupertinoDark(), new NordLight(), new NordDark(), new PrimerLight(), new PrimerDark()));
 
         Callback<ListView<Theme>, ListCell<Theme>> cellFactory = lv -> new ListCell<>() {
             @Override

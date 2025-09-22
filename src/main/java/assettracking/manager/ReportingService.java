@@ -14,6 +14,8 @@ import org.apache.poi.xssf.usermodel.XSSFTable;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.openxmlformats.schemas.spreadsheetml.x2006.main.CTTable;
 import org.openxmlformats.schemas.spreadsheetml.x2006.main.CTTableStyleInfo;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -34,6 +36,7 @@ import java.util.stream.Collectors;
  * This class is decoupled from any specific UI controller.
  */
 public class ReportingService {
+    private static final Logger logger = LoggerFactory.getLogger(ReportingService.class);
 
     public void exportToXLSX(File file, Window owner) {
         String[] headers = {"Tracking Number", "First Name", "Last Name", "City", "State", "Zip", "Receive Date", "Category", "Description", "IMEI", "Serial Number", "Status Change Date", "Status", "Sub Status", "Days in Current Status", "Total Days to Process"};

@@ -77,4 +77,8 @@
             </TabPane>
         </VBox>
     </center>
+    <bottom>
+        <ProgressBar fx:id="globalProgressBar" maxWidth="Infinity" progress="0"
+                     visible="false" managed="false" style="-fx-scale-x: -1;"/>
+    </bottom>
 </BorderPane>

@@ -18,6 +18,9 @@ import javafx.scene.layout.VBox;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import javafx.stage.Window;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -34,13 +37,10 @@ import java.util.Optional;
 
 public class DataManagementController {
 
+    private static final Logger logger = LoggerFactory.getLogger(DataManagementController.class);
     private final ReportingService reportingService = new ReportingService();
     @FXML
     private Button bulkIntakeButton;
-    @FXML
-    private Button runAutoImportButton;
-    @FXML
-    private Label statusLabel;
     @SuppressWarnings("unused")
     @FXML
     private Button bulkUpdateButton;
@@ -56,9 +56,13 @@ public class DataManagementController {
     @SuppressWarnings("unused")
     @FXML
     private Button updateMelButton;
+    @FXML
+    private Button runAutoImportButton;
     @SuppressWarnings("unused")
     @FXML
     private Button manageFoldersButton;
+    @FXML
+    private Label statusLabel;
     private DeviceStatusDAO deviceStatusDAO;
     private AppSettingsDAO appSettingsDAO;
     private DeviceImportService deviceImportService;
@@ -71,37 +75,6 @@ public class DataManagementController {
     }
 
     @FXML
-    private void handleBulkIntake() {
-        try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/BulkIntakeDialog.fxml"));
-            Parent root = loader.load();
-            BulkIntakeDialogController dialogController = loader.getController();
-            dialogController.init(null);
-
-            Stage stage = StageManager.createCustomStage(getStage(), "Bulk Intake from List", root);
-            stage.showAndWait();
-            statusLabel.setText("Bulk intake process finished. Refresh the 'Device Status Tracking' tab to see new devices.");
-        } catch (IOException e) {
-            StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Error", "Could not open the Bulk Intake window: " + e.getMessage());
-        }
-    }
-
-    @FXML
-    private void handleBulkUpdate() {
-        try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/BulkUpdateDialog.fxml"));
-            Parent root = loader.load();
-            BulkUpdateDialogController dialogController = loader.getController();
-            dialogController.initData(this.deviceStatusDAO, () -> statusLabel.setText("Bulk update finished. Refresh the 'Device Status Tracking' tab to see changes."));
-
-            Stage stage = StageManager.createCustomStage(getStage(), "Bulk Status Update from List", root);
-            stage.showAndWait();
-        } catch (IOException e) {
-            StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Error", "Could not open the Bulk Update window: " + e.getMessage());
-        }
-    }
-
-    @FXML
     private void handleExport() {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Save Asset Report");
@@ -111,59 +84,35 @@ public class DataManagementController {
         File file = fileChooser.showSaveDialog(getStage());
 
         if (file != null) {
+            final Window owner = getStage();
             String extension = fileChooser.getSelectedExtensionFilter().getExtensions().getFirst();
-            statusLabel.setText("Exporting data... please wait.");
 
-            Task<Void> exportTask = getVoidTask(extension, file);
+            Task<Void> exportTask = new Task<>() {
+                @Override
+                protected Void call() {
+                    if (extension.equals("*.xlsx")) {
+                        new ReportingService().exportToXLSX(file, owner);
+                    } else {
+                        new ReportingService().exportToCSV(file, owner);
+                    }
+                    return null;
+                }
+            };
+
+            // Don't set onSucceeded or onFailed here, as the global bar handles hiding itself.
+            // We just need to update our local status label.
+            exportTask.setOnSucceeded(e -> statusLabel.setText("Export complete: " + file.getName()));
+            exportTask.setOnFailed(e -> {
+                statusLabel.setText("Export failed. See logs for details.");
+                Throwable ex = e.getSource().getException();
+                logger.error("Export task failed", ex);
+                StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Export Failed", "A critical error occurred during export: " + ex.getMessage());
+            });
+
+            // THIS IS THE CORRECTED LINE: Use the MainViewController's global progress bar
+            MainViewController.getInstance().bindProgressBar(exportTask);
             new Thread(exportTask).start();
         }
-    }
-
-    private Task<Void> getVoidTask(String extension, File file) {
-        Task<Void> exportTask = new Task<>() {
-            @Override
-            protected Void call() {
-                // Use the new service directly
-                if (extension.equals("*.xlsx")) {
-                    reportingService.exportToXLSX(file, getStage());
-                } else {
-                    reportingService.exportToCSV(file, getStage());
-                }
-                return null;
-            }
-        };
-
-        exportTask.setOnSucceeded(e -> statusLabel.setText("Export complete: " + file.getName()));
-        exportTask.setOnFailed(e -> {
-            statusLabel.setText("Export failed. See error dialog.");
-            Throwable ex = e.getSource().getException();
-            StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Export Failed", "A critical error occurred during export: " + ex.getMessage());
-        });
-        return exportTask;
-    }
-
-    @FXML
-    private void handleImportAutofill() {
-        try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/AutofillImportDialog.fxml"));
-            Parent root = loader.load();
-            Stage stage = StageManager.createCustomStage(getStage(), "Bulk Import Autofill Data", root);
-            stage.showAndWait();
-            statusLabel.setText("Autofill import process finished.");
-        } catch (IOException e) {
-            StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Error", "Could not open the import dialog: " + e.getMessage());
-        }
-    }
-
-    @FXML
-    private void handleImportFlags() {
-        new FlaggedDeviceImporter().importFromFile(getStage(), () -> statusLabel.setText("Flag import finished. Refresh views to see changes."));
-    }
-
-    @FXML
-    private void handleUpdateMelRules() {
-        new MelRulesImporter().importFromFile(getStage());
-        statusLabel.setText("MEL Rules import process finished.");
     }
 
     @FXML
@@ -185,9 +134,7 @@ public class DataManagementController {
             }
         };
 
-        importTask.messageProperty().addListener((obs, oldMsg, newMsg) -> statusLabel.setText(newMsg));
         runAutoImportButton.setDisable(true);
-        statusLabel.setText("Starting import...");
 
         importTask.setOnSucceeded(e -> {
             runAutoImportButton.setDisable(false);
@@ -201,6 +148,11 @@ public class DataManagementController {
             long totalErrors = results.stream().mapToLong(r -> r.errors().size()).sum();
             summary.append(String.format("Successfully processed: %d records\n", totalSuccess));
             summary.append(String.format("Rejected records: %d\n", totalErrors));
+            List<String> topErrors = results.stream().flatMap(r -> r.errors().stream()).limit(10).toList();
+            if (!topErrors.isEmpty()) {
+                summary.append("\nTop Reasons for Rejection:\n");
+                topErrors.forEach(err -> summary.append(String.format("- %s\n", err)));
+            }
             String logMessage = logImportErrors(results);
             summary.append(logMessage);
             statusLabel.setText(String.format("Import finished. Processed: %d, Rejected: %d.", totalSuccess, totalErrors));
@@ -211,10 +163,71 @@ public class DataManagementController {
             runAutoImportButton.setDisable(false);
             Throwable ex = importTask.getException();
             statusLabel.setText("Import failed. See error dialog.");
+            logger.error("Automated import task failed", ex);
             StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Import Failed", "A critical error occurred: " + ex.getMessage());
         });
 
+        // THIS IS THE CORRECTED LINE: Use the MainViewController's global progress bar
+        MainViewController.getInstance().bindProgressBar(importTask);
         new Thread(importTask).start();
+    }
+
+    @FXML
+    private void handleBulkIntake() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/BulkIntakeDialog.fxml"));
+            Parent root = loader.load();
+            BulkIntakeDialogController dialogController = loader.getController();
+            dialogController.init(null);
+
+            Stage stage = StageManager.createCustomStage(getStage(), "Bulk Intake from List", root);
+            stage.showAndWait();
+            statusLabel.setText("Bulk intake process finished. Refresh the 'Device Status Tracking' tab to see new devices.");
+        } catch (IOException e) {
+            logger.error("Failed to open Bulk Intake window", e);
+            StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Error", "Could not open the Bulk Intake window: " + e.getMessage());
+        }
+    }
+
+    @FXML
+    private void handleBulkUpdate() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/BulkUpdateDialog.fxml"));
+            Parent root = loader.load();
+            BulkUpdateDialogController dialogController = loader.getController();
+            dialogController.initData(this.deviceStatusDAO, () -> statusLabel.setText("Bulk update finished. Refresh the 'Device Status Tracking' tab to see changes."));
+
+            Stage stage = StageManager.createCustomStage(getStage(), "Bulk Status Update from List", root);
+            stage.showAndWait();
+        } catch (IOException e) {
+            logger.error("Failed to open Bulk Update window", e);
+            StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Error", "Could not open the Bulk Update window: " + e.getMessage());
+        }
+    }
+
+    @FXML
+    private void handleImportAutofill() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/AutofillImportDialog.fxml"));
+            Parent root = loader.load();
+            Stage stage = StageManager.createCustomStage(getStage(), "Bulk Import Autofill Data", root);
+            stage.showAndWait();
+            statusLabel.setText("Autofill import process finished.");
+        } catch (IOException e) {
+            logger.error("Failed to open Autofill Import dialog", e);
+            StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Error", "Could not open the import dialog: " + e.getMessage());
+        }
+    }
+
+    @FXML
+    private void handleImportFlags() {
+        new FlaggedDeviceImporter().importFromFile(getStage(), () -> statusLabel.setText("Flag import finished. Refresh views to see changes."));
+    }
+
+    @FXML
+    private void handleUpdateMelRules() {
+        new MelRulesImporter().importFromFile(getStage());
+        statusLabel.setText("MEL Rules import process finished.");
     }
 
     @FXML
@@ -279,7 +292,6 @@ public class DataManagementController {
     }
 
     private String logImportErrors(List<ImportResult> results) {
-        // This method is a copy from the original DashboardController and is correct.
         List<String> allErrors = results.stream().flatMap(r -> r.errors().stream()).toList();
         if (allErrors.isEmpty()) return "";
         try {
@@ -300,7 +312,8 @@ public class DataManagementController {
             }
             return String.format("\nA full report of all %d rejected records has been saved to:\n%s", allErrors.size(), logFile.toAbsolutePath());
         } catch (IOException e) {
-            return "\nCould not write full error log to file: " + e.getMessage();
+            logger.error("Could not write full error log to file", e);
+            return "\nCould not write full error log to file due to an error: " + e.getMessage();
         }
     }
 
