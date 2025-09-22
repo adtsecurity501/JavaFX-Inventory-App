@@ -71,7 +71,7 @@ public class iPadProvisioningController {
     public void initialize() {
         setupTablesAndFilters();
         setupEventListeners();
-        checkInitialDeviceState();
+        refreshData();
         updateWorkflowControls();
     }
 
@@ -142,7 +142,7 @@ public class iPadProvisioningController {
         }
     }
 
-    private void checkInitialDeviceState() {
+    public void refreshData() {
         Task<Integer> dbCheckTask = new Task<>() {
             @Override
             protected Integer call() throws Exception {

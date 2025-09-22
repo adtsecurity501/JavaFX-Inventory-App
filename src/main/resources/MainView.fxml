@@ -71,8 +71,8 @@
                 <Tab text="Data Management">
                     <fx:include source="DataManagement.fxml"/>
                 </Tab>
-                <Tab text="iPad Provisioning">
-                    <fx:include source="iPadProvisioning.fxml"/>
+                <Tab fx:id="iPadProvisioningTab" text="iPad Provisioning">
+                    <fx:include fx:id="iPadProvisioning" source="iPadProvisioning.fxml"/>
                 </Tab>
             </TabPane>
         </VBox>

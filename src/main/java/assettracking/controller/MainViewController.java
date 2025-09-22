@@ -7,6 +7,7 @@ import javafx.collections.FXCollections;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
@@ -17,6 +18,7 @@ public class MainViewController {
 
     public VBox dashboard;
     public Button closeButton;
+    public BorderPane iPadProvisioning;
     @FXML
     private HBox titleBar;
     @FXML
@@ -31,6 +33,10 @@ public class MainViewController {
     private HBox globalProgressContainer;
     @FXML
     private Label globalProgressLabel;
+    @FXML
+    private Tab iPadProvisioningTab;
+    @FXML
+    private iPadProvisioningController iPadProvisioningController;
 
     private double xOffset = 0;
     private double yOffset = 0;
@@ -55,6 +61,16 @@ public class MainViewController {
         });
 
         setupThemeComboBox();
+
+        Platform.runLater(() -> {
+            TabPane tabPane = iPadProvisioningTab.getTabPane();
+            tabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
+                // If the newly selected tab is our iPad Provisioning tab, refresh its data.
+                if (newTab == iPadProvisioningTab) {
+                    iPadProvisioningController.refreshData();
+                }
+            });
+        });
     }
 
     /**
