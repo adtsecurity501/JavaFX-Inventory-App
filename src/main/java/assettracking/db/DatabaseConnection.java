@@ -16,33 +16,29 @@ import java.util.concurrent.ExecutionException;
 public class DatabaseConnection {
 
     private static final CompletableFuture<Void> initializationFuture = new CompletableFuture<>();
-    private static final Properties properties = new Properties();
     private static final Logger logger = LoggerFactory.getLogger(DatabaseConnection.class);
     private static volatile HikariDataSource dataSource;
 
+    // The static initializer now only triggers the background task.
     static {
-        // Load properties file once
-        try (InputStream input = DatabaseConnection.class.getResourceAsStream("/config.properties")) {
-            if (input == null) {
-                logger.error("FATAL: Unable to find config.properties in resources.");
-                initializationFuture.completeExceptionally(new IOException("config.properties not found"));
-            } else {
-                properties.load(input);
-                initializePoolInBackground();
-            }
-        } catch (IOException e) {
-            logger.error("FATAL: Error reading config.properties.");
-            initializationFuture.completeExceptionally(e);
-        }
+        initializePoolInBackground();
     }
 
     private static void initializePoolInBackground() {
         CompletableFuture.runAsync(() -> {
             try {
-                Class.forName("org.h2.Driver");
+                // Step 1: Load properties from the config file in the background.
+                Properties properties = new Properties();
+                try (InputStream input = DatabaseConnection.class.getResourceAsStream("/config.properties")) {
+                    if (input == null) {
+                        throw new IOException("FATAL: Unable to find config.properties in resources.");
+                    }
+                    properties.load(input);
+                }
 
+                // Step 2: Initialize the connection pool. This is the slowest part.
+                Class.forName("org.h2.Driver");
                 HikariConfig config = new HikariConfig();
-                // Use properties from the file
                 config.setJdbcUrl(properties.getProperty("db.url"));
                 config.setUsername(properties.getProperty("db.user"));
                 config.setPassword(properties.getProperty("db.password"));
@@ -54,21 +50,26 @@ public class DatabaseConnection {
                 config.setMaxLifetime(1800000);
 
                 dataSource = new HikariDataSource(config);
-                System.out.println("HikariCP Connection Pool Initialized.");
+                logger.info("HikariCP Connection Pool Initialized successfully.");
+
+                // Step 3: Signal that initialization is complete.
                 initializationFuture.complete(null);
+
             } catch (Exception e) {
-                logger.error("FATAL: Failed to initialize database connection pool.");
+                logger.error("FATAL: Failed to initialize database connection pool.", e);
+                // Step 4: Signal that initialization failed.
                 initializationFuture.completeExceptionally(e);
             }
         });
     }
 
-    // The rest of the class remains the same
     public static Connection getInventoryConnection() throws SQLException {
         try {
+            // This will wait for the background initialization to finish if it hasn't already.
             initializationFuture.get();
             return dataSource.getConnection();
         } catch (InterruptedException | ExecutionException e) {
+            // If initialization failed, this will throw an exception.
             throw new SQLException("Failed to get database connection from the pool.", e);
         }
     }

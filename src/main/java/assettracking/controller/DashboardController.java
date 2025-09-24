@@ -2,7 +2,6 @@ package assettracking.controller;
 
 import assettracking.dao.AppSettingsDAO;
 import assettracking.data.TopModelStat;
-import assettracking.db.DatabaseConnection;
 import assettracking.manager.ConfettiManager;
 import assettracking.manager.DashboardDataService;
 import assettracking.manager.StageManager;
@@ -113,8 +112,10 @@ public class DashboardController {
         Task<Void> initialLoadTask = new Task<>() {
             @Override
             protected Void call() {
-                weeklyDeviceGoal = Double.parseDouble(appSettingsDAO.getSetting("device_goal").orElse("100.0"));
-                weeklyMonitorGoal = Double.parseDouble(appSettingsDAO.getSetting("monitor_goal").orElse("50.0"));
+                // Now using a direct DAO instance.
+                AppSettingsDAO settingsDAO = new AppSettingsDAO();
+                weeklyDeviceGoal = Double.parseDouble(settingsDAO.getSetting("device_goal").orElse("100.0"));
+                weeklyMonitorGoal = Double.parseDouble(settingsDAO.getSetting("monitor_goal").orElse("50.0"));
                 return null;
             }
         };
@@ -127,7 +128,9 @@ public class DashboardController {
 
     @FXML
     private void refreshAllData() {
-        DatabaseConnection.refreshConnectionPool();
+        // THE FIX: This unnecessary and blocking call has been removed.
+        // DatabaseConnection.refreshConnectionPool();
+
         updateDynamicTitles();
         loadGranularMetrics();
         loadStaticKpis();
