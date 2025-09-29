@@ -132,7 +132,7 @@
                             <ColumnConstraints percentWidth="50"/>
                         </columnConstraints>
                         <VBox alignment="CENTER" spacing="5" GridPane.columnIndex="0">
-                            <Label text="Active Triage/Repair" styleClass="kpi-title"/>
+                            <Label text="Active Intake" styleClass="kpi-title"/>
                             <Label fx:id="activeTriageLabel" styleClass="kpi-metric, text-warning">
                                 <tooltip>
                                     <Tooltip

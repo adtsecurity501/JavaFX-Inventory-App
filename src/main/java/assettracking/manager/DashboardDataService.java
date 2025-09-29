@@ -130,7 +130,7 @@ public class DashboardDataService {
 
     public Map<String, String> getStaticKpis(String dateFilterClause) throws SQLException {
         Map<String, String> kpis = new HashMap<>();
-        String triageSql = "SELECT COUNT(*) as count FROM Device_Status ds JOIN (" + LATEST_RECEIPT_SUBQUERY + ") l ON ds.receipt_id = l.max_receipt_id JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id WHERE ds.status IN ('Intake', 'Triage & Repair') AND re.category NOT LIKE '%Monitor%'";
+        String triageSql = "SELECT COUNT(*) as count FROM Device_Status ds " + "JOIN (" + LATEST_RECEIPT_SUBQUERY + ") l ON ds.receipt_id = l.max_receipt_id " + "JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id " + "WHERE ds.status = 'Intake' ";
         String awaitingDisposalSql = "SELECT COUNT(*) as count FROM Device_Status ds JOIN (" + LATEST_RECEIPT_SUBQUERY + ") l ON ds.receipt_id = l.max_receipt_id WHERE ds.status = 'Disposed' AND ds.sub_status IN ('Can-Am, Pending Pickup', 'Ingram, Pending Pickup', 'Ready for Wipe')";
         String turnaroundSql = "SELECT AVG(DATEDIFF('DAY', p.receive_date, ds.last_update)) as avg_days FROM Device_Status ds JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id JOIN Packages p ON re.package_id = p.package_id WHERE ds.status = 'Processed' AND ds.sub_status = 'Ready for Deployment' AND ds.last_update >= DATEADD('DAY', -30, CURRENT_DATE)";
 
