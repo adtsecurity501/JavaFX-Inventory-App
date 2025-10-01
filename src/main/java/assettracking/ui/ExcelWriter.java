@@ -5,17 +5,15 @@ import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.List;
 
 public class ExcelWriter {
 
-    public static void writeTemplate(File templateFile, File outputFile, List<StagedDevice> data) throws IOException {
-        try (FileInputStream fis = new FileInputStream(templateFile);
-             Workbook workbook = new XSSFWorkbook(fis);
-             FileOutputStream fos = new FileOutputStream(outputFile)) {
+    public static void writeTemplate(InputStream templateInputStream, File outputFile, List<StagedDevice> data) throws IOException {
+        try (Workbook workbook = new XSSFWorkbook(templateInputStream); FileOutputStream fos = new FileOutputStream(outputFile)) {
 
             Sheet sheet = workbook.getSheetAt(0);
             int startRowIndex = 4;
@@ -30,10 +28,9 @@ public class ExcelWriter {
                     row = sheet.createRow(startRowIndex + i);
                 }
 
-                // --- UPDATE CARRIER AND ACCOUNT NUMBER ---
                 getCell(row, 0).setCellValue(i + 1);
-                getCell(row, 1).setCellValue(device.getCarrier()); // MODIFIED
-                getCell(row, 2).setCellValue(device.getCarrierAccountNumber()); // MODIFIED
+                getCell(row, 1).setCellValue(device.getCarrier());
+                getCell(row, 2).setCellValue(device.getCarrierAccountNumber());
                 getCell(row, 3).setCellValue(561);
                 getCell(row, 4).setCellValue("New activation");
                 getCell(row, 5).setCellValue("iPad");

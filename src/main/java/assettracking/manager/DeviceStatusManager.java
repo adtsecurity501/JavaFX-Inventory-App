@@ -3,11 +3,16 @@ package assettracking.manager;
 import assettracking.controller.DeviceStatusTrackingController;
 import assettracking.dao.DeviceStatusDAO;
 import assettracking.data.DeviceStatusView;
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.scene.Node;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Label;
+
+import java.sql.SQLException;
+import java.util.Set;
 
 public class DeviceStatusManager {
     private final DeviceStatusTrackingController controller;
@@ -63,6 +68,17 @@ public class DeviceStatusManager {
 
     public void updateDeviceStatus(ObservableList<DeviceStatusView> selectedDevices, String newStatus, String newSubStatus, String note, String boxId) {
         deviceStatusDAO.updateDeviceStatus(selectedDevices, newStatus, newSubStatus, note, boxId);
+    }
+
+    public void deleteDevicePermanently(String serialNumber) {
+        try {
+            // This calls the DAO method that already knows how to delete
+            // all records related to a set of serial numbers.
+            deviceStatusDAO.permanentlyDeleteDevicesBySerial(Set.of(serialNumber));
+        } catch (SQLException e) {
+            // If something goes wrong, show an error to the user.
+            Platform.runLater(() -> StageManager.showAlert(controller.statusTable.getScene().getWindow(), Alert.AlertType.ERROR, "Deletion Failed", "A database error occurred during permanent deletion: " + e.getMessage()));
+        }
     }
 
     public int getRowsPerPage() {

@@ -5,7 +5,7 @@ import assettracking.ui.ExcelWriter;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.URL;
+import java.io.InputStream;
 import java.util.List;
 
 /**
@@ -13,15 +13,14 @@ import java.util.List;
  */
 public class ProvisioningExportService {
     public void exportToFile(File outputFile, List<StagedDevice> devices) throws IOException {
-        URL resourceUrl = getClass().getResource("/template/Device_Submission_Template.xlsx");
-        if (resourceUrl == null) {
-            throw new IOException("The required Excel template 'Device_Submission_Template.xlsx' could not be found in application resources.");
+        // This is the correct way to get a resource from within a JAR
+        try (InputStream templateStream = getClass().getResourceAsStream("/template/Device_Submission_Template.xlsx")) {
+            if (templateStream == null) {
+                throw new IOException("The required Excel template 'Device_Submission_Template.xlsx' could not be found in application resources.");
+            }
+
+            // Pass the InputStream directly to the updated ExcelWriter method
+            ExcelWriter.writeTemplate(templateStream, outputFile, devices);
         }
-
-        // Note: In a JAR, getFile() can be problematic. A better approach would be to copy the stream.
-        // For this context, we'll assume it works from the IDE/build structure.
-        File templateFile = new File(resourceUrl.getFile());
-
-        ExcelWriter.writeTemplate(templateFile, outputFile, devices);
     }
 }

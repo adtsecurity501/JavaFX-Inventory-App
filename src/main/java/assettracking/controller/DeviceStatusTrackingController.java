@@ -11,7 +11,6 @@ import assettracking.manager.StatusManager;
 import assettracking.ui.DeviceStatusActions;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
-import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -463,11 +462,12 @@ public class DeviceStatusTrackingController {
             StageManager.showAlert(getOwnerWindow(), Alert.AlertType.WARNING, "No Selection", "Please select a device to delete.");
             return;
         }
-        if (StageManager.showDeleteConfirmationDialog(getOwnerWindow(), "device", selectedDevice.getSerialNumber())) {
-            // Add null for the boxId parameter
-            deviceStatusManager.updateDeviceStatus(FXCollections.observableArrayList(selectedDevice), "Disposed", "Deleted (Mistake)", "Entry deleted by user.", null);
-            refreshData();
+        if (StageManager.showDeleteConfirmationDialog(getOwnerWindow(), "device", selectedDevice.getSerialNumber() + " permanently from the database")) {
+            // Instead of updating the status, we now call the new permanent delete method.
+            deviceStatusManager.deleteDevicePermanently(selectedDevice.getSerialNumber());
 
+            // Refresh the table to show that the item is gone.
+            refreshData();
         }
     }
 
