@@ -43,6 +43,8 @@
             </GridPane>
             <Separator/>
             <HBox alignment="CENTER_RIGHT" spacing="10">
+                <Button onAction="#handleImportFromFile" text="Import from File..."/>
+                <Region HBox.hgrow="ALWAYS"/> <!-- This spacer pushes other buttons to the right -->
                 <Button fx:id="removeButton" onAction="#handleRemove" text="Remove Selected Flag" styleClass="danger"/>
                 <Button fx:id="closeButton" onAction="#handleClose" text="Close"/>
             </HBox>

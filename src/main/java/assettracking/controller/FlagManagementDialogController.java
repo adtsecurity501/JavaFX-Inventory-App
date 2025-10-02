@@ -2,6 +2,7 @@ package assettracking.controller;
 
 import assettracking.dao.FlaggedDeviceDAO;
 import assettracking.manager.StageManager;
+import assettracking.ui.FlaggedDeviceImporter;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -37,6 +38,8 @@ public class FlagManagementDialogController {
     private Button removeButton;
     @FXML
     private Button closeButton;
+    @FXML
+    private Button importButton;
     private Runnable onSaveCallback;
 
     @FXML
@@ -58,20 +61,15 @@ public class FlagManagementDialogController {
         });
 
         FilteredList<FlaggedDevice> filteredData = new FilteredList<>(flaggedDeviceList, p -> true);
-        searchField.textProperty().addListener((obs, oldVal, newVal) -> {
-            filteredData.setPredicate(device -> {
-                if (newVal == null || newVal.isEmpty()) return true;
-                String lowerCaseFilter = newVal.toLowerCase();
-                return device.getSerialNumber().toLowerCase().contains(lowerCaseFilter) ||
-                        device.getReason().toLowerCase().contains(lowerCaseFilter);
-            });
-        });
+        searchField.textProperty().addListener((obs, oldVal, newVal) -> filteredData.setPredicate(device -> {
+            if (newVal == null || newVal.isEmpty()) return true;
+            String lowerCaseFilter = newVal.toLowerCase();
+            return device.getSerialNumber().toLowerCase().contains(lowerCaseFilter) || device.getReason().toLowerCase().contains(lowerCaseFilter);
+        }));
 
         flagsTable.setItems(filteredData);
 
-        flagsTable.getSelectionModel().selectedItemProperty().addListener((obs, old, selection) -> {
-            removeButton.setDisable(selection == null);
-        });
+        flagsTable.getSelectionModel().selectedItemProperty().addListener((obs, old, selection) -> removeButton.setDisable(selection == null));
 
         loadFlags();
     }
@@ -82,10 +80,17 @@ public class FlagManagementDialogController {
 
     private void loadFlags() {
         List<SimpleEntry<String, String>> flags = flaggedDeviceDAO.getAllFlags();
-        flaggedDeviceList.setAll(flags.stream()
-                .map(entry -> new FlaggedDevice(new SimpleStringProperty(entry.getKey()), new SimpleStringProperty(entry.getValue())))
-                .collect(Collectors.toList()));
+        flaggedDeviceList.setAll(flags.stream().map(entry -> new FlaggedDevice(new SimpleStringProperty(entry.getKey()), new SimpleStringProperty(entry.getValue()))).collect(Collectors.toList()));
         removeButton.setDisable(true);
+    }
+
+    @FXML
+    private void handleImportFromFile() {
+        // Re-use the existing importer logic
+        new FlaggedDeviceImporter().importFromFile(getStage(), this::loadFlags // This is the magic: it reloads the table after the import finishes
+        );
+        // Also trigger the main screen's callback if it exists
+        if (onSaveCallback != null) onSaveCallback.run();
     }
 
     @FXML
@@ -100,6 +105,7 @@ public class FlagManagementDialogController {
             loadFlags();
             serialField.clear();
             reasonField.clear();
+
             if (onSaveCallback != null) onSaveCallback.run();
         } else {
             StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Save Failed", "Could not save the flag to the database.");

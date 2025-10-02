@@ -3,7 +3,6 @@ package assettracking.controller;
 import assettracking.dao.AppSettingsDAO;
 import assettracking.dao.DeviceStatusDAO;
 import assettracking.manager.*;
-import assettracking.ui.FlaggedDeviceImporter;
 import assettracking.ui.MelRulesImporter;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
@@ -153,13 +152,14 @@ public class DataManagementController {
             // Set a callback to update the status label on this tab.
             dialogController.setOnSaveCallback(() -> statusLabel.setText("Flag list updated. Refresh the Device Status Tracking tab to see changes."));
 
-            Stage stage = StageManager.createCustomStage(getStage(), "Manage Flagged Devices", root);
+            Stage stage = StageManager.createCustomStage(getStage(), "Manage & Import Flagged Devices", root); // Title updated
             stage.showAndWait();
         } catch (IOException e) {
             logger.error("Failed to open Flag Management window", e);
             StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Error", "Could not open the Flag Management window.");
         }
     }
+
 
     @FXML
     private void handleRunAutoImport() {
@@ -264,11 +264,6 @@ public class DataManagementController {
             logger.error("Failed to open Autofill Import dialog", e);
             StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Error", "Could not open the import dialog: " + e.getMessage());
         }
-    }
-
-    @FXML
-    private void handleImportFlags() {
-        new FlaggedDeviceImporter().importFromFile(getStage(), () -> statusLabel.setText("Flag import finished. Refresh views to see changes."));
     }
 
     @FXML

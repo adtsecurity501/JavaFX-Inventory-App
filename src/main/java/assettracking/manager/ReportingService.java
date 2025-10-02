@@ -41,16 +41,33 @@ public class ReportingService {
     public void exportToXLSX(File file, Window owner) {
         String[] headers = {"Tracking Number", "First Name", "Last Name", "City", "State", "Zip", "Receive Date", "Category", "Description", "IMEI", "Serial Number", "Status Change Date", "Status", "Sub Status", "Days in Current Status", "Total Days to Process"};
 
-        String query = "SELECT p.tracking_number, p.first_name, p.last_name, p.city, p.state, p.zip_code, p.receive_date, " + "re.category, re.description, re.imei, re.serial_number, ds.last_update AS status_change_date, " + "ds.status, ds.sub_status " + "FROM Packages p JOIN Receipt_Events re ON p.package_id = re.package_id LEFT JOIN Device_Status ds ON re.receipt_id = ds.receipt_id " + "ORDER BY ds.last_update DESC NULLS LAST, p.receive_date DESC";
+        // --- THIS IS THE CORRECTED QUERY ---
+        String query = """
+                    SELECT
+                        p.tracking_number, p.first_name, p.last_name, p.city, p.state, p.zip_code, p.receive_date,
+                        re.category, re.description, re.imei, re.serial_number, ds.last_update AS status_change_date,
+                        ds.status, ds.sub_status
+                    FROM Receipt_Events re
+                    INNER JOIN (
+                        SELECT serial_number, MAX(receipt_id) AS max_receipt_id
+                        FROM Receipt_Events
+                        GROUP BY serial_number
+                    ) latest ON re.serial_number = latest.serial_number AND re.receipt_id = latest.max_receipt_id
+                    LEFT JOIN Packages p ON re.package_id = p.package_id
+                    LEFT JOIN Device_Status ds ON re.receipt_id = ds.receipt_id
+                    ORDER BY ds.last_update DESC NULLS LAST, p.receive_date DESC
+                """;
+        // --- END OF CORRECTION ---
 
         try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(query); ResultSet rs = stmt.executeQuery(); XSSFWorkbook workbook = new XSSFWorkbook()) {
+
+            // ... the rest of the method from this point on is unchanged ...
+            // (No need to copy it all, just replace the query string at the top)
 
             XSSFSheet dataSheet = workbook.createSheet("Full Data Report");
             XSSFSheet summarySheet = workbook.createSheet("Summary Dashboard");
             CreationHelper createHelper = workbook.getCreationHelper();
             Map<String, Integer> statusCounts = new HashMap<>();
-
-            // Cell Styles
             CellStyle timestampCellStyle = workbook.createCellStyle();
             timestampCellStyle.setDataFormat(createHelper.createDataFormat().getFormat("yyyy-mm-dd hh:mm:ss"));
             CellStyle dateCellStyle = workbook.createCellStyle();
@@ -65,18 +82,15 @@ public class ReportingService {
             CellStyle dangerStyle = workbook.createCellStyle();
             dangerStyle.setFillForegroundColor(IndexedColors.RED.getIndex());
             dangerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-
             Row headerRow = dataSheet.createRow(0);
             for (int i = 0; i < headers.length; i++) {
                 Cell cell = headerRow.createCell(i);
                 cell.setCellValue(headers[i]);
                 cell.setCellStyle(headerStyle);
             }
-
             int rowNum = 1;
             while (rs.next()) {
                 Row row = dataSheet.createRow(rowNum++);
-                // Populate row data (this logic is unchanged)
                 row.createCell(0).setCellValue(rs.getString("tracking_number"));
                 row.createCell(1).setCellValue(rs.getString("first_name"));
                 row.createCell(2).setCellValue(rs.getString("last_name"));
@@ -115,7 +129,6 @@ public class ReportingService {
                     row.createCell(15).setCellValue(daysToProcess);
                 }
             }
-
             if (rowNum > 1) {
                 AreaReference tableArea = workbook.getCreationHelper().createAreaReference(new CellReference(0, 0), new CellReference(rowNum - 1, headers.length - 1));
                 XSSFTable table = dataSheet.createTable(tableArea);
@@ -128,16 +141,12 @@ public class ReportingService {
                 styleInfo.setShowRowStripes(true);
                 cttable.setTableStyleInfo(styleInfo);
             }
-
             for (int i = 0; i < headers.length; i++) dataSheet.autoSizeColumn(i);
-
             buildSummarySheet(summarySheet, rowNum - 1, headerStyle, statusCounts);
             if (rowNum > 1) {
                 buildPivotTableSheet(workbook.createSheet("Pivot Table Analysis"), dataSheet, rowNum, headers.length);
             }
-
             workbook.setActiveSheet(0);
-
             try (FileOutputStream fileOut = new FileOutputStream(file)) {
                 workbook.write(fileOut);
             }
@@ -151,9 +160,27 @@ public class ReportingService {
 
     public void exportToCSV(File file, Window owner) {
         String header = "Tracking Number,First Name,Last Name,City,State,Zip,Receive Date,Category,Description,IMEI,Serial Number,Status Change Date,Status,Sub Status";
-        String query = "SELECT p.tracking_number, p.first_name, p.last_name, p.city, p.state, p.zip_code, p.receive_date, re.category, re.description, re.imei, re.serial_number, ds.last_update AS status_change_date, ds.status, ds.sub_status FROM Packages p JOIN Receipt_Events re ON p.package_id = re.package_id LEFT JOIN Device_Status ds ON re.receipt_id = ds.receipt_id ORDER BY ds.last_update DESC NULLS LAST, p.receive_date DESC";
+
+        // --- THIS IS THE CORRECTED QUERY ---
+        String query = """
+                    SELECT
+                        p.tracking_number, p.first_name, p.last_name, p.city, p.state, p.zip_code, p.receive_date,
+                        re.category, re.description, re.imei, re.serial_number, ds.last_update AS status_change_date,
+                        ds.status, ds.sub_status
+                    FROM Receipt_Events re
+                    INNER JOIN (
+                        SELECT serial_number, MAX(receipt_id) AS max_receipt_id
+                        FROM Receipt_Events
+                        GROUP BY serial_number
+                    ) latest ON re.serial_number = latest.serial_number AND re.receipt_id = latest.max_receipt_id
+                    LEFT JOIN Packages p ON re.package_id = p.package_id
+                    LEFT JOIN Device_Status ds ON re.receipt_id = ds.receipt_id
+                    ORDER BY ds.last_update DESC NULLS LAST, p.receive_date DESC
+                """;
+        // --- END OF CORRECTION ---
 
         try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(query); ResultSet rs = stmt.executeQuery(); PrintWriter writer = new PrintWriter(file)) {
+
             writer.println(header);
             while (rs.next()) {
                 List<String> row = new ArrayList<>();
