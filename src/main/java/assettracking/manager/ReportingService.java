@@ -235,9 +235,10 @@ public class ReportingService {
     private void buildPivotTableSheet(XSSFSheet pivotSheet, XSSFSheet dataSheet, int totalRows, int totalCols) {
         AreaReference source = new AreaReference(new CellReference(0, 0), new CellReference(totalRows - 1, totalCols - 1), SpreadsheetVersion.EXCEL2007);
         XSSFPivotTable pivotTable = pivotSheet.createPivotTable(source, new CellReference("A4"), dataSheet);
-        pivotTable.addRowLabel(12);
-        pivotTable.addRowLabel(7);
-        pivotTable.addColumnLabel(DataConsolidateFunction.COUNT, 10, "Count of Devices");
+        pivotTable.addRowLabel(12); // Group by "Status" (Column M)
+        pivotTable.addRowLabel(7);  // Then group by "Category" (Column H)
+        pivotTable.addColumnLabel(DataConsolidateFunction.COUNT, 10, "Count of Devices"); // Summarize by counting "Serial Number" (Column K)
+        pivotTable.getPivotCacheDefinition().getCTPivotCacheDefinition().setRefreshOnLoad(true);
     }
 
     private String escapeCSV(String value) {
