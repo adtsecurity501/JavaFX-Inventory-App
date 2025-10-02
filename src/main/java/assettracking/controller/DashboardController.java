@@ -23,6 +23,7 @@ import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -37,7 +38,7 @@ public class DashboardController {
     // --- FXML Fields ---
 
     @FXML
-    private BarChart<String, Number> weeklyIntakeChart;
+    private BarChart<String, Number> intakeProcessedChart;
     @FXML
     private PieChart inventoryPieChart, deploymentBreakdownChart;
     @FXML
@@ -207,6 +208,7 @@ public class DashboardController {
 
     @SuppressWarnings("unchecked")
     private void loadDynamicCharts() {
+        // The inventoryTask and breakdownTask remain unchanged
         Task<List<PieChart.Data>> inventoryTask = new Task<>() {
             @Override
             protected List<PieChart.Data> call() throws Exception {
@@ -215,6 +217,7 @@ public class DashboardController {
         };
         inventoryTask.setOnSucceeded(e -> setPieChartData(inventoryPieChart, FXCollections.observableArrayList(inventoryTask.getValue())));
         new Thread(inventoryTask).start();
+
         Task<List<PieChart.Data>> breakdownTask = new Task<>() {
             @Override
             protected List<PieChart.Data> call() throws Exception {
@@ -223,14 +226,34 @@ public class DashboardController {
         };
         breakdownTask.setOnSucceeded(e -> setPieChartData(deploymentBreakdownChart, FXCollections.observableArrayList(breakdownTask.getValue())));
         new Thread(breakdownTask).start();
-        Task<XYChart.Series<String, Number>> intakeTask = new Task<>() {
+
+        // --- THIS IS THE SIMPLIFIED AND CORRECTED TASK ---
+        Task<List<XYChart.Series<String, Number>>> intakeVsProcessedTask = new Task<>() {
             @Override
-            protected XYChart.Series<String, Number> call() throws Exception {
-                return dataService.getIntakeVolumeData(getDateFilterClause("p.receive_date"));
+            protected List<XYChart.Series<String, Number>> call() throws Exception {
+                LocalDate endDate = LocalDate.now();
+                LocalDate startDate;
+
+                RadioButton selected = (RadioButton) dateRangeToggleGroup.getSelectedToggle();
+                String selectionText = (selected == null) ? "Last 7 Days" : selected.getText();
+
+                startDate = switch (selectionText) {
+                    case "Today" -> endDate;
+                    case "Last 30 Days" -> endDate.minusDays(29);
+                    default -> endDate.minusDays(6);
+                };
+
+                // The controller's only job is to provide the date range.
+                // All complex logic is now in the service layer.
+                return dataService.getIntakeVsProcessedData(startDate, endDate);
             }
         };
-        intakeTask.setOnSucceeded(e -> weeklyIntakeChart.getData().setAll(intakeTask.getValue()));
-        new Thread(intakeTask).start();
+
+        intakeVsProcessedTask.setOnSucceeded(e -> {
+            intakeProcessedChart.getData().setAll(intakeVsProcessedTask.getValue());
+        });
+
+        new Thread(intakeVsProcessedTask).start();
     }
 
     private void updatePacing(int deviceCount, int monitorCount) {
