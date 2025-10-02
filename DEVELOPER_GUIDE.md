@@ -256,4 +256,3 @@ The application is deployed as a folder containing four key components:
     - **Cause**: The `pom.xml` has dependencies on both `logback-classic` and `slf4j-simple`.
     - **Solution**: Open `pom.xml` and remove the `<dependency>` block for `slf4j-simple`. The project is configured to
       use Logback.
-    - 
