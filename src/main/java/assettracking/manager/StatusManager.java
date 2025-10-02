@@ -28,7 +28,8 @@ public final class StatusManager {
                 "Ready for Deployment",
                 "Ready for Imaging",
                 "Kept in Depot(Parts)",
-                "Kept in Depot(Functioning)"
+                "Kept in Depot(Functioning)",
+                "Shipped"
         ));
 
         // 4. Final disposition statuses (items leaving inventory)

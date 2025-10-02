@@ -433,21 +433,21 @@ public class DeviceStatusTrackingController {
                         row.getStyleClass().add("flagged-row");
                     } else {
                         String status = currentItem.getStatus() != null ? currentItem.getStatus() : "";
-                        switch (status) {
-                            case "WIP":
-                                row.getStyleClass().add("wip-row");
-                                break;
-                            case "Disposal/EOL":
-                            case "Disposed":
-                                row.getStyleClass().add("disposal-row");
-                                break;
-                            case "Processed":
-                                row.getStyleClass().add("processed-row");
-                                break;
-                            case "Everon":
-                            case "Phone":
-                                row.getStyleClass().add("shipped-row");
-                                break;
+                        String subStatus = currentItem.getSubStatus() != null ? currentItem.getSubStatus() : "";
+
+                        // Check for our new "Processed - Shipped" status first
+                        if (status.equals("Processed") && subStatus.equals("Shipped")) {
+                            row.getStyleClass().add("shipped-row");
+                        }
+                        // Keep the old logic for other main statuses
+                        else if (status.equals("WIP") || status.equals("Triage & Repair")) {
+                            row.getStyleClass().add("wip-row");
+                        } else if (status.equals("Disposal/EOL") || status.equals("Disposed")) {
+                            row.getStyleClass().add("disposal-row");
+                        } else if (status.equals("Processed")) {
+                            row.getStyleClass().add("processed-row");
+                        } else if (status.equals("Everon") || status.equals("Phone")) {
+                            row.getStyleClass().add("shipped-row");
                         }
                     }
                 }
