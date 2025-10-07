@@ -130,13 +130,10 @@ powershell.exe -WindowStyle Hidden -Command "& '%BUNDLED_JAVA%' --enable-native-
 
 1. Run this code in PS in the root of the project
    ```
-   Remove-Item -Path all_code.txt -ErrorAction SilentlyContinue
-   tree /F /A > all_code.txt
-   Add-Content -Path all_code.txt -Value "`n--- CODE ---`n"
-   Get-ChildItem -Recurse -Include "*.java", "*.fxml", "*.xml", "*.css" |
-   Where-Object { $_.FullName -notlike '*\jre\*' } | ForEach-Object { $relativePath = $_.FullName.Substring($
-   PWD.Path.Length); Add-Content -Path all_code.txt -Value "`n>> .$relativePath`n"; Get-Content $_.FullName | Out-File
-   -Append -FilePath all_code.txt }
+    Remove-Item -Path all_code.txt -ErrorAction SilentlyContinue
+    tree /F /A > all_code.txt
+    Add-Content -Path all_code.txt -Value "`n--- CODE ---`n"
+    Get-ChildItem -Recurse -Include "*.java", "*.fxml", "*.xml", "*.css" | Where-Object { $_.FullName -notlike '*\jre\*' } | ForEach-Object { $relativePath = $_.FullName.Substring($PWD.Path.Length); Add-Content -Path all_code.txt -Value "`n>> .$relativePath`n"; Get-Content $_.FullName | Out-File -Append -FilePath all_code.txt }
    
 It will generate an all_code.txt file that you can copy and paste the contents into Google AI Studio and ask it to help you add a new feature or debug code. The more context given to AI the better.
 https://aistudio.google.com/u/0/prompts/new_chat
