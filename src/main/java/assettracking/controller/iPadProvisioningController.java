@@ -15,8 +15,11 @@ import javafx.collections.transformation.FilteredList;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
+import javafx.scene.control.cell.ComboBoxTableCell;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.control.cell.TextFieldTableCell;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
@@ -53,7 +56,7 @@ public class iPadProvisioningController {
     @FXML
     private TableView<StagedDevice> stagingTable;
     @FXML
-    private TableColumn<StagedDevice, String> stageFirstNameCol, stageLastNameCol, stageSerialCol, stageImeiCol, stageSimCol, stageSnRefCol, stageEmailCol, stageCarrierCol, stageCarrierAccountCol;
+    private TableColumn<StagedDevice, String> stageFirstNameCol, stageLastNameCol, stageSerialCol, stageImeiCol, stageSimCol, stageSnRefCol, stageEmailCol, stageCarrierCol, stageCarrierAccountCol, stageDeviceTypeCol;
     @FXML
     private TableView<BulkDevice> dbResultsTable;
     @FXML
@@ -94,6 +97,9 @@ public class iPadProvisioningController {
         stageSnRefCol.setCellValueFactory(new PropertyValueFactory<>("snReferenceNumber"));
         stageEmailCol.setCellValueFactory(new PropertyValueFactory<>("employeeEmail"));
         stageSimCol.setCellFactory(TextFieldTableCell.forTableColumn());
+        stageDeviceTypeCol.setCellValueFactory(new PropertyValueFactory<>("deviceType"));
+        stageDeviceTypeCol.setCellFactory(ComboBoxTableCell.forTableColumn("iPad", "Tablet"));
+        stageDeviceTypeCol.setOnEditCommit(event -> event.getRowValue().setDeviceType(event.getNewValue()));
         stagingTable.setItems(stagedDeviceList);
         stagingTable.setRowFactory(tv -> new TableRow<>() {
             @Override
@@ -112,6 +118,26 @@ public class iPadProvisioningController {
         dbSimCol.setCellValueFactory(new PropertyValueFactory<>("iccid"));
         dbDeviceNameCol.setCellValueFactory(new PropertyValueFactory<>("deviceName"));
         dbResultsTable.setItems(dbDeviceList);
+        dbResultsTable.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+        MenuItem copyMenuItem = new MenuItem("Copy Selected Row(s)");
+        copyMenuItem.setOnAction(event -> {
+            List<BulkDevice> selectedItems = dbResultsTable.getSelectionModel().getSelectedItems();
+            if (selectedItems == null || selectedItems.isEmpty()) {
+                return;
+            }
+            StringBuilder sb = new StringBuilder();
+            for (BulkDevice device : selectedItems) {
+                sb.append(device.getSerialNumber()).append("\t");
+                sb.append(device.getImei()).append("\t");
+                sb.append(device.getIccid()).append("\t");
+                sb.append(device.getDeviceName()).append("\n");
+            }
+            final ClipboardContent content = new ClipboardContent();
+            content.putString(sb.toString());
+            Clipboard.getSystemClipboard().setContent(content);
+            statusLabel.setText("Copied " + selectedItems.size() + " row(s) to clipboard.");
+        });
+        dbResultsTable.setContextMenu(new ContextMenu(copyMenuItem));
     }
 
     private void setupEventListeners() {
@@ -119,10 +145,14 @@ public class iPadProvisioningController {
             if (bulkModeToggle.isSelected()) snRefFilterField.requestFocus();
             else handleStageUnassigned();
         });
-        bulkModeToggle.selectedProperty().addListener((obs, o, n) -> {
-            bulkModeToggle.setText("Bulk Assignment Mode: " + (n ? "ON" : "OFF"));
-            if (n) bulkModeToggle.getStyleClass().add("success");
-            else bulkModeToggle.getStyleClass().remove("success");
+        bulkModeToggle.selectedProperty().addListener((obs, o, isBulkMode) -> {
+            bulkModeToggle.setText("Bulk Assignment Mode: " + (isBulkMode ? "ON" : "OFF"));
+            if (isBulkMode) {
+                bulkModeToggle.getStyleClass().add("success");
+            } else {
+                bulkModeToggle.getStyleClass().remove("success");
+            }
+            stageDeviceTypeCol.setVisible(!isBulkMode);
             updateWorkflowControls();
         });
         stageSimCol.setOnEditCommit(event -> updateSimCardInDb(event.getRowValue().getSerialNumber(), event.getNewValue()));

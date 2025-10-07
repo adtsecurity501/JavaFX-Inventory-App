@@ -17,6 +17,7 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.input.*;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.stage.Window;
@@ -160,6 +161,13 @@ public class DeviceStatusTrackingController {
         setupTableSelectionListener();
         configureTableRowFactory();
         setupFilters();
+        // --- NEW: Add keyboard shortcut for copying ---
+        final KeyCodeCombination keyCodeCombination = new KeyCodeCombination(KeyCode.C, KeyCombination.CONTROL_DOWN);
+        statusTable.setOnKeyPressed(event -> {
+            if (keyCodeCombination.match(event)) {
+                copySelectionToClipboard();
+            }
+        });
     }
 
     private void setupStatusMappings() {
@@ -409,6 +417,8 @@ public class DeviceStatusTrackingController {
 
     private void configureTableRowFactory() {
         ContextMenu contextMenu = new ContextMenu();
+        MenuItem copyMenuItem = new MenuItem("Copy Selection");
+        copyMenuItem.setOnAction(event -> copySelectionToClipboard());
         MenuItem historyMenuItem = new MenuItem("View Full History");
         historyMenuItem.setOnAction(event -> handleViewHistory());
         MenuItem editMenuItem = new MenuItem("Edit Selected Device...");
@@ -422,7 +432,7 @@ public class DeviceStatusTrackingController {
         deleteMenuItem.setOnAction(event -> handleDeleteDevice());
 
         // --- UPDATE THIS LINE TO INCLUDE THE NEW ITEM ---
-        contextMenu.getItems().addAll(historyMenuItem, new SeparatorMenuItem(), reassignMenuItem, editMenuItem, deleteMenuItem);
+        contextMenu.getItems().addAll(copyMenuItem, new SeparatorMenuItem(), historyMenuItem, new SeparatorMenuItem(), reassignMenuItem, editMenuItem, deleteMenuItem);
         statusTable.setRowFactory(tv -> {
             TableRow<DeviceStatusView> row = new TableRow<>();
             row.contextMenuProperty().bind(Bindings.when(row.emptyProperty().not()).then(contextMenu).otherwise((ContextMenu) null));
@@ -454,6 +464,27 @@ public class DeviceStatusTrackingController {
             });
             return row;
         });
+    }
+
+    private void copySelectionToClipboard() {
+        ObservableList<DeviceStatusView> selectedItems = statusTable.getSelectionModel().getSelectedItems();
+        if (selectedItems == null || selectedItems.isEmpty()) {
+            return;
+        }
+        StringBuilder clipboardString = new StringBuilder();
+        for (DeviceStatusView item : selectedItems) {
+            clipboardString.append(item.getSerialNumber()).append("\t");
+            clipboardString.append(item.getCategory()).append("\t");
+            clipboardString.append(item.getMake()).append("\t");
+            clipboardString.append(item.getDescription()).append("\t");
+            clipboardString.append(item.getStatus()).append("\t");
+            clipboardString.append(item.getSubStatus()).append("\t");
+            clipboardString.append(item.getLastUpdate()).append("\t");
+            clipboardString.append(item.getChangeNote()).append("\n");
+        }
+        final ClipboardContent content = new ClipboardContent();
+        content.putString(clipboardString.toString());
+        Clipboard.getSystemClipboard().setContent(content);
     }
 
     private void handleDeleteDevice() {

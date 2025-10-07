@@ -33,7 +33,7 @@ public class ExcelWriter {
                 getCell(row, 2).setCellValue(device.getCarrierAccountNumber());
                 getCell(row, 3).setCellValue(561);
                 getCell(row, 4).setCellValue("New activation");
-                getCell(row, 5).setCellValue("iPad");
+                getCell(row, 5).setCellValue(device.getDeviceType());
 
                 getCell(row, 6).setCellValue(device.getSerialNumber());
 

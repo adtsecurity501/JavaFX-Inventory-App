@@ -206,7 +206,6 @@ public class DashboardController {
         new Thread(task).start();
     }
 
-    @SuppressWarnings("unchecked")
     private void loadDynamicCharts() {
         // The inventoryTask and breakdownTask remain unchanged
         Task<List<PieChart.Data>> inventoryTask = new Task<>() {
@@ -250,7 +249,12 @@ public class DashboardController {
         };
 
         intakeVsProcessedTask.setOnSucceeded(e -> {
-            intakeProcessedChart.getData().setAll(intakeVsProcessedTask.getValue());
+            // --- THIS IS THE FIX ---
+            // Instead of using setAll(), which can cause errors in BarChart,
+            // we clear the data first and then add the new series. This is more robust.
+            intakeProcessedChart.getData().clear();
+            intakeProcessedChart.getData().addAll(intakeVsProcessedTask.getValue());
+            // --- END OF FIX ---
         });
 
         new Thread(intakeVsProcessedTask).start();

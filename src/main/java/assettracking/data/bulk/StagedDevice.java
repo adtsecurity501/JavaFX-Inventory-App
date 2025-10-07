@@ -15,6 +15,8 @@ public class StagedDevice {
     // --- NEW FIELDS ---
     private final SimpleStringProperty carrier;
     private final SimpleStringProperty carrierAccountNumber;
+    private final SimpleStringProperty deviceType;
+
 
     // NEW FIELD: Flag to indicate if this row was auto-changed.
 
@@ -32,6 +34,7 @@ public class StagedDevice {
         // --- INITIALIZE NEW FIELDS (Default to Verizon) ---
         this.carrier = new SimpleStringProperty("Verizon");
         this.carrierAccountNumber = new SimpleStringProperty("VER-942x");
+        this.deviceType = new SimpleStringProperty("iPad");
     }
 
     public StagedDevice(BulkDevice bulkDevice) {
@@ -46,6 +49,7 @@ public class StagedDevice {
         // --- INITIALIZE NEW FIELDS (Default to Verizon for unassigned too) ---
         this.carrier = new SimpleStringProperty("Verizon");
         this.carrierAccountNumber = new SimpleStringProperty("VER-942x");
+        this.deviceType = new SimpleStringProperty("iPad");
 
     }
 
@@ -111,6 +115,14 @@ public class StagedDevice {
         this.carrierAccountNumber.set(newAccountNumber);
     }
 
+    public String getDeviceType() {
+        return deviceType.get();
+    }
+
+    public void setDeviceType(String type) {
+        this.deviceType.set(type);
+    }
+
     // Property Getters for JavaFX
     public SimpleStringProperty firstNameProperty() {
         return firstName;
@@ -143,4 +155,8 @@ public class StagedDevice {
     public SimpleStringProperty carrierAccountNumberProperty() {
         return carrierAccountNumber;
     } // <-- NEW
+
+    public SimpleStringProperty deviceTypeProperty() {
+        return deviceType;
+    }
 }

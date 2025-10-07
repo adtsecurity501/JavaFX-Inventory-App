@@ -45,6 +45,7 @@
                     <columns>
                         <TableColumn fx:id="stageCarrierCol" prefWidth="100" text="Carrier"/>
                         <TableColumn fx:id="stageCarrierAccountCol" prefWidth="150" text="Carrier Acct #"/>
+                        <TableColumn fx:id="stageDeviceTypeCol" prefWidth="100" text="Device Type"/>
                         <TableColumn fx:id="stageFirstNameCol" prefWidth="100" text="First Name"/>
                         <TableColumn fx:id="stageLastNameCol" prefWidth="100" text="Last Name"/>
                         <TableColumn fx:id="stageEmailCol" prefWidth="180" text="Email"/>
@@ -54,7 +55,7 @@
                         <TableColumn fx:id="stageSnRefCol" prefWidth="150" text="SN Ref #"/>
                     </columns>
                 </TableView>
-                <TitledPane text="Device Database Lookup" expanded="false">
+                <TitledPane text="Device Database Lookup" expanded="false" collapsible="true">
                     <VBox spacing="10" style="-fx-padding: 10;">
                         <TextField fx:id="dbSearchField"
                                    promptText="Search by Serial, IMEI, or SIM... Press Enter to search."/>
