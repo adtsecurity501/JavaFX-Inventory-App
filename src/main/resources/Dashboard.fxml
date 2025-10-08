@@ -92,7 +92,7 @@
                 <VBox spacing="5" VBox.vgrow="ALWAYS"
                       style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 4;">
                     <Label text="Intake vs. Processed Volume" styleClass="h4"/>
-                    <BarChart fx:id="intakeProcessedChart" VBox.vgrow="ALWAYS">
+                    <BarChart fx:id="intakeProcessedChart" VBox.vgrow="ALWAYS" animated="false">
                         <xAxis>
                             <CategoryAxis label="Date"/>
                         </xAxis>
