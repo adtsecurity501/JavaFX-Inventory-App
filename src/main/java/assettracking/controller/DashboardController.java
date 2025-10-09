@@ -249,12 +249,11 @@ public class DashboardController {
         };
 
         intakeVsProcessedTask.setOnSucceeded(e -> {
-            // --- THIS IS THE FIX ---
-            // Instead of using setAll(), which can cause errors in BarChart,
-            // we clear the data first and then add the new series. This is more robust.
+            List<XYChart.Series<String, Number>> newSeriesList = intakeVsProcessedTask.getValue();
             intakeProcessedChart.getData().clear();
-            intakeProcessedChart.getData().addAll(intakeVsProcessedTask.getValue());
-            // --- END OF FIX ---
+            // By wrapping the addAll in runLater, we give the chart a render pulse
+            // to process the 'clear' operation before trying to add new data.
+            Platform.runLater(() -> intakeProcessedChart.getData().addAll(newSeriesList));
         });
 
         new Thread(intakeVsProcessedTask).start();
