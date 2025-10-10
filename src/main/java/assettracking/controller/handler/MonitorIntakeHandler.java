@@ -81,9 +81,7 @@ public class MonitorIntakeHandler {
             Stage dialogStage = StageManager.createCustomStage(controller.getOwnerWindow(), "Set Disposal Status", root);
             dialogStage.showAndWait();
 
-            dialogController.getResult().ifPresent(result -> {
-                processBrokenMonitor(serial, model, description, result.status(), result.subStatus(), result.reason(), result.boxId());
-            });
+            dialogController.getResult().ifPresent(result -> processBrokenMonitor(serial, model, description, result.status(), result.subStatus(), result.reason(), result.boxId()));
         } catch (IOException e) {
             System.err.println("Failed to open disposal dialog: " + e.getMessage());
             showAlert("Error", "Could not open the disposal dialog window.");
@@ -94,7 +92,7 @@ public class MonitorIntakeHandler {
         return new Task<>() {
             @Override
             protected Void call() throws Exception {
-                IntakeService intakeService = new IntakeService(controller.getCurrentPackage(), false);
+                IntakeService intakeService = new IntakeService(controller.getCurrentPackage(), true);
                 AssetInfo details = new AssetInfo();
                 details.setMake("Dell");
                 details.setModelNumber(model);

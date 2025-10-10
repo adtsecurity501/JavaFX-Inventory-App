@@ -44,8 +44,9 @@ public class IntakeService {
                 final String serial = originalSerial.trim();
                 if (serial.isEmpty()) continue;
 
-                AssetInfo finalDetails = assetDAO.findAssetBySerialNumber(conn, serial).orElse(details);
-                processSingleAsset(conn, serial, finalDetails, isScrap, scrapStatus, scrapSubStatus, scrapReason, boxId);
+                // The details passed in are the "default" if the asset is new.
+                // We don't need to look it up first because the MERGE statement handles it.
+                processSingleAsset(conn, serial, details, isScrap, scrapStatus, scrapSubStatus, scrapReason, boxId);
                 successCount++;
             }
 
@@ -56,12 +57,9 @@ public class IntakeService {
             try {
                 if (conn != null) conn.rollback();
             } catch (SQLException ex) {
-                // Log rollback failure
                 System.err.println("Critical Error: Failed to rollback transaction.");
             }
-            // Log the original error
             System.err.println("Error in processFromTextArea: " + e.getMessage());
-            // Return a user-friendly message
             return "Transaction failed and was rolled back. Error: " + e.getMessage();
         } finally {
             try {
@@ -102,8 +100,7 @@ public class IntakeService {
                 assetInfo.setCategory(entry.getCategory());
                 assetInfo.setImei(entry.getImei());
 
-                AssetInfo finalDetails = assetDAO.findAssetBySerialNumber(conn, serial).orElse(assetInfo);
-                processSingleAsset(conn, serial, finalDetails, isScrap, scrapStatus, scrapSubStatus, scrapReason, boxId);
+                processSingleAsset(conn, serial, assetInfo, isScrap, scrapStatus, scrapSubStatus, scrapReason, boxId);
                 successCount++;
                 processedSerials.add(serial);
             }
@@ -117,12 +114,9 @@ public class IntakeService {
             try {
                 if (conn != null) conn.rollback();
             } catch (SQLException ex) {
-                // Log rollback failure
                 System.err.println("Critical Error: Failed to rollback transaction.");
             }
-            // Log the original error
             System.err.println("Error in processFromTable: " + e.getMessage());
-            // Return a user-friendly message
             return "Transaction failed and was rolled back. Error: " + e.getMessage();
         } finally {
             try {
@@ -137,14 +131,21 @@ public class IntakeService {
     }
 
     public void processSingleAsset(Connection conn, String serial, AssetInfo details, boolean isScrap, String scrapStatus, String scrapSubStatus, String scrapReason, String boxId) throws SQLException {
-        if (assetDAO.findAssetBySerialNumber(conn, serial).isEmpty()) {
-            // --- THIS IS THE FIX ---
-            // Ensure the serial number is set on the details object before inserting.
-            details.setSerialNumber(serial);
-            // --- END OF FIX ---
-            assetDAO.addAsset(conn, details);
+        // This MERGE command replaces the old "check-then-insert" logic.
+        // It will now UPDATE the record if the serial number exists, or INSERT a new one if it does not.
+        // This ensures that any changes to the description or other fields during intake are saved.
+        String sql = "MERGE INTO Physical_Assets (serial_number, imei, category, make, description, part_number) KEY(serial_number) VALUES (?, ?, ?, ?, ?, ?)";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, serial);
+            stmt.setString(2, details.getImei());
+            stmt.setString(3, details.getCategory());
+            stmt.setString(4, details.getMake());
+            stmt.setString(5, details.getDescription());
+            stmt.setString(6, details.getModelNumber());
+            stmt.executeUpdate();
         }
 
+        // The rest of the method, which creates the new receipt and status history, remains the same.
         ReceiptEvent newReceipt = new ReceiptEvent(0, serial, currentPackage.getPackageId(), details.getCategory(), details.getMake(), details.getModelNumber(), details.getDescription(), details.getImei());
         int newReceiptId = receiptEventDAO.addReceiptEvent(conn, newReceipt);
 
@@ -156,7 +157,6 @@ public class IntakeService {
     }
 
     private void createInitialStatus(Connection conn, int receiptId, boolean isScrap, String scrapStatus, String scrapSubStatus, String scrapReason, String boxId) throws SQLException {
-        // --- BEGIN NEW FLAG CHECK LOGIC ---
         String serialNumber = "";
         String getSerialSql = "SELECT serial_number FROM Receipt_Events WHERE receipt_id = ?";
         try (PreparedStatement stmt = conn.prepareStatement(getSerialSql)) {
@@ -173,24 +173,19 @@ public class IntakeService {
                 stmt.setString(1, serialNumber);
                 ResultSet rs = stmt.executeQuery();
                 if (rs.next()) {
-                    // FLAG EXISTS. Override all other logic and set status to "Flag!".
                     String flagReason = rs.getString("flag_reason");
                     String logMessage = "Flagged on intake. Reason: " + flagReason;
-
                     String statusSql = "INSERT INTO Device_Status (receipt_id, status, sub_status, last_update, change_log) VALUES (?, 'Flag!', 'Requires Review', CURRENT_TIMESTAMP, ?)";
                     try (PreparedStatement insertStmt = conn.prepareStatement(statusSql)) {
                         insertStmt.setInt(1, receiptId);
                         insertStmt.setString(2, logMessage);
                         insertStmt.executeUpdate();
                     }
-                    // The status is now set. Exit the method to prevent other statuses from being set.
                     return;
                 }
             }
         }
-        // --- END NEW FLAG CHECK LOGIC ---
 
-        // --- ORIGINAL LOGIC (runs only if no flag is found) ---
         String finalStatus, finalSubStatus;
         String finalReason = null;
 
