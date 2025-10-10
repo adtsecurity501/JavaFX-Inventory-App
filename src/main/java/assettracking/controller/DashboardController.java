@@ -250,10 +250,11 @@ public class DashboardController {
 
         intakeVsProcessedTask.setOnSucceeded(e -> {
             List<XYChart.Series<String, Number>> newSeriesList = intakeVsProcessedTask.getValue();
-            intakeProcessedChart.getData().clear();
-            // By wrapping the addAll in runLater, we give the chart a render pulse
-            // to process the 'clear' operation before trying to add new data.
-            Platform.runLater(() -> intakeProcessedChart.getData().addAll(newSeriesList));
+
+            Platform.runLater(() -> {
+                intakeProcessedChart.getData().clear(); // <-- Moved inside
+                intakeProcessedChart.getData().addAll(newSeriesList);
+            });
         });
 
         new Thread(intakeVsProcessedTask).start();
