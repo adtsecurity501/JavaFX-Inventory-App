@@ -1,17 +1,28 @@
 package assettracking.controller.handler;
 
 import assettracking.controller.AddAssetDialogController;
+import assettracking.controller.MachineRemovalSelectionController;
 import assettracking.data.AssetInfo;
 import assettracking.manager.IntakeService;
+import assettracking.manager.MachineRemovalService;
 import assettracking.manager.StageManager;
+import javafx.application.Platform;
 import javafx.concurrent.Task;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
 import javafx.scene.control.Alert;
+import javafx.stage.Stage;
 
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Manages all UI logic and event handling for the "Standard Intake" panel.
@@ -19,6 +30,8 @@ import java.util.ArrayList;
 public class StandardIntakeHandler {
 
     private final AddAssetDialogController controller;
+    private final MachineRemovalService removalService = new MachineRemovalService();
+
 
     public StandardIntakeHandler(AddAssetDialogController controller) {
         this.controller = controller;
@@ -70,9 +83,24 @@ public class StandardIntakeHandler {
         controller.disableSaveButton(true);
         controller.updateStandardIntakeFeedback("Processing...");
         Task<String> saveTask = createSaveTask();
+
         saveTask.setOnSucceeded(event -> {
             String result = saveTask.getValue();
             if (controller.getParentController() != null) controller.getParentController().refreshData();
+
+            // --- NEW INTEGRATION LOGIC ---
+            AssetInfo details = controller.getAssetDetailsFromForm();
+            String category = details.getCategory();
+
+            // We only run this for single, non-bulk intakes
+            if (!controller.isBulkAddMode() && !controller.isMultiSerialMode()) {
+                String serial = controller.getSerial();
+                if (("Laptop".equalsIgnoreCase(category) || "Desktop".equalsIgnoreCase(category)) && !serial.isEmpty()) {
+                    runAutomatedMachineRemoval(serial);
+                }
+            }
+            // --- END OF NEW LOGIC ---
+
             if (result.toLowerCase().contains("error")) {
                 controller.updateStandardIntakeFeedback(result);
                 controller.disableSaveButton(false);
@@ -88,6 +116,48 @@ public class StandardIntakeHandler {
             controller.disableSaveButton(false);
         });
         new Thread(saveTask).start();
+    }
+
+    private void runAutomatedMachineRemoval(String serialNumber) {
+        controller.updateStandardIntakeFeedback("Searching AD/SCCM for " + serialNumber + "...");
+
+        removalService.search(List.of(serialNumber)).thenAccept(results -> {
+            Map<String, List<MachineRemovalService.SearchResult>> groupedResults = results.stream().filter(r -> "OK".equalsIgnoreCase(r.status())).collect(Collectors.groupingBy(MachineRemovalService.SearchResult::source));
+
+            List<MachineRemovalService.SearchResult> adResults = groupedResults.getOrDefault("AD", Collections.emptyList());
+            List<MachineRemovalService.SearchResult> sccmResults = groupedResults.getOrDefault("SCCM", Collections.emptyList());
+
+            if (adResults.size() > 1 || sccmResults.size() > 1) {
+                Platform.runLater(() -> showManualSelectionDialog(serialNumber, results));
+            } else {
+                List<String> namesToRemove = results.stream().map(MachineRemovalService.SearchResult::computerName).distinct().collect(Collectors.toList());
+
+                if (!namesToRemove.isEmpty()) {
+                    removalService.remove(namesToRemove).thenAccept(log -> {
+                        String logMessage = "Auto-Removal for S/N " + serialNumber + ": " + String.join(". ", log);
+                        System.out.println(logMessage); // Log to console for now
+                        Platform.runLater(() -> controller.updateStandardIntakeFeedback("Asset processed. Auto-removed from AD/SCCM."));
+                    });
+                } else {
+                    Platform.runLater(() -> controller.updateStandardIntakeFeedback("Asset processed. Not found in AD/SCCM."));
+                }
+            }
+        });
+    }
+
+    private void showManualSelectionDialog(String serialNumber, List<MachineRemovalService.SearchResult> results) {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/MachineRemovalSelectionDialog.fxml"));
+            Parent root = loader.load();
+            MachineRemovalSelectionController dialogController = loader.getController();
+            dialogController.initData(serialNumber, results);
+
+            Stage stage = StageManager.createCustomStage(controller.getOwnerWindow(), "Multiple Machines Found", root);
+            stage.show(); // Use show() instead of showAndWait() to not block the intake process
+
+        } catch (IOException e) {
+            System.err.println("Failed to open machine removal selection dialog: " + e.getMessage());
+        }
     }
 
     private Task<String> createSaveTask() {

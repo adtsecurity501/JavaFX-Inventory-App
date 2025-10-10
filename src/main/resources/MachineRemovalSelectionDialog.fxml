@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="assettracking.controller.MachineRemovalSelectionController"
+      spacing="15" style="-fx-padding: 20;" prefWidth="600.0">
+    <Label styleClass="h4" text="Multiple Machines Found"/>
+    <Label fx:id="headerLabel" wrapText="true"
+           text="Multiple potential matches were found for the serial number. Please select the machine(s) you want to remove from AD and SCCM."/>
+    <Separator/>
+    <TitledPane text="Active Directory Results" collapsible="false">
+        <VBox fx:id="adResultsBox" spacing="5" style="-fx-padding: 10;"/>
+    </TitledPane>
+    <TitledPane text="SCCM Results" collapsible="false">
+        <VBox fx:id="sccmResultsBox" spacing="5" style="-fx-padding: 10;"/>
+    </TitledPane>
+    <HBox alignment="CENTER_RIGHT" spacing="10" style="-fx-padding: 15 0 0 0;">
+        <Label fx:id="statusLabel" HBox.hgrow="ALWAYS" maxWidth="Infinity" style="-fx-font-weight: bold;"/>
+        <Button fx:id="removeButton" onAction="#handleRemove" text="Remove Selected" styleClass="danger"/>
+        <Button onAction="#handleCancel" text="Cancel"/>
+    </HBox>
+</VBox>
