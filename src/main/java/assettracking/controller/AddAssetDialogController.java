@@ -388,6 +388,7 @@ public class AddAssetDialogController {
         this.currentPackage = pkg;
         this.parentController = parent;
         loadCategories();
+        Platform.runLater(() -> serialField.requestFocus());
     }
 
     public void initDataForBulkAdd(Package pkg, List<AssetEntry> entries) {
