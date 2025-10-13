@@ -80,7 +80,7 @@ public final class StageManager {
             });
         }
 
-        Platform.runLater(content::requestFocus);
+//        Platform.runLater(content::requestFocus);
         return stage;
     }
 

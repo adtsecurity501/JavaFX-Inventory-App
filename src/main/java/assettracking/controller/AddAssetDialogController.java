@@ -45,6 +45,8 @@ public class AddAssetDialogController {
     private final ReceiptEventDAO receiptEventDAO = new ReceiptEventDAO();
     private final ZplPrinterService printerService = new ZplPrinterService();
     public ToggleGroup conditionToggleGroup;
+    @FXML
+    public TextField serialField;
     // --- FXML Fields ---
     @FXML
     private RadioButton standardIntakeRadio, monitorIntakeRadio, refurbRadioButton, newRadioButton;
@@ -65,7 +67,7 @@ public class AddAssetDialogController {
     @FXML
     private GridPane standardMonitorPane, manualMonitorPane;
     @FXML
-    private TextField manualSerialField, manualDescriptionField, serialField, makeField, modelField, descriptionField, imeiField;
+    private TextField manualSerialField, manualDescriptionField, makeField, modelField, descriptionField, imeiField;
     @FXML
     private TextField disqualificationField, boxIdField;
     @FXML
@@ -388,7 +390,6 @@ public class AddAssetDialogController {
         this.currentPackage = pkg;
         this.parentController = parent;
         loadCategories();
-        Platform.runLater(() -> serialField.requestFocus());
     }
 
     public void initDataForBulkAdd(Package pkg, List<AssetEntry> entries) {
@@ -581,13 +582,24 @@ public class AddAssetDialogController {
             tableModePane.setVisible(newVal);
             tableModePane.setManaged(newVal);
         });
+
+        // --- MODIFIED LISTENER ---
         multiSerialToggle.selectedProperty().addListener((obs, oldVal, newVal) -> {
             serialField.setVisible(!newVal);
             serialField.setManaged(!newVal);
             serialArea.setVisible(newVal);
             serialArea.setManaged(newVal);
-            if (newVal) serialArea.requestFocus();
-            else serialField.requestFocus();
+
+            // This is the crucial check. 'oldVal' is null only on the very first
+            // time the listener runs during initialization. We want to skip the
+            // focus request at that moment and only run it on subsequent user clicks.
+            if (oldVal != null) {
+                if (newVal) {
+                    serialArea.requestFocus();
+                } else {
+                    serialField.requestFocus();
+                }
+            }
         });
     }
 

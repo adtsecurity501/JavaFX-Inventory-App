@@ -4,6 +4,7 @@ import assettracking.data.DeviceStatusView;
 import assettracking.data.Package;
 import assettracking.db.DatabaseConnection;
 import assettracking.manager.StageManager;
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
@@ -70,23 +71,14 @@ public class PackageDetailController {
         assetsList.clear();
         if (currentPackage == null) return;
 
-        String assetsSQL = "SELECT p.receive_date, re.serial_number, re.category, re.make, re.description, ds.status, ds.sub_status, ds.change_log " +
-                "FROM Receipt_Events re " +
-                "JOIN Packages p ON re.package_id = p.package_id " +
-                "LEFT JOIN Device_Status ds ON re.receipt_id = ds.receipt_id " +
-                "WHERE re.package_id = ?";
+        String assetsSQL = "SELECT p.receive_date, re.serial_number, re.category, re.make, re.description, ds.status, ds.sub_status, ds.change_log " + "FROM Receipt_Events re " + "JOIN Packages p ON re.package_id = p.package_id " + "LEFT JOIN Device_Status ds ON re.receipt_id = ds.receipt_id " + "WHERE re.package_id = ?";
 
         try (Connection conn = DatabaseConnection.getInventoryConnection()) {
             try (PreparedStatement stmt = conn.prepareStatement(assetsSQL)) {
                 stmt.setInt(1, currentPackage.getPackageId());
                 ResultSet rs = stmt.executeQuery();
                 while (rs.next()) {
-                    assetsList.add(new DeviceStatusView(
-                            0, rs.getString("serial_number"), rs.getString("category"),
-                            rs.getString("make"), rs.getString("description"), rs.getString("status"),
-                            rs.getString("sub_status"), null, rs.getString("receive_date"),
-                            rs.getString("change_log"), false
-                    ));
+                    assetsList.add(new DeviceStatusView(0, rs.getString("serial_number"), rs.getString("category"), rs.getString("make"), rs.getString("description"), rs.getString("status"), rs.getString("sub_status"), null, rs.getString("receive_date"), rs.getString("change_log"), false));
                 }
             }
         } catch (SQLException e) {
@@ -104,6 +96,14 @@ public class PackageDetailController {
             controller.initData(this.currentPackage, this);
 
             Stage stage = StageManager.createCustomStage(getOwnerWindow(), "Receive Asset(s) for Package " + currentPackage.getTrackingNumber(), root);
+
+            // This is the final, robust version of the focus request.
+            stage.setOnShown(e -> Platform.runLater(() -> {
+                if (!controller.isMultiSerialMode()) {
+                    controller.serialField.requestFocus();
+                }
+            }));
+
             stage.showAndWait();
 
         } catch (IOException e) {
