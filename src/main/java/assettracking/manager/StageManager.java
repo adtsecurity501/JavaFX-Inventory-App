@@ -62,9 +62,12 @@ public final class StageManager {
         root.setStyle("-fx-background-color: -color-bg-default;");
 
         Scene scene = new Scene(root);
+// --- THIS IS THE CRITICAL FIX for dialogs ---
+// We do the same thing here: add the current application theme first, then your custom CSS.
         scene.getStylesheets().addAll(Application.getUserAgentStylesheet(), Objects.requireNonNull(StageManager.class.getResource("/style.css")).toExternalForm());
-
+// --- END OF FIX ---
         stage.setScene(scene);
+
         stage.sizeToScene();
 
         if (owner != null) {

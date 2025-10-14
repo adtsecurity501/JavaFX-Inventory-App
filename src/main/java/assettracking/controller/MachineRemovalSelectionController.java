@@ -30,13 +30,9 @@ public class MachineRemovalSelectionController {
     public void initData(String serialNumber, List<MachineRemovalService.SearchResult> results) {
         headerLabel.setText("Multiple potential matches were found for serial number '" + serialNumber + "'. Please select the machine(s) you want to remove.");
 
-        List<MachineRemovalService.SearchResult> adResults = results.stream()
-                .filter(r -> "AD".equalsIgnoreCase(r.source()))
-                .collect(Collectors.toList());
+        List<MachineRemovalService.SearchResult> adResults = results.stream().filter(r -> "AD".equalsIgnoreCase(r.source())).collect(Collectors.toList());
 
-        List<MachineRemovalService.SearchResult> sccmResults = results.stream()
-                .filter(r -> "SCCM".equalsIgnoreCase(r.source()))
-                .collect(Collectors.toList());
+        List<MachineRemovalService.SearchResult> sccmResults = results.stream().filter(r -> "SCCM".equalsIgnoreCase(r.source())).collect(Collectors.toList());
 
         populateResults(adResultsBox, adResults);
         populateResults(sccmResultsBox, sccmResults);
@@ -47,7 +43,12 @@ public class MachineRemovalSelectionController {
             container.getChildren().add(new Label("No results found in this source."));
         } else {
             for (MachineRemovalService.SearchResult result : results) {
-                CheckBox cb = new CheckBox(result.computerName());
+                // --- THIS IS THE FIX ---
+                // Create a more descriptive label that includes the computer name AND the term that found it.
+                String displayText = String.format("%s (Found for: '%s')", result.computerName(), result.searchTerm());
+                CheckBox cb = new CheckBox(displayText);
+                // ---------------------
+
                 cb.setUserData(result);
                 container.getChildren().add(cb);
             }
@@ -57,15 +58,9 @@ public class MachineRemovalSelectionController {
     @FXML
     private void handleRemove() {
         List<String> namesToRemove = new ArrayList<>();
-        adResultsBox.getChildren().stream()
-                .filter(node -> node instanceof CheckBox && ((CheckBox) node).isSelected())
-                .map(node -> ((MachineRemovalService.SearchResult) node.getUserData()).computerName())
-                .forEach(namesToRemove::add);
+        adResultsBox.getChildren().stream().filter(node -> node instanceof CheckBox && ((CheckBox) node).isSelected()).map(node -> ((MachineRemovalService.SearchResult) node.getUserData()).computerName()).forEach(namesToRemove::add);
 
-        sccmResultsBox.getChildren().stream()
-                .filter(node -> node instanceof CheckBox && ((CheckBox) node).isSelected())
-                .map(node -> ((MachineRemovalService.SearchResult) node.getUserData()).computerName())
-                .forEach(namesToRemove::add);
+        sccmResultsBox.getChildren().stream().filter(node -> node instanceof CheckBox && ((CheckBox) node).isSelected()).map(node -> ((MachineRemovalService.SearchResult) node.getUserData()).computerName()).forEach(namesToRemove::add);
 
         if (namesToRemove.isEmpty()) {
             statusLabel.setText("Please select at least one machine to remove.");
@@ -75,13 +70,11 @@ public class MachineRemovalSelectionController {
         removeButton.setDisable(true);
         statusLabel.setText("Removing " + namesToRemove.size() + " machine(s)...");
 
-        removalService.remove(namesToRemove).thenAccept(log ->
-                Platform.runLater(() -> {
-                    // You could pass this log back to the main window, but for now, we just close.
-                    System.out.println("Manual Removal Log: " + String.join("\n", log));
-                    handleCancel(); // Close the dialog on success
-                })
-        );
+        removalService.remove(namesToRemove).thenAccept(log -> Platform.runLater(() -> {
+            // You could pass this log back to the main window, but for now, we just close.
+            System.out.println("Manual Removal Log: " + String.join("\n", log));
+            handleCancel(); // Close the dialog on success
+        }));
     }
 
     @FXML

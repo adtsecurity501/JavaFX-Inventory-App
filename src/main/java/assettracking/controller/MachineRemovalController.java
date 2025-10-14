@@ -48,31 +48,25 @@ public class MachineRemovalController {
         lstResults.setItems(results);
         lstResults.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 
-        // --- UPDATED CELL FACTORY WITH COPY FUNCTIONALITY ---
         lstResults.setCellFactory(lv -> {
             ListCell<SearchResult> cell = new ListCell<>() {
                 @Override
                 protected void updateItem(SearchResult item, boolean empty) {
                     super.updateItem(item, empty);
+                    // Always clear old styles first
+                    getStyleClass().removeAll("text-default", "text-info", "text-danger");
+
                     if (empty || item == null) {
                         setText(null);
                         setGraphic(null);
-                        setOnMouseClicked(null); // Clear event handlers
-                        setContextMenu(null);   // Clear context menu
+                        setContextMenu(null);
+                        setOnMouseClicked(null);
                     } else {
                         setText(item.getDisplayName());
-                        setTextFill(item.getColor());
+                        // Apply the new style class from the item
+                        getStyleClass().add(item.getStyleClass());
 
-                        // Add Double-Click to Copy
-                        setOnMouseClicked(event -> {
-                            if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2) {
-                                if (item.getComputerName() != null && !item.getComputerName().startsWith("[")) {
-                                    copyToClipboard(item.getComputerName());
-                                }
-                            }
-                        });
-
-                        // Add Right-Click Context Menu
+                        // Context menu and double-click logic remains the same
                         ContextMenu contextMenu = new ContextMenu();
                         MenuItem copyItem = new MenuItem("Copy Computer Name");
                         copyItem.setOnAction(event -> {
@@ -80,10 +74,17 @@ public class MachineRemovalController {
                                 copyToClipboard(item.getComputerName());
                             }
                         });
-                        // Disable the copy option for error messages
                         copyItem.setDisable(item.getComputerName() == null || item.getComputerName().startsWith("["));
                         contextMenu.getItems().add(copyItem);
                         setContextMenu(contextMenu);
+
+                        setOnMouseClicked(event -> {
+                            if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2) {
+                                if (item.getComputerName() != null && !item.getComputerName().startsWith("[")) {
+                                    copyToClipboard(item.getComputerName());
+                                }
+                            }
+                        });
                     }
                 }
             };
@@ -115,9 +116,7 @@ public class MachineRemovalController {
 
     @FXML
     private void handleRemove() {
-        List<String> selectedComputers = lstResults.getSelectionModel().getSelectedItems().stream()
-                .map(SearchResult::getComputerName)
-                .filter(name -> name != null && !name.startsWith("[")) // Filter out errors/not found
+        List<String> selectedComputers = lstResults.getSelectionModel().getSelectedItems().stream().map(SearchResult::getComputerName).filter(name -> name != null && !name.startsWith("[")) // Filter out errors/not found
                 .collect(Collectors.toList());
 
         if (selectedComputers.isEmpty()) {
@@ -126,12 +125,7 @@ public class MachineRemovalController {
         }
 
         // Use the StageManager to show a confirmation dialog before proceeding.
-        boolean confirmed = StageManager.showConfirmationDialog(
-                btnRemove.getScene().getWindow(),
-                "Confirm Batch Removal",
-                "Are you sure you want to permanently remove the " + selectedComputers.size() + " selected computer(s)?",
-                "This action will attempt to delete the computer objects from Active Directory and/or SCCM and cannot be undone."
-        );
+        boolean confirmed = StageManager.showConfirmationDialog(btnRemove.getScene().getWindow(), "Confirm Batch Removal", "Are you sure you want to permanently remove the " + selectedComputers.size() + " selected computer(s)?", "This action will attempt to delete the computer objects from Active Directory and/or SCCM and cannot be undone.");
 
         if (confirmed) {
             // If the user clicks "OK", run the existing PowerShell task.
@@ -290,11 +284,22 @@ public class MachineRemovalController {
             return computerName;
         }
 
+        // This method provides the full text for the list item
         public String getDisplayName() {
             if ("OK".equalsIgnoreCase(status)) {
                 return String.format("[%s] %s (Found for: %s)", source, computerName, searchTerm);
             } else {
                 return String.format("%s (Searched for: %s)", status, searchTerm);
+            }
+        }
+
+        public String getStyleClass() {
+            if ("OK".equalsIgnoreCase(status)) {
+                // Return "text-info" for SCCM, and the default for AD
+                return "AD".equalsIgnoreCase(source) ? "text-default" : "text-info";
+            } else {
+                // Return "text-danger" for any errors
+                return "text-danger";
             }
         }
 

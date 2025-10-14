@@ -1,89 +1,49 @@
-/* Flagged & WIP Row (Warning/Attention) */
+/* ========================================================================== */
+/* TABLE ROW STYLING (WITH HARD-CODED COLORS & NO STRIPING) ---       */
+/* ========================================================================== */
+
+/* Base colors for each status row */
 .flagged-row .table-cell,
 .wip-row .table-cell {
-    -fx-background-color: -color-warning-emphasis;
-    -fx-text-fill: -color-fg-on-emphasis; /* Use a static high-contrast color */
+    -fx-background-color: #6272a4; /* Dracula Comment Color */
+    -fx-text-fill: #f8f8f2;
 }
 
-/* Disposal/EOL Row (Danger) */
 .disposal-row .table-cell {
-    -fx-background-color: -color-danger-emphasis;
-    -fx-text-fill: -color-fg-on-emphasis; /* Use a static high-contrast color */
+    -fx-background-color: #ff5555; /* Dracula Red */
+    -fx-text-fill: #f8f8f2;
 }
 
-/* Processed Row (Accent/Info) */
 .processed-row .table-cell {
-    -fx-background-color: -color-accent-emphasis;
-    -fx-text-fill: -color-fg-on-emphasis; /* Use a static high-contrast color */
+    -fx-background-color: #bd93f9; /* Dracula Purple */
+    -fx-text-fill: #f8f8f2;
 }
 
-/* Shipped Row (Success) */
 .shipped-row .table-cell {
-    -fx-background-color: -color-success-emphasis;
-    -fx-text-fill: -color-fg-on-emphasis; /* Use a static high-contrast color */
+    -fx-background-color: #50fa7b; /* Dracula Green */
+    -fx-text-fill: #282a36; /* Use dark text on the light green background */
 }
 
-/* ========================================================================== */
-/* INTERACTIVE TABLE ROW STYLES ---                               */
-/* ========================================================================== */
-
-/*
- * This style applies a subtle background color when hovering over
- * any standard (non-status-colored) data row.
- */
+/* Hover effect for any standard, un-colored row */
 .table-row-cell:filled:hover {
     -fx-background-color: -color-bg-inset;
 }
 
-/*
- * This style applies a high-contrast border highlight when hovering
- * over a status-colored row, preserving the status color itself.
- */
+/* Hover effect for the custom-colored rows */
 .flagged-row:hover .table-cell,
 .wip-row:hover .table-cell,
 .disposal-row:hover .table-cell,
 .processed-row:hover .table-cell,
 .shipped-row:hover .table-cell {
-    /* --- THIS IS THE DEFINITIVE FIX --- */
-    /*
-     * Instead of using the ambiguous '-fx-border-color' shorthand, we
-     * explicitly define the color for only the sides that have a width.
-     * This is the most robust way to declare complex borders and avoids
-     * the JavaFX CSS parser bug.
-     */
     -fx-border-width: 2 0 2 0; /* (top right bottom left) */
-    -fx-border-top-color: -color-fg-on-emphasis;
-    -fx-border-bottom-color: -color-fg-on-emphasis;
+    -fx-border-top-color: #f8f8f2;
+    -fx-border-bottom-color: #f8f8f2;
 }
 
-/* ========================================================================== */
-/* TABLEVIEW ROW STYLING ---                                        */
-/* ========================================================================== */
-
+/* Set the default height for all table rows */
 .table-row-cell,
 .fixed-row-size .table-row-cell {
     -fx-cell-size: 35px;
-}
-
-/*
- * These rules ensure that the custom colors override the theme's default
- * striping for BOTH even and odd rows.
- */
-.flagged-row:odd .table-cell,
-.wip-row:odd .table-cell {
-    -fx-background-color: -color-warning-emphasis;
-}
-
-.disposal-row:odd .table-cell {
-    -fx-background-color: -color-danger-emphasis;
-}
-
-.processed-row:odd .table-cell {
-    -fx-background-color: -color-accent-emphasis;
-}
-
-.shipped-row:odd .table-cell {
-    -fx-background-color: -color-success-emphasis;
 }
 
 
@@ -165,47 +125,32 @@
     -fx-background-radius: 6;
 }
 
-/*
- * This is the definitive fix for the layout jump bug.
- * The key is to ensure the button's border width is identical in all states.
- * We only change the COLOR of the border, not its size or existence.
- */
 .tool-selector-button {
     -fx-font-size: 14px;
     -fx-cursor: hand;
-
-    /* Lock the size */
     -fx-min-height: 40px;
     -fx-pref-height: 40px;
     -fx-max-height: 40px;
-
-    /* Define a consistent border for the normal (unselected) state */
     -fx-border-width: 1px;
     -fx-border-color: -color-border-default;
     -fx-background-color: -color-bg-default;
 }
 
-/* Style for when the button is selected */
 .tool-selector-button:selected {
     -fx-background-color: -color-accent-emphasis;
     -fx-text-fill: white;
     -fx-font-weight: bold;
-    /* The border is still 1px wide, but now it matches the background,
-       making it visually disappear while still occupying the same space. */
     -fx-border-color: -color-accent-emphasis;
 }
 
-/* Style for when any button gains focus */
 .tool-selector-button:focused {
-    -fx-border-color: -color-accent-emphasis; /* Use accent color for the focus ring */
+    -fx-border-color: -color-accent-emphasis;
 }
 
-/* A specific override to ensure a selected button's border doesn't change color on focus */
 .tool-selector-button:selected:focused {
     -fx-border-color: -color-accent-emphasis;
 }
 
-/* Style for the Scan Update window's main container */
 .scan-update-pane {
     -fx-background-color: -color-bg-default;
 }
@@ -214,14 +159,10 @@
 /* IPAD PROVISIONING STYLES ---                                     */
 /* ========================================================================== */
 
-/* Style for rows that were automatically set to T-Mobile */.t-mobile-override-row .table-cell {
-    -fx-background-color: -color-info-emphasis; /* A pleasant blue from the theme */
-    -fx-text-fill: white; /* High contrast text */
-}
-
-/* This ensures the style persists on alternating (odd) rows */
+.t-mobile-override-row .table-cell,
 .t-mobile-override-row:odd .table-cell {
     -fx-background-color: -color-info-emphasis;
+    -fx-text-fill: white;
 }
 
 /* ========================================================================== */
@@ -236,16 +177,14 @@
     -fx-text-fill: -color-danger-fg;
 }
 
-/* Style for highlighting a table row when dragging over it */
+/* ========================================================================== */
+/* MISC UI STYLES ---                                               */
+/* ========================================================================== */
+
 .drag-over {
     -fx-background-color: -color-accent-emphasis-plus;
     -fx-cursor: move;
 }
-
-/* Add this new section anywhere in your file */
-/* ========================================================================== */
-/* AUTOCOMPLETE POPUP STYLES ---                                    */
-/* ========================================================================== */
 
 .autocomplete-popup .list-view {
     -fx-border-color: -color-border-default;
@@ -262,4 +201,14 @@
 .autocomplete-popup .list-cell:filled:selected {
     -fx-background-color: -color-accent-subtle;
     -fx-text-fill: -color-fg-default;
+}
+
+.text-default {
+    -fx-text-fill: -fx-text-base-color;
+}
+.text-info {
+    -fx-text-fill: #8be9fd;
+}
+.text-danger {
+    -fx-text-fill: #ff5555;
 }

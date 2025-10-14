@@ -5,7 +5,8 @@
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.shape.SVGPath?>
 <BorderPane xmlns:fx="http://javafx.com/fxml/1" xmlns="http://javafx.com/javafx/21"
-            fx:controller="assettracking.controller.MainViewController">
+            fx:controller="assettracking.controller.MainViewController"
+            stylesheets="@/style.css">
     <top>
         <HBox fx:id="titleBar" alignment="CENTER_LEFT" styleClass="title-bar" spacing="10">
             <padding>
