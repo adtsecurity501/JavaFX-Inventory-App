@@ -19,12 +19,8 @@ import java.util.stream.Collectors;
 public class MachineRemovalService {
 
     /**
-     * A record to hold structured data parsed from the PowerShell script's output.
-     */
-    public record SearchResult(String source, String searchTerm, String computerName, String status) {}
-
-    /**
      * Asynchronously searches for computers in AD and/or SCCM.
+     *
      * @param searchTerms A list of serial numbers or computer names to search for.
      * @return A CompletableFuture that will complete with a list of SearchResult objects.
      */
@@ -39,6 +35,7 @@ public class MachineRemovalService {
 
     /**
      * Asynchronously removes computers from AD and SCCM.
+     *
      * @param computerNames The exact computer names to remove.
      * @return A CompletableFuture that will complete with a list of log messages from the script.
      */
@@ -98,5 +95,11 @@ public class MachineRemovalService {
             Files.copy(is, scriptPath, StandardCopyOption.REPLACE_EXISTING);
         }
         return scriptPath;
+    }
+
+    /**
+     * A record to hold structured data parsed from the PowerShell script's output.
+     */
+    public record SearchResult(String source, String searchTerm, String computerName, String status) {
     }
 }

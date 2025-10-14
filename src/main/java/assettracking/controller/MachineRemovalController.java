@@ -115,7 +115,9 @@ public class MachineRemovalController {
 
     @FXML
     private void handleRemove() {
-        List<String> selectedComputers = lstResults.getSelectionModel().getSelectedItems().stream().map(SearchResult::getComputerName).filter(name -> name != null && !name.startsWith("[")) // Filter out errors/not found
+        List<String> selectedComputers = lstResults.getSelectionModel().getSelectedItems().stream()
+                .map(SearchResult::getComputerName)
+                .filter(name -> name != null && !name.startsWith("[")) // Filter out errors/not found
                 .collect(Collectors.toList());
 
         if (selectedComputers.isEmpty()) {
@@ -123,10 +125,20 @@ public class MachineRemovalController {
             return;
         }
 
-        boolean confirmed = StageManager.showConfirmationDialog(btnRemove.getScene().getWindow(), "Confirm Batch Removal", "Are you sure you want to permanently remove the " + selectedComputers.size() + " selected computer(s)?", "This action cannot be undone.");
+        // Use the StageManager to show a confirmation dialog before proceeding.
+        boolean confirmed = StageManager.showConfirmationDialog(
+                btnRemove.getScene().getWindow(),
+                "Confirm Batch Removal",
+                "Are you sure you want to permanently remove the " + selectedComputers.size() + " selected computer(s)?",
+                "This action will attempt to delete the computer objects from Active Directory and/or SCCM and cannot be undone."
+        );
 
         if (confirmed) {
+            // If the user clicks "OK", run the existing PowerShell task.
             executePowerShellTask("remove", selectedComputers, null, "Removing " + selectedComputers.size() + " computer(s)...");
+        } else {
+            // If the user clicks "Cancel", log it and do nothing.
+            writeLog("INFO", "User cancelled the removal operation.");
         }
     }
 

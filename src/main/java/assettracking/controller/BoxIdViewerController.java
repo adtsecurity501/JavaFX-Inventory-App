@@ -47,6 +47,12 @@ public class BoxIdViewerController {
     @FXML
     private TextField searchField;
     @FXML
+    private TextField serialSearchField;
+    @FXML
+    private Button serialSearchButton;
+    @FXML
+    private CheckBox showArchivedCheck;
+    @FXML
     private TableView<BoxIdSummary> summaryTable;
     @FXML
     private TableColumn<BoxIdSummary, String> boxIdCol;
@@ -75,7 +81,7 @@ public class BoxIdViewerController {
     public void initialize() {
         setupTables();
         setupDragAndDrop();
-        loadSummaryDataAsync();
+
 
         printLabelButton.setDisable(true);
         exportCsvButton.setDisable(true);
@@ -99,6 +105,58 @@ public class BoxIdViewerController {
         FilteredList<BoxIdSummary> filteredData = new FilteredList<>(summaryList, p -> true);
         searchField.textProperty().addListener((obs, oldVal, newVal) -> filteredData.setPredicate(summary -> newVal == null || newVal.isEmpty() || summary.boxId().toLowerCase().contains(newVal.toLowerCase())));
         summaryTable.setItems(filteredData);
+
+        showArchivedCheck.selectedProperty().addListener((obs, oldVal, newVal) -> loadSummaryDataAsync());
+        loadSummaryDataAsync();
+    }
+
+    @FXML
+    private void handleSearchBySerial() {
+        String serial = serialSearchField.getText().trim();
+        if (serial.isEmpty()) {
+            StageManager.showAlert(getOwnerWindow(), Alert.AlertType.WARNING, "Input Required", "Please enter a serial number to search for.");
+            return;
+        }
+
+        Task<Optional<String>> findBoxTask = new Task<>() {
+            @Override
+            protected Optional<String> call() throws Exception {
+                // This query finds the box_id for the most recent entry of a given serial number.
+                String sql = """
+                            SELECT ds.box_id FROM Device_Status ds
+                            JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id
+                            WHERE re.serial_number = ?
+                            ORDER BY ds.receipt_id DESC LIMIT 1
+                        """;
+                try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
+                    stmt.setString(1, serial);
+                    ResultSet rs = stmt.executeQuery();
+                    if (rs.next()) {
+                        return Optional.ofNullable(rs.getString("box_id"));
+                    }
+                }
+                return Optional.empty();
+            }
+        };
+
+        findBoxTask.setOnSucceeded(e -> {
+            Optional<String> boxIdOpt = findBoxTask.getValue();
+            if (boxIdOpt.isPresent() && !boxIdOpt.get().isEmpty()) {
+                String boxId = boxIdOpt.get();
+                // Find the box in the summary table and select it
+                summaryTable.getItems().stream().filter(summary -> boxId.equalsIgnoreCase(summary.boxId())).findFirst().ifPresent(item -> {
+                    summaryTable.getSelectionModel().select(item);
+                    summaryTable.scrollTo(item);
+                    statusLabel.setText("Found serial '" + serial + "' in Box ID: " + boxId);
+                });
+            } else {
+                StageManager.showAlert(getOwnerWindow(), Alert.AlertType.INFORMATION, "Not Found", "Serial number '" + serial + "' was not found in any box.");
+            }
+        });
+
+        findBoxTask.setOnFailed(e -> StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Database Error", "An error occurred while searching for the serial number."));
+
+        new Thread(findBoxTask).start();
     }
 
     private void setupTables() {
@@ -297,15 +355,25 @@ public class BoxIdViewerController {
             @Override
             protected List<BoxIdSummary> call() throws Exception {
                 List<BoxIdSummary> results = new ArrayList<>();
+
+                // Base query remains the same
                 String sql = """
                             SELECT
-                                box_id,
-                                COUNT(*) as item_count
-                            FROM Device_Status
-                            WHERE box_id IS NOT NULL AND box_id != ''
-                            GROUP BY box_id
-                            ORDER BY box_id
+                                ds.box_id,
+                                COUNT(*) as item_count,
+                                SUM(CASE WHEN ds.sub_status LIKE '%%Picked Up' THEN 0 ELSE 1 END) as non_archived_count
+                            FROM Device_Status ds
+                            WHERE ds.box_id IS NOT NULL AND ds.box_id != ''
+                            GROUP BY ds.box_id
                         """;
+
+                // Dynamically add the HAVING clause to filter out archived boxes if needed
+                if (!showArchivedCheck.isSelected()) {
+                    sql += " HAVING non_archived_count > 0";
+                }
+
+                sql += " ORDER BY ds.box_id";
+
                 try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql); ResultSet rs = stmt.executeQuery()) {
                     while (rs.next()) {
                         results.add(new BoxIdSummary(rs.getString("box_id"), rs.getInt("item_count")));
@@ -314,6 +382,7 @@ public class BoxIdViewerController {
                 return results;
             }
         };
+        // The rest of the method (setOnSucceeded, setOnFailed) remains the same
         loadTask.setOnSucceeded(e -> summaryList.setAll(loadTask.getValue()));
         loadTask.setOnFailed(e -> {
             Throwable ex = e.getSource().getException();

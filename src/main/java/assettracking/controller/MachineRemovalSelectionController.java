@@ -15,13 +15,17 @@ import java.util.stream.Collectors;
 
 public class MachineRemovalSelectionController {
 
-    @FXML private Label headerLabel;
-    @FXML private VBox adResultsBox;
-    @FXML private VBox sccmResultsBox;
-    @FXML private Button removeButton;
-    @FXML private Label statusLabel;
-
     private final MachineRemovalService removalService = new MachineRemovalService();
+    @FXML
+    private Label headerLabel;
+    @FXML
+    private VBox adResultsBox;
+    @FXML
+    private VBox sccmResultsBox;
+    @FXML
+    private Button removeButton;
+    @FXML
+    private Label statusLabel;
 
     public void initData(String serialNumber, List<MachineRemovalService.SearchResult> results) {
         headerLabel.setText("Multiple potential matches were found for serial number '" + serialNumber + "'. Please select the machine(s) you want to remove.");

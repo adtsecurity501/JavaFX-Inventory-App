@@ -9,10 +9,18 @@
         <Insets top="10" right="10" bottom="10" left="10"/>
     </padding>
     <top>
-        <HBox spacing="10" alignment="CENTER_LEFT" style="-fx-padding: 0 0 10 0;">
-            <Label text="Search Box ID:"/>
-            <TextField fx:id="searchField" promptText="Enter Box ID to filter..." HBox.hgrow="ALWAYS"/>
-        </HBox>
+        <VBox spacing="10" style="-fx-padding: 0 0 10 0;">
+            <HBox spacing="10" alignment="CENTER_LEFT">
+                <Label text="Search Box ID:"/>
+                <TextField fx:id="searchField" promptText="Enter Box ID to filter..." HBox.hgrow="ALWAYS"/>
+                <CheckBox fx:id="showArchivedCheck" text="Show Archived (Picked Up)"/>
+            </HBox>
+            <HBox spacing="10" alignment="CENTER_LEFT">
+                <Label text="Search Serial #:"/>
+                <TextField fx:id="serialSearchField" promptText="Find which box a serial is in..." HBox.hgrow="ALWAYS"/>
+                <Button fx:id="serialSearchButton" text="Find" onAction="#handleSearchBySerial"/>
+            </HBox>
+        </VBox>
     </top>
     <center>
         <SplitPane dividerPositions="0.4">
