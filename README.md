@@ -155,7 +155,7 @@ Run this in **PowerShell** at the project root to generate a single file with al
 Remove-Item -Path all_code.txt -ErrorAction SilentlyContinue
 tree /F /A > all_code.txt
 Add-Content -Path all_code.txt -Value "`n--- CODE ---`n"
-Get-ChildItem -Recurse -Include "*.java", "*.fxml", "*.xml", "*.css" | Where-Object { $_.FullName -notlike '*\jre\*' } | ForEach-Object {
+Get-ChildItem -Recurse -Include "*.java", "*.fxml", "*.xml", "*.css", "*.ps1" | Where-Object { $_.FullName -notlike '*\jre\*' } | ForEach-Object {
     $relativePath = $_.FullName.Substring($PWD.Path.Length)
     Add-Content -Path all_code.txt -Value "`n>> .$relativePath`n"
     Get-Content $_.FullName | Out-File -Append -FilePath all_code.txt
