@@ -250,9 +250,9 @@ public class DashboardController {
 
         intakeVsProcessedTask.setOnSucceeded(e -> {
             List<XYChart.Series<String, Number>> newSeriesList = intakeVsProcessedTask.getValue();
-            Platform.runLater(() -> intakeProcessedChart.setData(FXCollections.observableArrayList(newSeriesList)));
+            Platform.runLater(() -> intakeProcessedChart.getData().setAll(newSeriesList));
+            // --- END OF FIX ---
         });
-
         new Thread(intakeVsProcessedTask).start();
     }
 

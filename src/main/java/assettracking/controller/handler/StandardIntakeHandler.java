@@ -95,7 +95,7 @@ public class StandardIntakeHandler {
             // We only run this for single, non-bulk intakes
             if (!controller.isBulkAddMode() && !controller.isMultiSerialMode()) {
                 String serial = controller.getSerial();
-                if (("Laptop".equalsIgnoreCase(category) || "Desktop".equalsIgnoreCase(category)) && !serial.isEmpty()) {
+                if (("Laptop".equalsIgnoreCase(category) || "Desktop".equalsIgnoreCase(category) || "Getac".equalsIgnoreCase(category)) && !serial.isEmpty()) {
                     runAutomatedMachineRemoval(serial);
                 }
             }

@@ -6,11 +6,14 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
 import javafx.scene.control.*;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.MouseButton;
-import javafx.scene.paint.Color;
+import javafx.stage.Stage;
+import javafx.stage.Window;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -20,11 +23,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 public class MachineRemovalController {
 
+    private static int highVolumeAlertOffset = 0;
     private final ObservableList<SearchResult> results = FXCollections.observableArrayList();
+
     @FXML
     private TextArea txtSerials;
     @FXML
@@ -41,6 +48,7 @@ public class MachineRemovalController {
     private Label lblStatus;
     @FXML
     private ProgressBar progressBarMain;
+
     private int progressCounter = 0;
 
     @FXML
@@ -48,58 +56,50 @@ public class MachineRemovalController {
         lstResults.setItems(results);
         lstResults.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 
-        lstResults.setCellFactory(lv -> {
-            ListCell<SearchResult> cell = new ListCell<>() {
-                @Override
-                protected void updateItem(SearchResult item, boolean empty) {
-                    super.updateItem(item, empty);
-                    // Always clear old styles first
-                    getStyleClass().removeAll("text-default", "text-info", "text-danger");
+        lstResults.setCellFactory(lv -> new ListCell<>() {
+            @Override
+            protected void updateItem(SearchResult item, boolean empty) {
+                super.updateItem(item, empty);
+                getStyleClass().removeAll("text-default", "text-info", "text-danger");
 
-                    if (empty || item == null) {
-                        setText(null);
-                        setGraphic(null);
-                        setContextMenu(null);
-                        setOnMouseClicked(null);
-                    } else {
-                        setText(item.getDisplayName());
-                        // Apply the new style class from the item
-                        getStyleClass().add(item.getStyleClass());
+                if (empty || item == null) {
+                    setText(null);
+                    setGraphic(null);
+                    setContextMenu(null);
+                    setOnMouseClicked(null);
+                } else {
+                    setText(item.getDisplayName());
+                    getStyleClass().add(item.getStyleClass());
 
-                        // Context menu and double-click logic remains the same
-                        ContextMenu contextMenu = new ContextMenu();
-                        MenuItem copyItem = new MenuItem("Copy Computer Name");
-                        copyItem.setOnAction(event -> {
-                            if (item.getComputerName() != null && !item.getComputerName().startsWith("[")) {
-                                copyToClipboard(item.getComputerName());
+                    ContextMenu contextMenu = new ContextMenu();
+                    MenuItem copyItem = new MenuItem("Copy Computer Name");
+                    copyItem.setOnAction(event -> {
+                        if (item.computerName() != null && !item.computerName().startsWith("[")) {
+                            copyToClipboard(item.computerName());
+                        }
+                    });
+                    copyItem.setDisable(item.computerName() == null || item.computerName().startsWith("["));
+                    contextMenu.getItems().add(copyItem);
+                    setContextMenu(contextMenu);
+
+                    setOnMouseClicked(event -> {
+                        if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2) {
+                            if (item.computerName() != null && !item.computerName().startsWith("[")) {
+                                copyToClipboard(item.computerName());
                             }
-                        });
-                        copyItem.setDisable(item.getComputerName() == null || item.getComputerName().startsWith("["));
-                        contextMenu.getItems().add(copyItem);
-                        setContextMenu(contextMenu);
-
-                        setOnMouseClicked(event -> {
-                            if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2) {
-                                if (item.getComputerName() != null && !item.getComputerName().startsWith("[")) {
-                                    copyToClipboard(item.getComputerName());
-                                }
-                            }
-                        });
-                    }
+                        }
+                    });
                 }
-            };
-            return cell;
+            }
         });
     }
 
-    // --- NEW HELPER METHOD FOR COPYING ---
     private void copyToClipboard(String text) {
         final ClipboardContent content = new ClipboardContent();
         content.putString(text);
         Clipboard.getSystemClipboard().setContent(content);
         writeLog("INFO", "Copied '" + text + "' to clipboard.");
     }
-
 
     @FXML
     private void handleSearch() {
@@ -109,29 +109,28 @@ public class MachineRemovalController {
             return;
         }
 
+        // Reset the cascade offset for each new search
+        highVolumeAlertOffset = 0;
+
         String source = getSearchSource();
-        progressCounter = 0; // Reset counter for new search
+        progressCounter = 0;
         executePowerShellTask("search", searchTerms, source, "Searching for " + searchTerms.size() + " item(s)...");
     }
 
     @FXML
     private void handleRemove() {
-        List<String> selectedComputers = lstResults.getSelectionModel().getSelectedItems().stream().map(SearchResult::getComputerName).filter(name -> name != null && !name.startsWith("[")) // Filter out errors/not found
-                .collect(Collectors.toList());
+        List<String> selectedComputers = lstResults.getSelectionModel().getSelectedItems().stream().map(SearchResult::computerName).filter(name -> name != null && !name.startsWith("[")).collect(Collectors.toList());
 
         if (selectedComputers.isEmpty()) {
             writeLog("WARN", "No valid computers selected to remove.");
             return;
         }
 
-        // Use the StageManager to show a confirmation dialog before proceeding.
         boolean confirmed = StageManager.showConfirmationDialog(btnRemove.getScene().getWindow(), "Confirm Batch Removal", "Are you sure you want to permanently remove the " + selectedComputers.size() + " selected computer(s)?", "This action will attempt to delete the computer objects from Active Directory and/or SCCM and cannot be undone.");
 
         if (confirmed) {
-            // If the user clicks "OK", run the existing PowerShell task.
             executePowerShellTask("remove", selectedComputers, null, "Removing " + selectedComputers.size() + " computer(s)...");
         } else {
-            // If the user clicks "Cancel", log it and do nothing.
             writeLog("INFO", "User cancelled the removal operation.");
         }
     }
@@ -150,21 +149,17 @@ public class MachineRemovalController {
                         results.clear();
                         progressBarMain.setProgress(0.0);
                     } else {
-                        progressBarMain.setProgress(-1.0); // Indeterminate for removal
+                        progressBarMain.setProgress(-1.0);
                     }
                 });
 
-                // Extract the script from JAR to a temp file
                 Path scriptPath = Files.createTempFile("ps_script_", ".ps1");
                 try (InputStream is = getClass().getResourceAsStream("/FindAndRemove.ps1")) {
-                    if (is == null) {
-                        throw new IOException("Could not find FindAndRemove.ps1 in resources.");
-                    }
+                    if (is == null) throw new IOException("Could not find FindAndRemove.ps1 in resources.");
                     Files.copy(is, scriptPath, StandardCopyOption.REPLACE_EXISTING);
                 }
 
                 String targetString = String.join(",", targets);
-
                 ProcessBuilder pb = new ProcessBuilder("powershell.exe", "-ExecutionPolicy", "Bypass", "-File", scriptPath.toAbsolutePath().toString(), "-" + mode, "-targets", targetString);
                 if ("search".equals(mode)) {
                     pb.command().add("-source");
@@ -172,36 +167,42 @@ public class MachineRemovalController {
                 }
 
                 Process process = pb.start();
-
                 Thread outThread = new Thread(() -> new BufferedReader(new InputStreamReader(process.getInputStream())).lines().forEach(line -> Platform.runLater(() -> processOutput(line, mode, totalTargets))));
                 Thread errThread = new Thread(() -> new BufferedReader(new InputStreamReader(process.getErrorStream())).lines().forEach(line -> Platform.runLater(() -> writeLog("ERROR", line))));
                 outThread.start();
                 errThread.start();
-
-                int exitCode = process.waitFor();
+                process.waitFor();
                 outThread.join();
                 errThread.join();
-
                 Files.delete(scriptPath);
-
-                if (exitCode != 0) {
-                    Platform.runLater(() -> writeLog("ERROR", "PowerShell script exited with code: " + exitCode));
-                }
                 return null;
             }
 
             @Override
             protected void succeeded() {
+                if ("search".equals(mode)) {
+                    Map<String, List<SearchResult>> resultsByTerm = results.stream().collect(Collectors.groupingBy(SearchResult::searchTerm));
+
+                    for (Map.Entry<String, List<SearchResult>> entry : resultsByTerm.entrySet()) {
+                        String searchTerm = entry.getKey();
+                        Map<String, List<SearchResult>> resultsBySource = entry.getValue().stream().collect(Collectors.groupingBy(SearchResult::source));
+
+                        for (Map.Entry<String, List<SearchResult>> sourceEntry : resultsBySource.entrySet()) {
+                            if (sourceEntry.getValue().size() >= 3) {
+                                showHighVolumeAlert(searchTerm, sourceEntry.getKey(), sourceEntry.getValue().size(), sourceEntry.getValue());
+                            }
+                        }
+                    }
+                }
                 resetUiState("Operation complete.");
-                progressBarMain.setProgress(1.0); // Mark as complete
+                progressBarMain.setProgress(1.0);
             }
 
             @Override
             protected void failed() {
                 resetUiState("Operation failed. See log for details.");
                 writeLog("FATAL", getException().getMessage());
-                getException().printStackTrace();
-                progressBarMain.setProgress(0); // Reset on failure
+                progressBarMain.setProgress(0);
             }
 
             private void resetUiState(String message) {
@@ -212,8 +213,6 @@ public class MachineRemovalController {
                 });
             }
         };
-
-        // We no longer bind the progress bar. It will only be updated manually.
         new Thread(task).start();
     }
 
@@ -221,18 +220,67 @@ public class MachineRemovalController {
         if (line.startsWith("LOG:")) {
             String[] parts = line.split(":", 3);
             if (parts.length > 2) {
-                writeLog(parts[1], parts[2]);
+                String logType = parts[1];
+                String message = parts[2];
+
+                // --- THIS IS THE NEW LOGIC FOR THE PROGRESS BAR ---
+                if ("DONE_TERM".equals(logType)) {
+                    if ("search".equals(mode)) {
+                        progressCounter++;
+                        progressBarMain.setProgress((double) progressCounter / totalTargets);
+                    }
+                } else {
+                    writeLog(logType, message);
+                }
+                // --- END OF NEW LOGIC ---
             }
         } else if (line.startsWith("RESULT:")) {
             String data = line.substring(7);
             String[] parts = data.split(",", 4);
             if (parts.length == 4) {
-                results.add(new SearchResult(parts[0], parts[1], parts[2], parts[3]));
-                if ("search".equals(mode)) {
-                    progressCounter++;
-                    progressBarMain.setProgress((double) progressCounter / totalTargets);
+                SearchResult newResult = new SearchResult(parts[0], parts[1], parts[2], parts[3]);
+                if ("OK".equalsIgnoreCase(newResult.status())) {
+                    results.add(newResult);
                 }
             }
+        }
+    }
+
+    private void showHighVolumeAlert(String searchTerm, String source, int count, List<SearchResult> allResultsForSource) {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/HighVolumeResultsDialog.fxml"));
+            Parent root = loader.load();
+
+            HighVolumeResultsController controller = loader.getController();
+
+            Consumer<List<String>> removeCallback = computerNamesToRemove -> {
+                results.removeIf(searchResult -> computerNamesToRemove.contains(searchResult.computerName()));
+                writeLog("INFO", "Removed " + computerNamesToRemove.size() + " item(s) from the results list via pop-up.");
+            };
+
+            controller.initData(searchTerm, source, count, allResultsForSource, removeCallback);
+
+            Stage stage = StageManager.createCustomStage(btnSearch.getScene().getWindow(), "High Volume of Results", root, false);
+            Window owner = btnSearch.getScene().getWindow();
+            stage.sizeToScene();
+
+            double centerX = owner.getX() + (owner.getWidth() - stage.getWidth()) / 2;
+            double centerY = owner.getY() + (owner.getHeight() - stage.getHeight()) / 2;
+
+            double offsetX = highVolumeAlertOffset * 30.0;
+            double offsetY = highVolumeAlertOffset * 30.0;
+
+            stage.setX(centerX + offsetX);
+            stage.setY(centerY + offsetY);
+
+            highVolumeAlertOffset++;
+            // --- END OF FIX ---
+
+            stage.show();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            writeLog("ERROR", "Failed to open high volume results pop-up.");
         }
     }
 
@@ -244,7 +292,7 @@ public class MachineRemovalController {
         if (rdoAD.isSelected()) return "AD";
         if (rdoSCCM.isSelected()) return "SCCM";
         if (rdoBoth.isSelected()) return "Both";
-        return "Both"; // Default
+        return "Both";
     }
 
     private void writeLog(String type, String message) {
@@ -267,24 +315,7 @@ public class MachineRemovalController {
         lstResults.getSelectionModel().clearSelection();
     }
 
-    public static class SearchResult {
-        private final String source;
-        private final String searchTerm;
-        private final String computerName;
-        private final String status;
-
-        public SearchResult(String source, String searchTerm, String computerName, String status) {
-            this.source = source;
-            this.searchTerm = searchTerm;
-            this.computerName = computerName;
-            this.status = status;
-        }
-
-        public String getComputerName() {
-            return computerName;
-        }
-
-        // This method provides the full text for the list item
+    public record SearchResult(String source, String searchTerm, String computerName, String status) {
         public String getDisplayName() {
             if ("OK".equalsIgnoreCase(status)) {
                 return String.format("[%s] %s (Found for: %s)", source, computerName, searchTerm);
@@ -295,19 +326,9 @@ public class MachineRemovalController {
 
         public String getStyleClass() {
             if ("OK".equalsIgnoreCase(status)) {
-                // Return "text-info" for SCCM, and the default for AD
                 return "AD".equalsIgnoreCase(source) ? "text-default" : "text-info";
             } else {
-                // Return "text-danger" for any errors
                 return "text-danger";
-            }
-        }
-
-        public Color getColor() {
-            if ("OK".equalsIgnoreCase(status)) {
-                return "AD".equalsIgnoreCase(source) ? Color.BLACK : Color.DARKBLUE;
-            } else {
-                return Color.RED;
             }
         }
     }

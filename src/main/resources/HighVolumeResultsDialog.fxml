@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- Change prefWidth from 450.0 to 600.0 -->
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="assettracking.controller.HighVolumeResultsController"
+      spacing="15" style="-fx-padding: 20;" prefWidth="600.0">
+
+    <Label styleClass="h4" text="High Volume of Results Found"/>
+    <Separator/>
+    <Label fx:id="headerLabel" wrapText="true" text="Header placeholder text..."/>
+    <ListView fx:id="resultsListView" prefHeight="150.0"/>
+
+    <HBox alignment="CENTER_RIGHT" spacing="10">
+        <Button onAction="#handleSelectAll" text="Select All"/>
+        <Button onAction="#handleSelectNone" text="Select None"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <Button onAction="#handleRemoveSelected" text="Remove Selected from Main List" styleClass="danger"/>
+        <Button onAction="#handleDismiss" text="Dismiss" styleClass="accent"/>
+    </HBox>
+</VBox>

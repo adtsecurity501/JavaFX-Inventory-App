@@ -1,213 +1,88 @@
 /* ========================================================================== */
-/* TABLE ROW STYLING (WITH HARD-CODED COLORS & NO STRIPING) ---       */
+/* TABLE ROW STYLING (VIBRANT "NEON" HARDCODED COLORS)                */
 /* ========================================================================== */
 
-/* Base colors for each status row */
 .flagged-row .table-cell,
 .wip-row .table-cell {
-    -fx-background-color: #6272a4; /* Dracula Comment Color */
-    -fx-text-fill: #f8f8f2;
+    -fx-background-color: #8be9fd; /* Bright Cyan */
+    -fx-text-fill: #212121; /* Dark text for contrast */
 }
 
 .disposal-row .table-cell {
-    -fx-background-color: #ff5555; /* Dracula Red */
-    -fx-text-fill: #f8f8f2;
+    -fx-background-color: #ff79c6; /* Bright Pink/Magenta */
+    -fx-text-fill: #212121;
 }
 
 .processed-row .table-cell {
-    -fx-background-color: #bd93f9; /* Dracula Purple */
-    -fx-text-fill: #f8f8f2;
+    -fx-background-color: #ffb86c; /* Bright Orange */
+    -fx-text-fill: #212121;
 }
 
 .shipped-row .table-cell {
-    -fx-background-color: #50fa7b; /* Dracula Green */
-    -fx-text-fill: #282a36; /* Use dark text on the light green background */
+    -fx-background-color: #50fa7b; /* Bright Lime Green */
+    -fx-text-fill: #212121;
 }
 
-/* Hover effect for any standard, un-colored row */
-.table-row-cell:filled:hover {
-    -fx-background-color: -color-bg-inset;
-}
+.table-row-cell:filled:hover { -fx-background-color: -color-bg-inset; }
 
-/* Hover effect for the custom-colored rows */
 .flagged-row:hover .table-cell,
 .wip-row:hover .table-cell,
 .disposal-row:hover .table-cell,
 .processed-row:hover .table-cell,
 .shipped-row:hover .table-cell {
-    -fx-border-width: 2 0 2 0; /* (top right bottom left) */
-    -fx-border-top-color: #f8f8f2;
-    -fx-border-bottom-color: #f8f8f2;
-}
-
-/* Set the default height for all table rows */
-.table-row-cell,
-.fixed-row-size .table-row-cell {
-    -fx-cell-size: 35px;
-}
-
-
-/* ========================================================================== */
-/* WIDER SCROLLBARS FOR BETTER USABILITY ---                  */
-/* ========================================================================== */
-
-.scroll-bar:vertical > .track-background {
-    -fx-pref-width: 16;
-}
-
-.scroll-bar:vertical > .thumb {
-    -fx-pref-width: 12;
-}
-
-/* ========================================================================== */
-/* TYPOGRAPHY AND UI STYLES ---                                     */
-/* ========================================================================== */
-
-.kpi-title {
-    -fx-font-size: 14px;
-    -fx-font-weight: bold;
-    -fx-text-fill: -color-fg-muted;
-}
-
-.kpi-metric {
-    -fx-font-size: 36px;
-    -fx-font-weight: bold;
-}
-
-/* ========================================================================== */
-/* CUSTOM TITLE BAR STYLES ---                                      */
-/* ========================================================================== */
-
-.title-bar {
-    -fx-background-color: -color-bg-subtle;
-    -fx-pref-height: 30px;
-    -fx-alignment: center-left;
-}
-
-.title-bar-text {
-    -fx-font-size: 14px;
-    -fx-text-fill: -color-fg-default;
-    -fx-font-weight: bold;
-}
-
-.window-button {
-    -fx-background-color: transparent;
-    -fx-background-radius: 0;
-    -fx-padding: 8 15;
-}
-
-.window-button:hover {
-    -fx-background-color: -color-bg-inset;
-}
-
-.window-close-button:hover {
-    -fx-background-color: -color-danger-emphasis;
-}
-
-.window-icon {
-    -fx-stroke: -color-fg-default;
-    -fx-stroke-width: 1.5;
-    -fx-fill: transparent;
-    -fx-background-color: transparent;
-}
-
-.window-close-button:hover .window-icon {
-    -fx-stroke: white;
-}
-
-/* ========================================================================== */
-/* TOOL SELECTOR BAR STYLES (REWRITTEN FOR ROBUSTNESS & STYLE)              */
-/* ========================================================================== */
-
-.tool-bar {
-    -fx-background-color: -color-bg-subtle;
-    -fx-padding: 5px;
-    -fx-background-radius: 6;
-}
-
-.tool-selector-button {
-    -fx-font-size: 14px;
-    -fx-cursor: hand;
-    -fx-min-height: 40px;
-    -fx-pref-height: 40px;
-    -fx-max-height: 40px;
-    -fx-border-width: 1px;
-    -fx-border-color: -color-border-default;
-    -fx-background-color: -color-bg-default;
-}
-
-.tool-selector-button:selected {
-    -fx-background-color: -color-accent-emphasis;
-    -fx-text-fill: white;
-    -fx-font-weight: bold;
+    -fx-border-width: 2 0 2 0;
     -fx-border-color: -color-accent-emphasis;
 }
 
-.tool-selector-button:focused {
-    -fx-border-color: -color-accent-emphasis;
-}
-
-.tool-selector-button:selected:focused {
-    -fx-border-color: -color-accent-emphasis;
-}
-
-.scan-update-pane {
-    -fx-background-color: -color-bg-default;
-}
+.table-row-cell, .fixed-row-size .table-row-cell { -fx-cell-size: 35px; }
 
 /* ========================================================================== */
-/* IPAD PROVISIONING STYLES ---                                     */
+/* WIDER SCROLLBARS                                                         */
 /* ========================================================================== */
-
-.t-mobile-override-row .table-cell,
-.t-mobile-override-row:odd .table-cell {
-    -fx-background-color: -color-info-emphasis;
-    -fx-text-fill: white;
-}
+.scroll-bar:vertical > .track-background { -fx-pref-width: 16; }
+.scroll-bar:vertical > .thumb { -fx-pref-width: 12; }
 
 /* ========================================================================== */
-/* STATUS LABEL STYLING ---                                         */
+/* TYPOGRAPHY AND UI STYLES                                                 */
 /* ========================================================================== */
-
-.status-label-success {
-    -fx-text-fill: -color-success-fg;
-}
-
-.status-label-error {
-    -fx-text-fill: -color-danger-fg;
-}
+.kpi-title { -fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: -color-fg-muted; }
+.kpi-metric { -fx-font-size: 36px; -fx-font-weight: bold; }
 
 /* ========================================================================== */
-/* MISC UI STYLES ---                                               */
+/* CUSTOM TITLE BAR STYLES                                                  */
 /* ========================================================================== */
+.title-bar { -fx-background-color: -color-bg-subtle; -fx-pref-height: 30px; -fx-alignment: center-left; }
+.title-bar-text { -fx-font-size: 14px; -fx-text-fill: -color-fg-default; -fx-font-weight: bold; }
+.window-button { -fx-background-color: transparent; -fx-background-radius: 0; -fx-padding: 8 15; }
+.window-button:hover { -fx-background-color: -color-bg-inset; }
+.window-close-button:hover { -fx-background-color: #ff5555; }
+.window-icon { -fx-stroke: -color-fg-default; -fx-stroke-width: 1.5; -fx-fill: transparent; }
+.window-close-button:hover .window-icon { -fx-stroke: white; }
 
-.drag-over {
-    -fx-background-color: -color-accent-emphasis-plus;
-    -fx-cursor: move;
-}
+/* ========================================================================== */
+/* TOOL SELECTOR BAR STYLES                                                 */
+/* ========================================================================== */
+.tool-bar { -fx-background-color: -color-bg-subtle; -fx-padding: 5px; -fx-background-radius: 6; }
+.tool-selector-button { -fx-font-size: 14px; -fx-cursor: hand; -fx-min-height: 40px; -fx-border-width: 1px; -fx-border-color: -color-border-default; -fx-background-color: -color-bg-default; }
+.tool-selector-button:selected { -fx-background-color: -color-accent-emphasis; -fx-text-fill: white; -fx-font-weight: bold; -fx-border-color: -color-accent-emphasis; }
+.tool-selector-button:focused { -fx-border-color: -color-accent-emphasis; }
 
-.autocomplete-popup .list-view {
-    -fx-border-color: -color-border-default;
-    -fx-border-width: 1;
-    -fx-background-insets: 0;
-    -fx-background-radius: 4;
-}
+/* ========================================================================== */
+/* MISC AND MACHINE REMOVAL STYLES                                          */
+/* ========================================================================== */
+.scan-update-pane { -fx-background-color: -color-bg-default; }
+.t-mobile-override-row .table-cell { -fx-background-color: #8be9fd; -fx-text-fill: #212121; }
+.status-label-success { -fx-text-fill: #50fa7b; }
+.status-label-error { -fx-text-fill: #ff5555; }
+.drag-over { -fx-background-color: -color-accent-emphasis-plus; -fx-cursor: move; }
 
-.autocomplete-popup .list-cell {
-    -fx-padding: 5 10;
-}
+/* --- Brighter colors for Machine Removal text --- */
+.text-default { /* Inherits default color */ }
+.text-info { -fx-text-fill: #8be9fd; }      /* Bright Cyan */
+.text-danger { -fx-text-fill: #ff5555; } /* Bright Red */
 
+/* Autocomplete Popup */
+.autocomplete-popup .list-view { -fx-border-color: -color-border-default; -fx-border-width: 1; -fx-background-insets: 0; -fx-background-radius: 4; }
+.autocomplete-popup .list-cell { -fx-padding: 5 10; }
 .autocomplete-popup .list-cell:filled:hover,
-.autocomplete-popup .list-cell:filled:selected {
-    -fx-background-color: -color-accent-subtle;
-    -fx-text-fill: -color-fg-default;
-}
-
-.text-default {
-}
-.text-info {
-    -fx-text-fill: #8be9fd;
-}
-.text-danger {
-    -fx-text-fill: #ff5555;
-}
+.autocomplete-popup .list-cell:filled:selected { -fx-background-color: -color-accent-subtle; -fx-text-fill: -color-fg-default; }
