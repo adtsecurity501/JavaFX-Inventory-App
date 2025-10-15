@@ -17,7 +17,8 @@
             </HBox>
             <HBox spacing="10" alignment="CENTER_LEFT">
                 <Label text="Search Serial #:"/>
-                <TextField fx:id="serialSearchField" onAction="#handleSearchBySerial" promptText="Find which box a serial is in..." HBox.hgrow="ALWAYS"/>
+                <TextField fx:id="serialSearchField" onAction="#handleSearchBySerial"
+                           promptText="Find which box a serial is in..." HBox.hgrow="ALWAYS"/>
                 <Button fx:id="serialSearchButton" text="Find" onAction="#handleSearchBySerial"/>
             </HBox>
         </VBox>

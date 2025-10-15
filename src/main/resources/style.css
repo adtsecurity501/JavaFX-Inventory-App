@@ -204,7 +204,6 @@
 }
 
 .text-default {
-    -fx-text-fill: -fx-text-base-color;
 }
 .text-info {
     -fx-text-fill: #8be9fd;

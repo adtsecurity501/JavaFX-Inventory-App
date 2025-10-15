@@ -43,16 +43,19 @@ function Invoke-Search
 
     foreach ($term in $searchTerms)
     {
-        $found = $false
+        $foundInAnySource = $false
         if ($source -eq 'AD' -or $source -eq 'Both')
         {
             try
             {
-                $adComputer = Get-ADComputer -Filter "SerialNumber -eq '$term' -or Name -like '*$term*'" -Server $ADServer -ErrorAction Stop
-                if ($adComputer)
+                $adComputers = Get-ADComputer -Filter "SerialNumber -eq '$term' -or Name -like '*$term*'" -Server $ADServer -ErrorAction Stop
+                if ($adComputers)
                 {
-                    Write-Result "AD" $term $adComputer.Name "OK"
-                    $found = $true
+                    foreach ($adComputer in $adComputers)
+                    {
+                        Write-Result "AD" $term $adComputer.Name "OK"
+                        $foundInAnySource = $true
+                    }
                 }
             }
             catch
@@ -66,22 +69,60 @@ function Invoke-Search
             try
             {
                 $namespace = "ROOT\SMS\site_$SCCMSiteCode"
-                $sccmQuery = "SELECT sys.Name FROM SMS_R_System AS sys JOIN SMS_G_System_SYSTEM_ENCLOSURE AS se ON sys.ResourceID = se.ResourceID WHERE se.SerialNumber = '$term' OR sys.Name = '$term'"
-                $sccmDevice = Get-WmiObject -Query $sccmQuery -ComputerName $SCCMServer -Namespace $namespace -ErrorAction Stop
-                if ($sccmDevice)
+                $sccmResultsList = New-Object System.Collections.ArrayList
+
+                # --- START OF THE FIX ---
+
+                # Query 1: Search hardware inventory.
+                $serialQuery = "SELECT DISTINCT sys.Name FROM SMS_R_System AS sys LEFT JOIN SMS_G_System_SYSTEM_ENCLOSURE AS se ON sys.ResourceID = se.ResourceID LEFT JOIN SMS_G_System_PC_BIOS AS bios ON sys.ResourceID = bios.ResourceID WHERE se.SerialNumber = '$term' OR bios.SerialNumber = '$term'"
+                $serialDevices = Get-WmiObject -Query $serialQuery -ComputerName $SCCMServer -Namespace $namespace -ErrorAction SilentlyContinue
+                if ($serialDevices)
                 {
-                    Write-Result "SCCM" $term $sccmDevice.Name "OK"
-                    $found = $true
+                    # This foreach loop correctly handles one or many results.
+                    foreach ($device in $serialDevices)
+                    {
+                        $sccmResultsList.Add($device) | Out-Null
+                    }
+                }
+
+                # Query 2: Search by computer name.
+                $nameQuery = "SELECT Name FROM SMS_R_System WHERE Name LIKE '%$term%'"
+                $nameDevices = Get-WmiObject -Query $nameQuery -ComputerName $SCCMServer -Namespace $namespace -ErrorAction SilentlyContinue
+                if ($nameDevices)
+                {
+                    # This foreach loop also correctly handles one or many results.
+                    foreach ($device in $nameDevices)
+                    {
+                        $sccmResultsList.Add($device) | Out-Null
+                    }
+                }
+
+                # --- END OF THE FIX ---
+
+                if ($sccmResultsList.Count -gt 0)
+                {
+                    $uniqueNames = $sccmResultsList | Select-Object -ExpandProperty Name -Unique
+                    foreach ($computerName in $uniqueNames)
+                    {
+                        Write-Result "SCCM" $term $computerName "OK"
+                        $foundInAnySource = $true
+                    }
+                }
+                else
+                {
+                    Write-Log "DEBUG" "Both SCCM queries for term '$term' returned no results."
                 }
             }
             catch
             {
-                Write-Log "ERROR" "SCCM search for '$term' failed: $( $_.Exception.Message )"
+                Write-Log "ERROR" "CRITICAL ERROR during SCCM search for '$term'. Exception details: $( $_.Exception.Message )"
             }
         }
 
-        # --- THIS SECTION IS NOW REMOVED TO HIDE "NOT FOUND" RESULTS ---
-        # No output is generated if a term is not found, cleaning up the UI.
+        if (-not $foundInAnySource)
+        {
+            Write-Result "None" $term "[Not Found]" "Not Found"
+        }
     }
 }
 
