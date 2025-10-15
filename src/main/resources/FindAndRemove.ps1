@@ -43,7 +43,9 @@ function Invoke-Search
 
     foreach ($term in $searchTerms)
     {
+        # This variable is no longer needed but is kept for clarity.
         $foundInAnySource = $false
+
         if ($source -eq 'AD' -or $source -eq 'Both')
         {
             try
@@ -107,11 +109,6 @@ function Invoke-Search
             {
                 Write-Log "ERROR" "CRITICAL ERROR during SCCM search for '$term'. Exception details: $( $_.Exception.Message )"
             }
-        }
-
-        if (-not $foundInAnySource)
-        {
-            Write-Result "None" $term "[Not Found]" "Not Found"
         }
     }
 }
