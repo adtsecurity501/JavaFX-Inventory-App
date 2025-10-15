@@ -71,14 +71,11 @@ function Invoke-Search
                 $namespace = "ROOT\SMS\site_$SCCMSiteCode"
                 $sccmResultsList = New-Object System.Collections.ArrayList
 
-                # --- START OF THE FIX ---
-
                 # Query 1: Search hardware inventory.
                 $serialQuery = "SELECT DISTINCT sys.Name FROM SMS_R_System AS sys LEFT JOIN SMS_G_System_SYSTEM_ENCLOSURE AS se ON sys.ResourceID = se.ResourceID LEFT JOIN SMS_G_System_PC_BIOS AS bios ON sys.ResourceID = bios.ResourceID WHERE se.SerialNumber = '$term' OR bios.SerialNumber = '$term'"
                 $serialDevices = Get-WmiObject -Query $serialQuery -ComputerName $SCCMServer -Namespace $namespace -ErrorAction SilentlyContinue
                 if ($serialDevices)
                 {
-                    # This foreach loop correctly handles one or many results.
                     foreach ($device in $serialDevices)
                     {
                         $sccmResultsList.Add($device) | Out-Null
@@ -90,14 +87,11 @@ function Invoke-Search
                 $nameDevices = Get-WmiObject -Query $nameQuery -ComputerName $SCCMServer -Namespace $namespace -ErrorAction SilentlyContinue
                 if ($nameDevices)
                 {
-                    # This foreach loop also correctly handles one or many results.
                     foreach ($device in $nameDevices)
                     {
                         $sccmResultsList.Add($device) | Out-Null
                     }
                 }
-
-                # --- END OF THE FIX ---
 
                 if ($sccmResultsList.Count -gt 0)
                 {
@@ -107,10 +101,6 @@ function Invoke-Search
                         Write-Result "SCCM" $term $computerName "OK"
                         $foundInAnySource = $true
                     }
-                }
-                else
-                {
-                    Write-Log "DEBUG" "Both SCCM queries for term '$term' returned no results."
                 }
             }
             catch
