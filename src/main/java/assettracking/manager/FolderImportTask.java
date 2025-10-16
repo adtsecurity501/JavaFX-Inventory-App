@@ -16,7 +16,6 @@ import java.util.List;
 public class FolderImportTask extends Task<List<ImportResult>> {
 
     private static final Logger logger = LoggerFactory.getLogger(FolderImportTask.class);
-
     private final List<String> folderPathsToScan;
     private final DeviceImportService deviceImportService;
 
@@ -40,17 +39,20 @@ public class FolderImportTask extends Task<List<ImportResult>> {
 
         for (int i = 0; i < totalFiles; i++) {
             File file = allFiles.get(i);
-
-            // This is the correct way to update progress and message from within the Task.
             updateProgress(i + 1, totalFiles);
             updateMessage(String.format("Processing file %d/%d: %s", i + 1, totalFiles, file.getName()));
 
+            // --- THIS IS THE FIX ---
+            // Wrap the processing of each file in a try-catch block.
             try {
                 results.add(deviceImportService.processAndUpsertData(file));
             } catch (Exception e) {
+                // If a single file fails (e.g., it's locked), log the error and continue.
                 logger.error("Critical error processing file: {}", file.getName(), e);
+                // Add a result indicating failure for this specific file.
                 results.add(new ImportResult(file, 0, List.of("Critical error processing file: " + e.getMessage())));
             }
+            // --- END OF FIX ---
         }
         updateMessage("Import process complete.");
         return results;

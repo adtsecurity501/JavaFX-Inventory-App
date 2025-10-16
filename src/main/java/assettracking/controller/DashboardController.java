@@ -24,57 +24,40 @@ import javafx.stage.Stage;
 import javafx.util.Duration;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class DashboardController {
 
-    // --- Services and DAO ---
     private final DashboardDataService dataService = new DashboardDataService();
     private final AppSettingsDAO appSettingsDAO = new AppSettingsDAO();
-    // --- State and UI Helpers ---
-    private final ObservableList<TopModelStat> topModelsList = FXCollections.observableArrayList();
-    //    public Button manageFoldersButton;
-    // --- FXML Fields ---
+    private final AtomicBoolean isRefreshing = new AtomicBoolean(false);
 
-    @FXML
-    private BarChart<String, Number> intakeProcessedChart;
-    @FXML
-    private PieChart inventoryPieChart, deploymentBreakdownChart;
-    @FXML
-    private Label laptopsIntakenLabel, laptopsProcessedLabel, tabletsIntakenLabel, desktopsIntakenLabel, monitorsIntakenLabel;
-    @FXML
-    private Label tabletsProcessedLabel, desktopsProcessedLabel, monitorsProcessedLabel, totalProcessedLabel;
-    @FXML
-    private Label laptopsDisposedLabel, tabletsDisposedLabel, desktopsDisposedLabel, monitorsDisposedLabel;
-    @FXML
-    private Label activeTriageLabel, awaitingDisposalLabel, avgTurnaroundLabel, boxesAssembledLabel, labelsCreatedLabel;
-    @FXML
-    private Label deviceGoalPacingLabel, monitorGoalPacingLabel, timeRangeTitleLabel, breakdownTitleLabel;
-    @FXML
-    private Label inventoryOverviewTitleLabel, healthTitleLabel, pacingTitleLabel, topModelsTitleLabel;
-    @FXML
-    private ToggleGroup dateRangeToggleGroup;
-    @SuppressWarnings("unused")
-    @FXML
-    private RadioButton todayRadio;
-    @SuppressWarnings("unused")
-    @FXML
-    private RadioButton days7Radio;
-    @FXML
-    private GridPane mainGridPane;
-    @FXML
-    private ColumnConstraints leftColumn, rightColumn;
-    @FXML
-    private ScrollPane rightScrollPane;
-    @FXML
-    private TableView<TopModelStat> topModelsTable;
-    @FXML
-    private TableColumn<TopModelStat, String> modelNumberCol;
-    @FXML
-    private TableColumn<TopModelStat, Integer> modelCountCol;
-    @FXML
-    private Label boxesAssembledTitleLabel, labelsCreatedTitleLabel;
+    // Bar Chart Series are now final fields, created only once.
+    private final XYChart.Series<String, Number> intakeSeries = new XYChart.Series<>();
+    private final XYChart.Series<String, Number> processedSeries = new XYChart.Series<>();
+
+    private final ObservableList<TopModelStat> topModelsList = FXCollections.observableArrayList();
+
+    @FXML private BarChart<String, Number> intakeProcessedChart;
+    @FXML private PieChart inventoryPieChart, deploymentBreakdownChart;
+    @FXML private Label laptopsIntakenLabel, laptopsProcessedLabel, tabletsIntakenLabel, desktopsIntakenLabel, monitorsIntakenLabel;
+    @FXML private Label tabletsProcessedLabel, desktopsProcessedLabel, monitorsProcessedLabel, totalProcessedLabel;
+    @FXML private Label laptopsDisposedLabel, tabletsDisposedLabel, desktopsDisposedLabel, monitorsDisposedLabel;
+    @FXML private Label activeTriageLabel, awaitingDisposalLabel, avgTurnaroundLabel, boxesAssembledLabel, labelsCreatedLabel;
+    @FXML private Label deviceGoalPacingLabel, monitorGoalPacingLabel, timeRangeTitleLabel, breakdownTitleLabel;
+    @FXML private Label inventoryOverviewTitleLabel, healthTitleLabel, pacingTitleLabel, topModelsTitleLabel;
+    @FXML private ToggleGroup dateRangeToggleGroup;
+    @FXML private RadioButton days7Radio;
+    @FXML private GridPane mainGridPane;
+    @FXML private ColumnConstraints leftColumn, rightColumn;
+    @FXML private ScrollPane rightScrollPane;
+    @FXML private TableView<TopModelStat> topModelsTable;
+    @FXML private TableColumn<TopModelStat, String> modelNumberCol;
+    @FXML private TableColumn<TopModelStat, Integer> modelCountCol;
+    @FXML private Label boxesAssembledTitleLabel, labelsCreatedTitleLabel;
 
     private double weeklyDeviceGoal = 100.0;
     private double weeklyMonitorGoal = 50.0;
@@ -83,9 +66,17 @@ public class DashboardController {
 
     @FXML
     public void initialize() {
+        setupCharts();
         setupTopModelsTable();
         setupUIListeners();
         loadInitialDataAsync();
+    }
+
+    private void setupCharts() {
+        intakeSeries.setName("Devices Intaken");
+        processedSeries.setName("Devices Processed");
+        // This is the correct place to add the series, just once at startup.
+        intakeProcessedChart.getData().addAll(intakeSeries, processedSeries);
     }
 
     public void init(StackPane rootPane) {
@@ -113,32 +104,97 @@ public class DashboardController {
         Task<Void> initialLoadTask = new Task<>() {
             @Override
             protected Void call() {
-                // Now using a direct DAO instance.
                 AppSettingsDAO settingsDAO = new AppSettingsDAO();
                 weeklyDeviceGoal = Double.parseDouble(settingsDAO.getSetting("device_goal").orElse("100.0"));
                 weeklyMonitorGoal = Double.parseDouble(settingsDAO.getSetting("monitor_goal").orElse("50.0"));
                 return null;
             }
         };
-
         initialLoadTask.setOnSucceeded(e -> refreshAllData());
-
-        initialLoadTask.setOnFailed(e -> Platform.runLater(() -> StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Database Connection Failed", "Could not connect to the database. Please ensure the H2 server is running and the network is accessible.\n\nError: " + initialLoadTask.getException().getMessage())));
+        initialLoadTask.setOnFailed(e -> Platform.runLater(() -> StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Database Connection Failed", "Could not connect to the database. Error: " + initialLoadTask.getException().getMessage())));
         new Thread(initialLoadTask).start();
     }
 
     @FXML
     private void refreshAllData() {
-        // THE FIX: This unnecessary and blocking call has been removed.
-        // DatabaseConnection.refreshConnectionPool();
-
-        updateDynamicTitles();
-        loadGranularMetrics();
-        loadStaticKpis();
-        loadDynamicCharts();
-        loadTopModelsData();
+        if (!isRefreshing.compareAndSet(false, true)) {
+            return;
+        }
+        try {
+            updateDynamicTitles();
+            loadGranularMetrics();
+            loadStaticKpis();
+            loadDynamicCharts();
+            loadTopModelsData();
+        } finally {
+            isRefreshing.set(false);
+        }
     }
 
+    private void loadDynamicCharts() {
+        Task<List<PieChart.Data>> inventoryTask = new Task<>() {
+            @Override
+            protected List<PieChart.Data> call() throws Exception {
+                return dataService.getInventoryOverviewData();
+            }
+        };
+        inventoryTask.setOnSucceeded(e -> setPieChartData(inventoryPieChart, FXCollections.observableArrayList(inventoryTask.getValue())));
+        new Thread(inventoryTask).start();
+
+        Task<List<PieChart.Data>> breakdownTask = new Task<>() {
+            @Override
+            protected List<PieChart.Data> call() throws Exception {
+                return dataService.getProcessedBreakdownData(getDateFilterClause("ds.last_update"));
+            }
+        };
+        breakdownTask.setOnSucceeded(e -> setPieChartData(deploymentBreakdownChart, FXCollections.observableArrayList(breakdownTask.getValue())));
+        new Thread(breakdownTask).start();
+
+        Task<Map<String, int[]>> intakeVsProcessedTask = new Task<>() {
+            @Override
+            protected Map<String, int[]> call() throws Exception {
+                LocalDate endDate = LocalDate.now();
+                RadioButton selected = (RadioButton) dateRangeToggleGroup.getSelectedToggle();
+                String selectionText = (selected == null) ? "Last 7 Days" : selected.getText();
+                LocalDate startDate = switch (selectionText) {
+                    case "Today" -> endDate;
+                    case "Last 30 Days" -> endDate.minusDays(29);
+                    default -> endDate.minusDays(6);
+                };
+                return dataService.getIntakeVsProcessedData(startDate, endDate);
+            }
+        };
+
+        intakeVsProcessedTask.setOnSucceeded(e -> {
+            Map<String, int[]> dailyCounts = intakeVsProcessedTask.getValue();
+            Platform.runLater(() -> {
+                List<XYChart.Data<String, Number>> intakeData = new ArrayList<>();
+                List<XYChart.Data<String, Number>> processedData = new ArrayList<>();
+
+                LocalDate endDate = LocalDate.now();
+                RadioButton selected = (RadioButton) dateRangeToggleGroup.getSelectedToggle();
+                String selectionText = (selected == null) ? "Last 7 Days" : selected.getText();
+                LocalDate startDate = switch (selectionText) {
+                    case "Today" -> endDate;
+                    case "Last 30 Days" -> endDate.minusDays(29);
+                    default -> endDate.minusDays(6);
+                };
+
+                for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
+                    String dayString = date.toString();
+                    int[] counts = dailyCounts.getOrDefault(dayString, new int[]{0, 0});
+                    intakeData.add(new XYChart.Data<>(dayString, counts[0]));
+                    processedData.add(new XYChart.Data<>(dayString, counts[1]));
+                }
+
+                intakeSeries.getData().setAll(intakeData);
+                processedSeries.getData().setAll(processedData);
+            });
+        });
+        new Thread(intakeVsProcessedTask).start();
+    }
+
+    // --- All other methods remain the same ---
     private void loadGranularMetrics() {
         Task<Map<String, Integer>> task = new Task<>() {
             @Override
@@ -177,7 +233,6 @@ public class DashboardController {
         Task<Map<String, String>> task = new Task<>() {
             @Override
             protected Map<String, String> call() throws Exception {
-                // This is the fix: We now get the date filter and pass it to the service.
                 return dataService.getStaticKpis(getDateFilterClause("ds.last_update"));
             }
         };
@@ -206,56 +261,6 @@ public class DashboardController {
         new Thread(task).start();
     }
 
-    private void loadDynamicCharts() {
-        // The inventoryTask and breakdownTask remain unchanged
-        Task<List<PieChart.Data>> inventoryTask = new Task<>() {
-            @Override
-            protected List<PieChart.Data> call() throws Exception {
-                return dataService.getInventoryOverviewData();
-            }
-        };
-        inventoryTask.setOnSucceeded(e -> setPieChartData(inventoryPieChart, FXCollections.observableArrayList(inventoryTask.getValue())));
-        new Thread(inventoryTask).start();
-
-        Task<List<PieChart.Data>> breakdownTask = new Task<>() {
-            @Override
-            protected List<PieChart.Data> call() throws Exception {
-                return dataService.getProcessedBreakdownData(getDateFilterClause("ds.last_update"));
-            }
-        };
-        breakdownTask.setOnSucceeded(e -> setPieChartData(deploymentBreakdownChart, FXCollections.observableArrayList(breakdownTask.getValue())));
-        new Thread(breakdownTask).start();
-
-        // --- THIS IS THE SIMPLIFIED AND CORRECTED TASK ---
-        Task<List<XYChart.Series<String, Number>>> intakeVsProcessedTask = new Task<>() {
-            @Override
-            protected List<XYChart.Series<String, Number>> call() throws Exception {
-                LocalDate endDate = LocalDate.now();
-                LocalDate startDate;
-
-                RadioButton selected = (RadioButton) dateRangeToggleGroup.getSelectedToggle();
-                String selectionText = (selected == null) ? "Last 7 Days" : selected.getText();
-
-                startDate = switch (selectionText) {
-                    case "Today" -> endDate;
-                    case "Last 30 Days" -> endDate.minusDays(29);
-                    default -> endDate.minusDays(6);
-                };
-
-                // The controller's only job is to provide the date range.
-                // All complex logic is now in the service layer.
-                return dataService.getIntakeVsProcessedData(startDate, endDate);
-            }
-        };
-
-        intakeVsProcessedTask.setOnSucceeded(e -> {
-            List<XYChart.Series<String, Number>> newSeriesList = intakeVsProcessedTask.getValue();
-            Platform.runLater(() -> intakeProcessedChart.getData().setAll(newSeriesList));
-            // --- END OF FIX ---
-        });
-        new Thread(intakeVsProcessedTask).start();
-    }
-
     private void updatePacing(int deviceCount, int monitorCount) {
         if (weeklyDeviceGoal > 0) {
             animateLabelUpdate(deviceGoalPacingLabel, String.format("%.1f%%", (deviceCount / weeklyDeviceGoal) * 100));
@@ -271,7 +276,6 @@ public class DashboardController {
 
     private String getDateFilterClause(String columnName) {
         String dateColumn = String.format("CAST(%s AS DATE)", columnName);
-
         RadioButton selected = (RadioButton) dateRangeToggleGroup.getSelectedToggle();
         if (selected == null || selected.getText().equals("Last 7 Days")) {
             return String.format(" %s >= DATEADD('DAY', -7, CURRENT_DATE)", dateColumn);
@@ -279,7 +283,6 @@ public class DashboardController {
         if (selected.getText().equals("Today")) {
             return String.format(" %s >= CURRENT_DATE", dateColumn);
         }
-        // Last 30 Days
         return String.format(" %s >= DATEADD('DAY', -30, CURRENT_DATE)", dateColumn);
     }
 
@@ -287,7 +290,6 @@ public class DashboardController {
         RadioButton selected = (RadioButton) dateRangeToggleGroup.getSelectedToggle();
         String timeSuffix;
         String pacingTimeSuffix;
-
         if (selected == null || selected.getText().equals("Last 7 Days")) {
             timeRangeTitleLabel.setText("Metrics for Last 7 Days");
             pacingTitleLabel.setText("Weekly Pacing (Refurbished Only)");
@@ -298,13 +300,12 @@ public class DashboardController {
             pacingTitleLabel.setText("Daily Pacing (Refurbished Only)");
             timeSuffix = "(Today)";
             pacingTimeSuffix = "Today";
-        } else { // Last 30 Days
+        } else {
             timeRangeTitleLabel.setText("Metrics for Last 30 Days");
             pacingTitleLabel.setText("Monthly Pacing (Refurbished Only)");
             timeSuffix = "(Last 30 Days)";
             pacingTimeSuffix = "Last 30 Days";
         }
-
         healthTitleLabel.setText("Overall Health " + timeSuffix);
         breakdownTitleLabel.setText("Processed Breakdown " + timeSuffix);
         topModelsTitleLabel.setText("Top Processed Models " + timeSuffix);
@@ -334,53 +335,6 @@ public class DashboardController {
         });
         chart.setData(data);
     }
-
-//    private Optional<List<String>> showFolderManagementDialog(List<String> initialFolders) {
-//        Dialog<List<String>> dialog = new Dialog<>();
-//        dialog.setTitle("Manage Import Folders");
-//        dialog.setHeaderText("Add or remove folders that the application will scan for device files.");
-//
-//        DialogPane dialogPane = dialog.getDialogPane();
-//        dialogPane.getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
-//
-//        ListView<String> listView = new ListView<>();
-//        listView.getItems().setAll(initialFolders);
-//
-//        Button addButton = new Button("Add Folder...");
-//        Button removeButton = new Button("Remove Selected");
-//        removeButton.setDisable(true);
-//
-//        listView.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> removeButton.setDisable(newVal == null));
-//
-//        addButton.setOnAction(e -> {
-//            DirectoryChooser chooser = new DirectoryChooser();
-//            chooser.setTitle("Select a Folder to Scan");
-//            File selected = chooser.showDialog(getStage());
-//            if (selected != null) {
-//                listView.getItems().add(selected.getAbsolutePath());
-//            }
-//        });
-//
-//        removeButton.setOnAction(e -> {
-//            String selected = listView.getSelectionModel().getSelectedItem();
-//            if (selected != null) {
-//                listView.getItems().remove(selected);
-//            }
-//        });
-//
-//        HBox buttonBox = new HBox(10, addButton, removeButton);
-//        VBox content = new VBox(10, listView, buttonBox);
-//        dialogPane.setContent(content);
-//
-//        dialog.setResultConverter(dialogButton -> {
-//            if (dialogButton == ButtonType.OK) {
-//                return new ArrayList<>(listView.getItems());
-//            }
-//            return null;
-//        });
-//
-//        return dialog.showAndWait();
-//    }
 
     private void animateLabelUpdate(Label label, String newValue) {
         if (label == null || label.getText().equals(newValue)) return;

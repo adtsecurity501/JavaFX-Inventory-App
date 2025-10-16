@@ -95,10 +95,74 @@ public class DashboardDataService {
         return data;
     }
 
-    public List<XYChart.Series<String, Number>> getIntakeVsProcessedData(LocalDate startDate, LocalDate endDate) throws SQLException {
+    //    public List<XYChart.Series<String, Number>> getIntakeVsProcessedData(LocalDate startDate, LocalDate endDate) throws SQLException {
+//        Map<String, int[]> dailyCounts = new LinkedHashMap<>();
+//
+//        // Query 1: The alias 'day' is now correctly quoted as "day".
+//        String intakeSql = """
+//                    SELECT
+//                        p.receive_date AS "day",
+//                        COUNT(re.receipt_id) AS device_count
+//                    FROM Receipt_Events re
+//                    JOIN Packages p ON re.package_id = p.package_id
+//                    WHERE p.receive_date BETWEEN ? AND ?
+//                    GROUP BY p.receive_date
+//                    ORDER BY p.receive_date ASC;
+//                """;
+//
+//        // Query 2: The alias 'day' is also correctly quoted here.
+//        String processedSql = """
+//                    SELECT
+//                        CAST(ds.last_update AS DATE) AS "day",
+//                        COUNT(ds.receipt_id) AS device_count
+//                    FROM Device_Status ds
+//                    WHERE ds.status = 'Processed'
+//                      AND ds.last_update >= ? AND ds.last_update < ?
+//                    GROUP BY CAST(ds.last_update AS DATE)
+//                    ORDER BY "day" ASC;
+//                """;
+//
+//        try (Connection conn = DatabaseConnection.getInventoryConnection()) {
+//            try (PreparedStatement stmt = conn.prepareStatement(intakeSql)) {
+//                stmt.setString(1, startDate.toString());
+//                stmt.setString(2, endDate.toString());
+//                ResultSet rs = stmt.executeQuery();
+//                while (rs.next()) {
+//                    String day = rs.getString("day");
+//                    int intakeCount = rs.getInt("device_count");
+//                    dailyCounts.put(day, new int[]{intakeCount, 0});
+//                }
+//            }
+//
+//            try (PreparedStatement stmt = conn.prepareStatement(processedSql)) {
+//                stmt.setDate(1, java.sql.Date.valueOf(startDate));
+//                stmt.setDate(2, java.sql.Date.valueOf(endDate.plusDays(1)));
+//                ResultSet rs = stmt.executeQuery();
+//                while (rs.next()) {
+//                    String day = rs.getString("day");
+//                    int processedCount = rs.getInt("device_count");
+//                    dailyCounts.computeIfAbsent(day, k -> new int[2])[1] = processedCount;
+//                }
+//            }
+//        }
+//
+//        XYChart.Series<String, Number> intakeSeries = new XYChart.Series<>();
+//        intakeSeries.setName("Devices Intaken");
+//        XYChart.Series<String, Number> processedSeries = new XYChart.Series<>();
+//        processedSeries.setName("Devices Processed");
+//
+//        for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
+//            String dayString = date.toString();
+//            int[] counts = dailyCounts.getOrDefault(dayString, new int[]{0, 0});
+//            intakeSeries.getData().add(new XYChart.Data<>(dayString, counts[0]));
+//            processedSeries.getData().add(new XYChart.Data<>(dayString, counts[1]));
+//        }
+//
+//        return List.of(intakeSeries, processedSeries);
+//    }
+    public Map<String, int[]> getIntakeVsProcessedData(LocalDate startDate, LocalDate endDate) throws SQLException {
         Map<String, int[]> dailyCounts = new LinkedHashMap<>();
 
-        // Query 1: The alias 'day' is now correctly quoted as "day".
         String intakeSql = """
                     SELECT
                         p.receive_date AS "day",
@@ -110,7 +174,6 @@ public class DashboardDataService {
                     ORDER BY p.receive_date ASC;
                 """;
 
-        // Query 2: The alias 'day' is also correctly quoted here.
         String processedSql = """
                     SELECT
                         CAST(ds.last_update AS DATE) AS "day",
@@ -124,8 +187,8 @@ public class DashboardDataService {
 
         try (Connection conn = DatabaseConnection.getInventoryConnection()) {
             try (PreparedStatement stmt = conn.prepareStatement(intakeSql)) {
-                stmt.setString(1, startDate.toString());
-                stmt.setString(2, endDate.toString());
+                stmt.setDate(1, java.sql.Date.valueOf(startDate));
+                stmt.setDate(2, java.sql.Date.valueOf(endDate));
                 ResultSet rs = stmt.executeQuery();
                 while (rs.next()) {
                     String day = rs.getString("day");
@@ -145,20 +208,8 @@ public class DashboardDataService {
                 }
             }
         }
-
-        XYChart.Series<String, Number> intakeSeries = new XYChart.Series<>();
-        intakeSeries.setName("Devices Intaken");
-        XYChart.Series<String, Number> processedSeries = new XYChart.Series<>();
-        processedSeries.setName("Devices Processed");
-
-        for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
-            String dayString = date.toString();
-            int[] counts = dailyCounts.getOrDefault(dayString, new int[]{0, 0});
-            intakeSeries.getData().add(new XYChart.Data<>(dayString, counts[0]));
-            processedSeries.getData().add(new XYChart.Data<>(dayString, counts[1]));
-        }
-
-        return List.of(intakeSeries, processedSeries);
+        // The method now correctly returns the raw data map.
+        return dailyCounts;
     }
 
     public List<PieChart.Data> getProcessedBreakdownData(String dateFilterClause) throws SQLException {

@@ -31,49 +31,36 @@ public class DeviceImportService {
     private static final Logger logger = LoggerFactory.getLogger(DeviceImportService.class);
     private final iPadProvisioningDAO dao = new iPadProvisioningDAO();
 
-    /**
-     * Imports devices from a single file, merging with existing data.
-     * This method is now also used by the iPad Provisioning tab.
-     */
     public int importFromFile(File file) throws IOException, SQLException {
-        // Step 1: Read the new data from the file.
-        List<BulkDevice> devicesFromFile = assettracking.ui.ExcelReader.readDeviceFile(file);
+        List<BulkDevice> devicesFromFile = streamExcelData(file);
         if (devicesFromFile.isEmpty()) {
             return 0;
         }
-        // Step 2: Before writing to the database, merge the new data with any existing data.
-        // This prevents accidental deletion of columns that might be missing in the new file.
         List<BulkDevice> hydratedDevices = mergeWithExistingData(devicesFromFile);
-        // Step 3: Upsert the safe, merged list into the database.
         dao.upsertBulkDevices(hydratedDevices);
-
         return hydratedDevices.size();
     }
 
-    /**
-     * Processes a single file: reads it, merges with DB data, validates, and upserts.
-     * This is now public to be used by FolderImportTask.
-     */
     public ImportResult processAndUpsertData(File file) throws IOException, CsvException, SQLException {
+        logger.info("--- Starting Import Process for File: {} ---", file.getName());
         List<BulkDevice> parsedDevices = file.getName().toLowerCase().endsWith(".csv") ? streamCsvData(file) : streamExcelData(file);
         if (parsedDevices.isEmpty()) {
+            logger.warn("No devices were parsed from file: {}.", file.getName());
             return new ImportResult(file, 0, Collections.emptyList());
         }
-
+        logger.info("Parsed {} devices from {}. Merging with existing database data...", parsedDevices.size(), file.getName());
         List<BulkDevice> hydratedDevices = mergeWithExistingData(parsedDevices);
-
+        logger.info("Validating {} merged devices...", hydratedDevices.size());
         DeviceValidationResult validationResult = validateDevices(hydratedDevices);
         int successfulCount = 0;
         if (!validationResult.validDevices().isEmpty()) {
+            logger.info("Upserting {} valid devices to the database...", validationResult.validDevices().size());
             successfulCount = performDatabaseUpsert(validationResult.validDevices());
         }
+        logger.info("--- Finished Import Process for File: {} ---", file.getName());
         return new ImportResult(file, successfulCount, validationResult.errors());
     }
 
-    /**
-     * Finds all valid import files within a list of directories.
-     * This is now public to be used by FolderImportTask.
-     */
     public List<File> findAllDeviceFiles(List<String> folderPaths) throws IOException {
         List<File> foundFiles = new ArrayList<>();
         for (String path : folderPaths) {
@@ -87,18 +74,28 @@ public class DeviceImportService {
             }
         }
         foundFiles.sort(Comparator.comparingLong(File::lastModified));
+        logger.info("Found {} files to process. Order (oldest to newest):", foundFiles.size());
+        for (File f : foundFiles) {
+            logger.info("  - {}", f.getName());
+        }
         return foundFiles;
     }
 
-    // --- Private helper methods below are unchanged ---
-
     private List<BulkDevice> mergeWithExistingData(List<BulkDevice> parsedDevices) throws SQLException {
+        List<String> serialsToFetch = parsedDevices.stream().map(BulkDevice::getSerialNumber).collect(Collectors.toList());
+
+        Map<String, BulkDevice> existingDevicesMap = dao.findDevicesBySerials(serialsToFetch);
+        logger.info("Found {} existing devices in the database out of {} parsed from the file.", existingDevicesMap.size(), parsedDevices.size());
+
         List<BulkDevice> hydratedList = new ArrayList<>();
         for (BulkDevice parsed : parsedDevices) {
-            Optional<BulkDevice> existingOpt = dao.findDeviceBySerial(parsed.getSerialNumber());
-            if (existingOpt.isPresent()) {
-                BulkDevice existing = existingOpt.get();
-                hydratedList.add(new BulkDevice(parsed.getSerialNumber(), (parsed.getImei() != null && !parsed.getImei().isEmpty()) ? parsed.getImei() : existing.getImei(), (parsed.getIccid() != null && !parsed.getIccid().isEmpty()) ? parsed.getIccid() : existing.getIccid(), (parsed.getCapacity() != null && !parsed.getCapacity().isEmpty()) ? parsed.getCapacity() : existing.getCapacity(), (parsed.getDeviceName() != null && !parsed.getDeviceName().isEmpty()) ? parsed.getDeviceName() : existing.getDeviceName(), parsed.getLastImportDate()));
+            BulkDevice existing = existingDevicesMap.get(parsed.getSerialNumber());
+            if (existing != null) {
+                String mergedImei = (parsed.getImei() != null && !parsed.getImei().isEmpty()) ? parsed.getImei() : existing.getImei();
+                String mergedIccid = (parsed.getIccid() != null && !parsed.getIccid().isEmpty()) ? parsed.getIccid() : existing.getIccid();
+                String mergedCapacity = (parsed.getCapacity() != null && !parsed.getCapacity().isEmpty()) ? parsed.getCapacity() : existing.getCapacity();
+                String mergedDeviceName = (parsed.getDeviceName() != null && !parsed.getDeviceName().isEmpty()) ? parsed.getDeviceName() : existing.getDeviceName();
+                hydratedList.add(new BulkDevice(parsed.getSerialNumber(), mergedImei, mergedIccid, mergedCapacity, mergedDeviceName, parsed.getLastImportDate()));
             } else {
                 hydratedList.add(parsed);
             }
@@ -110,21 +107,92 @@ public class DeviceImportService {
         List<BulkDevice> devices = new ArrayList<>();
         String now = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
         try (FileInputStream fis = new FileInputStream(file); Workbook workbook = StreamingReader.builder().rowCacheSize(100).bufferSize(4096).open(fis)) {
-            for (Sheet sheet : workbook) {
-                Map<String, Integer> headerMap = null;
-                for (Row row : sheet) {
-                    if (headerMap == null) {
-                        headerMap = getHeaderMap(row);
-                        if (!headerMap.containsKey("serial number") && !headerMap.containsKey("serial")) {
-                            break;
-                        }
+            if (workbook.getNumberOfSheets() == 0) {
+                logger.warn("Excel file '{}' is empty and has no sheets.", file.getName());
+                return devices;
+            }
+            Sheet sheet = workbook.getSheetAt(0);
+            Map<String, Integer> headerMap = null;
+            for (Row row : sheet) {
+                if (headerMap == null) {
+                    Map<String, Integer> potentialHeaders = getHeaderMap(row);
+                    if (potentialHeaders.containsKey("serial") || potentialHeaders.containsKey("serial number")) {
+                        headerMap = potentialHeaders;
+                        continue;
+                    } else {
                         continue;
                     }
-                    processRow(row, headerMap, now).ifPresent(devices::add);
                 }
+                processRow(row, headerMap, now).ifPresent(devices::add);
+            }
+            if (headerMap == null) {
+                logger.error("Required 'Serial Number' or 'Serial' column not found in the first sheet of file {}. Aborting file read.", file.getName());
             }
         }
         return devices;
+    }
+
+    private Optional<BulkDevice> processRow(Row row, Map<String, Integer> headers, String now) {
+        String serial = getCellValue(row, headers, "serial number", "serial");
+        if (serial == null || serial.isEmpty()) return Optional.empty();
+
+        String rawImei = getCleanedNumericValue(row, headers, "imei/meid", "imei");
+        String rawSim = getCleanedNumericValue(row, headers, "iccid", "sim");
+        String finalImei = null;
+        String finalSim = null;
+
+        if (rawImei != null && !rawImei.isEmpty()) {
+            if (rawImei.length() == 15) {
+                finalImei = rawImei;
+            } else if (rawImei.length() >= 18 && rawImei.length() <= 20) {
+                finalSim = rawImei;
+            }
+        }
+
+        if (rawSim != null && !rawSim.isEmpty()) {
+            if (rawSim.length() == 15) {
+                if (finalImei == null) finalImei = rawSim;
+            } else if (rawSim.length() >= 18 && rawSim.length() <= 20) {
+                if (finalSim == null) finalSim = rawSim;
+            }
+        }
+
+        logger.debug("Final values for serial {} -> IMEI: [{}], SIM: [{}]", serial, finalImei, finalSim);
+
+        return Optional.of(new BulkDevice(serial.toUpperCase(), finalImei, finalSim, getCellValue(row, headers, "capacity"), getCellValue(row, headers, "name", "device name"), now));
+    }
+
+    private Map<String, Integer> getHeaderMap(Row headerRow) {
+        Map<String, Integer> map = new HashMap<>();
+        if (headerRow != null) {
+            for (Cell cell : headerRow) {
+                map.put(new DataFormatter().formatCellValue(cell).trim().toLowerCase(), cell.getColumnIndex());
+            }
+        }
+        return map;
+    }
+
+    private String getCellValue(Row row, Map<String, Integer> headers, String... possibleNames) {
+        for (String name : possibleNames) {
+            Integer index = headers.get(name);
+            if (index != null) {
+                Cell cell = row.getCell(index);
+                if (cell != null && cell.getCellType() != CellType.BLANK) {
+                    return switch (cell.getCellType()) {
+                        case NUMERIC -> new java.math.BigDecimal(cell.getNumericCellValue()).toPlainString();
+                        case STRING -> cell.getStringCellValue().trim();
+                        default -> new DataFormatter().formatCellValue(cell).trim();
+                    };
+                }
+            }
+        }
+        return null;
+    }
+
+    private String getCleanedNumericValue(Row row, Map<String, Integer> headers, String... possibleNames) {
+        String val = getCellValue(row, headers, possibleNames);
+        if (val == null) return null;
+        return val.replaceAll("[^0-9]", "");
     }
 
     private List<BulkDevice> streamCsvData(File file) throws IOException, CsvException {
@@ -148,62 +216,39 @@ public class DeviceImportService {
         return devices;
     }
 
-    private Optional<BulkDevice> processRow(Row row, Map<String, Integer> headers, String now) {
-        String serial = getCellValue(row, headers, "serial number", "serial");
-        if (serial == null || serial.isEmpty()) return Optional.empty();
-        String iccid = getCleanedNumericValue(row, headers, "iccid", "sim");
-        if (iccid != null && (iccid.length() < 18 || iccid.length() > 20)) {
-            iccid = null;
-        }
-        return Optional.of(new BulkDevice(serial.toUpperCase(), getCleanedNumericValue(row, headers, "imei/meid", "imei"), iccid, getCellValue(row, headers, "capacity"), getCellValue(row, headers, "name", "device name"), now));
-    }
-
     private Optional<BulkDevice> processCsvRow(String[] line, Map<String, Integer> headers, String now) {
         String serial = getCsvValue(line, headers, "serial number", "serial");
         if (serial == null || serial.isEmpty()) return Optional.empty();
-        String iccid = getCleanedNumericCsvValue(line, headers, "iccid", "sim");
-        if (iccid != null && (iccid.length() < 18 || iccid.length() > 20)) {
-            iccid = null;
-        }
-        return Optional.of(new BulkDevice(serial.toUpperCase(), getCleanedNumericCsvValue(line, headers, "imei/meid", "imei"), iccid, getCsvValue(line, headers, "capacity"), getCsvValue(line, headers, "name", "device name"), now));
-    }
 
-    private Map<String, Integer> getHeaderMap(Row headerRow) {
-        Map<String, Integer> map = new HashMap<>();
-        if (headerRow != null) {
-            for (Cell cell : headerRow) {
-                map.put(new DataFormatter().formatCellValue(cell).trim().toLowerCase(), cell.getColumnIndex());
+        String rawImei = getCleanedNumericCsvValue(line, headers, "imei/meid", "imei");
+        String rawSim = getCleanedNumericCsvValue(line, headers, "iccid", "sim");
+        String finalImei = null;
+        String finalSim = null;
+
+        if (rawImei != null && !rawImei.isEmpty()) {
+            if (rawImei.length() == 15) {
+                finalImei = rawImei;
+            } else if (rawImei.length() >= 18 && rawImei.length() <= 20) {
+                finalSim = rawImei;
             }
         }
-        return map;
-    }
 
-    private String getCellValue(Row row, Map<String, Integer> headers, String... possibleNames) {
-        for (String name : possibleNames) {
-            if (headers.containsKey(name)) {
-                Cell cell = row.getCell(headers.get(name));
-                if (cell != null) {
-                    return new DataFormatter().formatCellValue(cell).trim();
-                }
+        if (rawSim != null && !rawSim.isEmpty()) {
+            if (rawSim.length() == 15) {
+                if (finalImei == null) finalImei = rawSim;
+            } else if (rawSim.length() >= 18 && rawSim.length() <= 20) {
+                if (finalSim == null) finalSim = rawSim;
             }
         }
-        return null;
-    }
 
-    private String getCleanedNumericValue(Row row, Map<String, Integer> headers, String... possibleNames) {
-        String val = getCellValue(row, headers, possibleNames);
-        if (val == null) return null;
-        if (val.endsWith(".0")) val = val.substring(0, val.length() - 2);
-        return val.replaceAll("[^0-9]", "");
+        return Optional.of(new BulkDevice(serial.toUpperCase(), finalImei, finalSim, getCsvValue(line, headers, "capacity"), getCsvValue(line, headers, "name", "device name"), now));
     }
 
     private String getCsvValue(String[] line, Map<String, Integer> headers, String... possibleNames) {
         for (String name : possibleNames) {
-            if (headers.containsKey(name)) {
-                int index = headers.get(name);
-                if (index < line.length) {
-                    return line[index].trim();
-                }
+            Integer index = headers.get(name);
+            if (index != null && index < line.length && line[index] != null && !line[index].trim().isEmpty()) {
+                return line[index].trim();
             }
         }
         return null;
@@ -212,7 +257,6 @@ public class DeviceImportService {
     private String getCleanedNumericCsvValue(String[] line, Map<String, Integer> headers, String... possibleNames) {
         String val = getCsvValue(line, headers, possibleNames);
         if (val == null) return null;
-        if (val.endsWith(".0")) val = val.substring(0, val.length() - 2);
         return val.replaceAll("[^0-9]", "");
     }
 
