@@ -14,6 +14,7 @@ public class Package {
 
     /**
      * The main constructor used when loading data FROM the database.
+     * This is the constructor that was missing.
      */
     public Package(int packageId, String trackingNumber, String firstName, String lastName, String city, String state, String zipCode, LocalDate receiveDate) {
         this.packageId = packageId;

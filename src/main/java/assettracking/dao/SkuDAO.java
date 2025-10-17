@@ -256,11 +256,12 @@ public class SkuDAO {
      * Returns a list of formatted strings "SKU - Description" for display in suggestions.
      *
      * @param fragment The text typed by the user.
-     * @return A list of matching SKU suggestions.
+     * @return A list of matching SKU suggestions that are printable.
      */
     public List<String> findSkusWithSkuNumberLike(String fragment) {
         List<String> suggestions = new ArrayList<>();
-        String sql = "SELECT sku_number, description FROM SKU_Table " + "WHERE (sku_number LIKE ? OR description LIKE ?) " + "AND sku_number IS NOT NULL AND sku_number != '' " + // Ensures only printable SKUs are returned
+        // This query is stricter: it ensures that the sku_number is not null or empty.
+        String sql = "SELECT sku_number, description FROM SKU_Table " + "WHERE (sku_number LIKE ? OR description LIKE ?) " + "AND sku_number IS NOT NULL AND sku_number != '' " + // <-- THE CRITICAL FIX
                 "LIMIT 15";
         try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
             String queryFragment = "%" + fragment + "%";
@@ -277,7 +278,7 @@ public class SkuDAO {
                 }
             }
         } catch (SQLException e) {
-            System.err.println("Database error: " + e.getMessage());
+            System.err.println("Database error finding printable SKUs: " + e.getMessage());
         }
         return suggestions;
     }

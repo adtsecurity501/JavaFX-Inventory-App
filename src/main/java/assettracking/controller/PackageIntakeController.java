@@ -22,6 +22,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.Arrays;
+import java.util.Optional;
 
 public class PackageIntakeController {
 
@@ -48,7 +49,7 @@ public class PackageIntakeController {
     @FXML
     private void initialize() {
         zipField.focusedProperty().addListener((obs, oldVal, newVal) -> {
-            if (!newVal) { // Focus lost
+            if (!newVal) {
                 handleZipLookup();
             }
         });
@@ -60,7 +61,6 @@ public class PackageIntakeController {
         String rawTracking = trackingField.getText().trim();
         String currentTracking = rawTracking.length() > 14 ? rawTracking.substring(rawTracking.length() - 14) : rawTracking;
         trackingField.setText(currentTracking);
-
         trackingErrorLabel.setText("");
         startButton.setDisable(false);
 
@@ -69,32 +69,13 @@ public class PackageIntakeController {
             return;
         }
 
-        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement("SELECT * FROM Packages WHERE tracking_number = ?")) {
-            stmt.setString(1, currentTracking);
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next()) {
-                Package existingPkg = new Package(rs.getInt("package_id"), rs.getString("tracking_number"), rs.getString("first_name"), rs.getString("last_name"), rs.getString("city"), rs.getString("state"), rs.getString("zip_code"), rs.getDate("receive_date").toLocalDate());
-                boolean openExisting = StageManager.showConfirmationDialog(getOwnerWindow(), "Duplicate Package Found", "A package with this tracking number already exists in the database.", "Do you want to open the existing package details?");
-                if (openExisting) {
-                    openPackageDetailWindow(existingPkg);
-                    clearForm();
-                } else {
-                    trackingErrorLabel.setText("Package already exists.");
-                    startButton.setDisable(true);
-                }
-                return;
-            }
-        } catch (SQLException e) {
-            showAlert(Alert.AlertType.ERROR, "Database Error", "Error checking for duplicate package: " + e.getMessage());
+        Optional<Package> existingPkgOpt = packageDAO.findPackageByTracking(currentTracking);
+        if (existingPkgOpt.isPresent()) {
+            handleExistingPackage(existingPkgOpt.get());
             return;
         }
 
-        // --- THIS IS THE FIX ---
-        // The RIGHT() function is standard and works in both H2 and PostgreSQL,
-        // avoiding the H2-specific internal operations.
         String returnLabelSql = "SELECT contact_name, city, state, zip_code FROM Return_Labels WHERE RIGHT(tracking_number, 14) = ?";
-        // --- END OF FIX ---
-
         try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(returnLabelSql)) {
             stmt.setString(1, currentTracking);
             ResultSet rs = stmt.executeQuery();
@@ -121,16 +102,30 @@ public class PackageIntakeController {
             return;
         }
 
-        // This part now only runs if the tracking number is new
-        int packageId = packageDAO.addPackage(tracking, firstNameField.getText().trim(), lastNameField.getText().trim(), cityField.getText().trim(), stateField.getText().trim(), zipField.getText().trim(), LocalDate.now());
+        Optional<Package> existingPkgOpt = packageDAO.findPackageByTracking(tracking);
+        if (existingPkgOpt.isPresent()) {
+            handleExistingPackage(existingPkgOpt.get());
+            return;
+        }
 
+        int packageId = packageDAO.addPackage(tracking, firstNameField.getText().trim(), lastNameField.getText().trim(), cityField.getText().trim(), stateField.getText().trim(), zipField.getText().trim(), LocalDate.now());
         if (packageId != -1) {
             Package pkg = new Package(packageId, tracking, firstNameField.getText().trim(), lastNameField.getText().trim(), cityField.getText().trim(), stateField.getText().trim(), zipField.getText().trim(), LocalDate.now());
             openPackageDetailWindow(pkg);
             clearForm();
         } else {
-            // This alert will now correctly trigger for other potential insert errors, as duplicates are handled above.
-            showAlert(Alert.AlertType.ERROR, "Error", "Failed to create package. It might already exist.");
+            showAlert(Alert.AlertType.ERROR, "Error", "Failed to create package in the database.");
+        }
+    }
+
+    private void handleExistingPackage(Package existingPkg) {
+        boolean openExisting = StageManager.showConfirmationDialog(getOwnerWindow(), "Duplicate Package Found", "A package with this tracking number already exists in the database.", "Do you want to open the existing package details?");
+        if (openExisting) {
+            openPackageDetailWindow(existingPkg);
+            clearForm();
+        } else {
+            trackingErrorLabel.setText("Package already exists.");
+            startButton.setDisable(true);
         }
     }
 
@@ -162,7 +157,6 @@ public class PackageIntakeController {
             Stage stage = StageManager.createCustomStage(getOwnerWindow(), "Package Details", root);
             stage.show();
         } catch (IOException e) {
-            System.err.println("Service error: " + e.getMessage());
             showAlert(Alert.AlertType.ERROR, "Error", "Could not open package detail window.");
         }
     }

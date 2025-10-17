@@ -146,15 +146,14 @@ public class LabelPrintingController {
 
     // --- UPDATED: Now creates and stores popups ---
     private void setupAutocomplete() {
-        imageSkuPopup = new AutoCompletePopup(imageSkuField, () -> skuDAO.findSkusLike(imageSkuField.getText())).setOnSuggestionSelected(selectedValue -> {
+        // This now calls the new, stricter search method
+        imageSkuPopup = new AutoCompletePopup(imageSkuField, () -> skuDAO.findSkusWithSkuNumberLike(imageSkuField.getText())).setOnSuggestionSelected(selectedValue -> {
             String sku = selectedValue.split(" - ")[0];
-            // --- THIS IS THE NEW HELPER METHOD CALL ---
             selectAndSetText(imageSkuPopup, imageSkuField, sku);
         });
 
-        imageDeviceSkuPopup = new AutoCompletePopup(imageDeviceSkuField, () -> skuDAO.findSkusLike(imageDeviceSkuField.getText())).setOnSuggestionSelected(selectedValue -> {
+        imageDeviceSkuPopup = new AutoCompletePopup(imageDeviceSkuField, () -> skuDAO.findSkusWithSkuNumberLike(imageDeviceSkuField.getText())).setOnSuggestionSelected(selectedValue -> {
             String sku = selectedValue.split(" - ")[0];
-            // --- THIS IS THE NEW HELPER METHOD CALL ---
             selectAndSetText(imageDeviceSkuPopup, imageDeviceSkuField, sku);
         });
     }
@@ -172,11 +171,13 @@ public class LabelPrintingController {
 
     // --- All other methods remain the same ---
     private void setupSearchableSkuFields() {
+        // This single call will now apply the fix to all four search panes
         setupSearchableSkuField(deploySkuSearchField, deploySkuListView, deploySkuField, deployDescriptionField, deploySerialField);
         setupSearchableSkuField(singleSkuSearchField, singleSkuListView, singleSkuField, null, singleSkuField);
         setupSearchableSkuField(multiSkuSearchField, multiSkuListView, multiSkuField, null, multiCopiesField);
         setupSearchableSkuField(serialSkuSearchField, serialSkuListView, serialSkuField, null, serialSerialField);
     }
+
 
     private void setupSearchableSkuField(TextField searchField, ListView<String> listView, TextField targetSkuField, TextField targetDescriptionField, Control nextFocusTarget) {
         searchField.textProperty().addListener((obs, oldVal, newVal) -> {
@@ -184,9 +185,12 @@ public class LabelPrintingController {
                 listView.getItems().clear();
                 return;
             }
-            List<String> suggestions = skuDAO.findSkusLike(newVal);
+            // This now calls the new, stricter search method
+            List<String> suggestions = skuDAO.findSkusWithSkuNumberLike(newVal);
             listView.setItems(FXCollections.observableArrayList(suggestions));
         });
+
+        // The rest of this method is unchanged
         listView.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
             if (newSelection != null) {
                 String[] parts = newSelection.split(" - ", 2);

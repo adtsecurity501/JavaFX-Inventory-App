@@ -72,12 +72,14 @@
                     <Label text="Step 1: Find and Select SKU"/>
                     <TextField fx:id="singleSkuSearchField" promptText="Search for SKU or Description..."/>
                     <ListView fx:id="singleSkuListView" prefHeight="120.0"/>
+
+                    <!-- THIS IS THE FIX: Added the visible TextField and modified the button -->
+                    <TextField fx:id="singleSkuField" editable="false" promptText="Selected SKU will appear here"/>
+
                     <Label text="Step 2: Print"/>
-                    <Button onAction="#handlePrintSingle" styleClass="accent" text="Print 1 Label for Selected SKU">
-                        <graphic>
-                            <TextField fx:id="singleSkuField" visible="false" managed="false"/>
-                        </graphic>
-                    </Button>
+                    <Button onAction="#handlePrintSingle" styleClass="accent" text="Print 1 Label for Selected SKU"/>
+                    <!-- The old hidden TextField inside the button is no longer needed -->
+
                 </VBox>
             </ScrollPane>
 
