@@ -356,29 +356,31 @@ public class BoxIdViewerController {
             protected List<BoxIdSummary> call() throws Exception {
                 List<BoxIdSummary> results = new ArrayList<>();
 
-                // This base query is now corrected to only count the LATEST status for each unique device.
+                // --- THIS IS THE CORRECTED QUERY ---
+                // It now only counts the LATEST status for each unique device.
                 String sql = """
-                            SELECT
-                                ds.box_id,
-                                COUNT(DISTINCT re.serial_number) as item_count,
-                                SUM(CASE WHEN ds.sub_status LIKE '%%Picked Up' THEN 0 ELSE 1 END) as non_archived_count
-                            FROM Device_Status ds
-                            JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id
-                            -- This subquery join ensures we are only looking at the most recent status record for each serial number
-                            JOIN (
-                                SELECT serial_number, MAX(receipt_id) as max_receipt_id
-                                FROM Receipt_Events
-                                GROUP BY serial_number
-                            ) latest ON re.serial_number = latest.serial_number AND re.receipt_id = latest.max_receipt_id
-                            WHERE ds.box_id IS NOT NULL AND ds.box_id != ''
-                            GROUP BY ds.box_id
-                        """;
+                        SELECT
+                            ds.box_id,
+                            COUNT(DISTINCT re.serial_number) as item_count,
+                            SUM(CASE WHEN ds.sub_status LIKE '%%Picked Up' THEN 0 ELSE 1 END) as non_archived_count
+                        FROM Device_Status ds
+                        JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id
+                        -- This subquery join ensures we are only looking at the most recent status record for each serial number
+                        JOIN (
+                            SELECT serial_number, MAX(receipt_id) as max_receipt_id
+                            FROM Receipt_Events
+                            GROUP BY serial_number
+                        ) latest ON re.serial_number = latest.serial_number AND re.receipt_id = latest.max_receipt_id
+                        WHERE ds.box_id IS NOT NULL AND ds.box_id != ''
+                        GROUP BY ds.box_id
+                    """;
 
                 if (!showArchivedCheck.isSelected()) {
                     sql += " HAVING non_archived_count > 0";
                 }
 
                 sql += " ORDER BY ds.box_id";
+                // --- END OF CORRECTION ---
 
                 try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql); ResultSet rs = stmt.executeQuery()) {
                     while (rs.next()) {

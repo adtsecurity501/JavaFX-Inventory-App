@@ -19,7 +19,7 @@ public class ScanUpdateService {
     public UpdateResult updateBySerial(String serial, String newStatus, String newSubStatus, String note, String boxId) throws SQLException {
         try (Connection conn = DatabaseConnection.getInventoryConnection()) {
 
-            // This is the missing part: It declares and finds the receiptId
+            // Step 1: Find the most recent receipt_id for the given serial number.
             String queryReceiptId = "SELECT receipt_id FROM Receipt_Events WHERE serial_number = ? ORDER BY receipt_id DESC LIMIT 1";
             int receiptId = -1;
             try (PreparedStatement stmt = conn.prepareStatement(queryReceiptId)) {
@@ -30,7 +30,7 @@ public class ScanUpdateService {
                 }
             }
 
-            // Now, the 'if' statement will work correctly
+            // Step 2: If a receipt was found, update the status using that specific receipt_id.
             if (receiptId != -1) {
                 String updateQuery = "UPDATE Device_Status SET status = ?, sub_status = ?, last_update = CURRENT_TIMESTAMP, change_log = ?, box_id = ? WHERE receipt_id = ?";
                 try (PreparedStatement stmt = conn.prepareStatement(updateQuery)) {
@@ -38,7 +38,7 @@ public class ScanUpdateService {
                     stmt.setString(2, newSubStatus);
                     stmt.setString(3, note.isEmpty() ? null : note);
                     stmt.setString(4, boxId.isEmpty() ? null : boxId);
-                    stmt.setInt(5, receiptId);
+                    stmt.setInt(5, receiptId); // Use the specific receipt_id here
                     stmt.executeUpdate();
                     return UpdateResult.SUCCESS;
                 }
@@ -54,8 +54,7 @@ public class ScanUpdateService {
                     SELECT ds.receipt_id FROM Device_Status ds
                     WHERE ds.box_id = ?
                 """;
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(findSql)) {
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(findSql)) {
             stmt.setString(1, location);
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
@@ -69,13 +68,9 @@ public class ScanUpdateService {
         if (receiptIds == null || receiptIds.isEmpty()) return 0;
 
         String placeholders = String.join(",", Collections.nCopies(receiptIds.size(), "?"));
-        String updateSql = String.format(
-                "UPDATE Device_Status SET status = ?, sub_status = ?, last_update = CURRENT_TIMESTAMP, change_log = ?, box_id = NULL WHERE receipt_id IN (%s)",
-                placeholders
-        );
+        String updateSql = String.format("UPDATE Device_Status SET status = ?, sub_status = ?, last_update = CURRENT_TIMESTAMP, change_log = ?, box_id = NULL WHERE receipt_id IN (%s)", placeholders);
 
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(updateSql)) {
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(updateSql)) {
             stmt.setString(1, newStatus);
             stmt.setString(2, newSubStatus);
             stmt.setString(3, note.isEmpty() ? null : note);

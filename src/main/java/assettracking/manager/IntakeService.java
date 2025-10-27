@@ -130,10 +130,10 @@ public class IntakeService {
         }
     }
 
+
     public void processSingleAsset(Connection conn, String serial, AssetInfo details, boolean isScrap, String scrapStatus, String scrapSubStatus, String scrapReason, String boxId) throws SQLException {
         // This MERGE command replaces the old "check-then-insert" logic.
         // It will now UPDATE the record if the serial number exists, or INSERT a new one if it does not.
-        // This ensures that any changes to the description or other fields during intake are saved.
         String sql = "MERGE INTO Physical_Assets (serial_number, imei, category, make, description, part_number) KEY(serial_number) VALUES (?, ?, ?, ?, ?, ?)";
         try (PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, serial);
@@ -205,13 +205,18 @@ public class IntakeService {
             finalSubStatus = "In Evaluation";
         }
 
-        String statusSql = "INSERT INTO Device_Status (receipt_id, status, sub_status, last_update) VALUES (?, ?, ?, CURRENT_TIMESTAMP)";
+        // --- THIS IS THE FIX ---
+        // The SQL statement now includes the box_id column.
+        String statusSql = "INSERT INTO Device_Status (receipt_id, status, sub_status, last_update, box_id) VALUES (?, ?, ?, CURRENT_TIMESTAMP, ?)";
         try (PreparedStatement stmt = conn.prepareStatement(statusSql)) {
             stmt.setInt(1, receiptId);
             stmt.setString(2, finalStatus);
             stmt.setString(3, finalSubStatus);
+            // The boxId is now correctly passed to the statement. It will be null if not provided.
+            stmt.setString(4, boxId);
             stmt.executeUpdate();
         }
+        // --- END OF FIX ---
 
         if (finalReason != null && !finalReason.isBlank()) {
             String dispositionSql = "INSERT INTO Disposition_Info (receipt_id, other_disqualification) VALUES (?, ?)";
