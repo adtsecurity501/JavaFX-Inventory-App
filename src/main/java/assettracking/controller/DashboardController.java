@@ -92,6 +92,7 @@ public class DashboardController {
     private void setupCharts() {
         intakeSeries.setName("Devices Intaken");
         processedSeries.setName("Devices Processed");
+        // Add the series to the chart just once during initialization.
         intakeProcessedChart.getData().addAll(intakeSeries, processedSeries);
     }
 
@@ -203,9 +204,9 @@ public class DashboardController {
                     processedData.add(new XYChart.Data<>(dayString, counts[1]));
                 }
 
-                // *** THIS IS THE CORRECTED, SAFE WAY TO UPDATE THE CHART ***
-                // Simply update the data within the series. The chart is listening and will update itself.
-                // Do NOT clear the chart's main data list.
+                // *** THIS IS THE FINAL, ROBUST FIX ***
+                // Update the data *within* the series. Do NOT clear the chart's main data list.
+                // This prevents the race condition that causes the exception.
                 intakeSeries.getData().setAll(intakeData);
                 processedSeries.getData().setAll(processedData);
                 // *** END OF FIX ***

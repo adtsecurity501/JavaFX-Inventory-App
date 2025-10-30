@@ -98,7 +98,16 @@ public class iPadProvisioningController {
         stageEmailCol.setCellValueFactory(new PropertyValueFactory<>("employeeEmail"));
         stageSimCol.setCellFactory(TextFieldTableCell.forTableColumn());
         stageDeviceTypeCol.setCellValueFactory(new PropertyValueFactory<>("deviceType"));
-        stageDeviceTypeCol.setCellFactory(ComboBoxTableCell.forTableColumn("iPad", "Tablet"));
+
+        // *** THIS IS THE MODIFIED SECTION ***
+        // Instead of a direct factory, we use a callback to create the cell and add our custom style class.
+        stageDeviceTypeCol.setCellFactory(col -> {
+            ComboBoxTableCell<StagedDevice, String> cell = new ComboBoxTableCell<>("iPad", "Tablet");
+            cell.getStyleClass().add("combo-box-table-cell");
+            return cell;
+        });
+        // *** END OF MODIFIED SECTION ***
+
         stageDeviceTypeCol.setOnEditCommit(event -> event.getRowValue().setDeviceType(event.getNewValue()));
         stagingTable.setItems(stagedDeviceList);
         stagingTable.setRowFactory(tv -> new TableRow<>() {

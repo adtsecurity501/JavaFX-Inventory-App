@@ -62,12 +62,12 @@
             </VBox>
         </SplitPane>
     </center>
-    <!-- NEW BOTTOM BUTTON BAR -->
     <bottom>
         <HBox alignment="CENTER_RIGHT" spacing="10" style="-fx-padding: 10 0 0 0;">
             <Label fx:id="statusLabel" HBox.hgrow="ALWAYS" maxWidth="Infinity"/>
             <Button fx:id="printLabelButton" onAction="#handlePrintLabel" text="Print Box Label"/>
-            <Button fx:id="exportCsvButton" onAction="#handleExportCsv" text="Export Contents..."/>
+            <!-- *** THIS IS THE MODIFIED BUTTON *** -->
+            <Button fx:id="exportButton" onAction="#handleExport" text="Export Contents..."/>
             <Button fx:id="updateStatusButton" onAction="#handleUpdateStatus" text="Bulk Update Status..."
                     styleClass="accent"/>
         </HBox>

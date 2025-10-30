@@ -24,12 +24,16 @@ import javafx.scene.layout.GridPane;
 import javafx.stage.FileChooser;
 import javafx.stage.Window;
 import javafx.util.Pair;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import javax.print.PrintService;
 import javax.print.PrintServiceLookup;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -71,7 +75,7 @@ public class BoxIdViewerController {
     @FXML
     private Button printLabelButton;
     @FXML
-    private Button exportCsvButton;
+    private Button exportButton;
     @FXML
     private Button updateStatusButton;
     @FXML
@@ -84,14 +88,14 @@ public class BoxIdViewerController {
 
 
         printLabelButton.setDisable(true);
-        exportCsvButton.setDisable(true);
+        exportButton.setDisable(true);
         updateStatusButton.setDisable(true);
         detailTable.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 
         summaryTable.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
             boolean isBoxSelected = newSelection != null;
             printLabelButton.setDisable(!isBoxSelected);
-            exportCsvButton.setDisable(!isBoxSelected);
+            exportButton.setDisable(!isBoxSelected);
             updateStatusButton.setDisable(!isBoxSelected);
 
             if (isBoxSelected) {
@@ -271,23 +275,43 @@ public class BoxIdViewerController {
         });
     }
 
+    // *** THIS IS THE MODIFIED METHOD ***
     @FXML
-    private void handleExportCsv() {
+    private void handleExport() {
         BoxIdSummary selectedBox = summaryTable.getSelectionModel().getSelectedItem();
         if (selectedBox == null) return;
 
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Save Box Contents");
-        fileChooser.setInitialFileName("Box_" + selectedBox.boxId() + "_Contents.csv");
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV Files", "*.csv"));
+        fileChooser.setInitialFileName("Box_" + selectedBox.boxId() + "_Contents.xlsx");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Excel Files (*.xlsx)", "*.xlsx"));
         File file = fileChooser.showSaveDialog(getOwnerWindow());
 
         if (file != null) {
-            try (PrintWriter writer = new PrintWriter(file)) {
-                writer.println("SerialNumber,Status,SubStatus");
+            try (Workbook workbook = new XSSFWorkbook(); FileOutputStream fileOut = new FileOutputStream(file)) {
+                Sheet sheet = workbook.createSheet("Box Contents");
+                // Create header row
+                Row headerRow = sheet.createRow(0);
+                headerRow.createCell(0).setCellValue("SerialNumber");
+                headerRow.createCell(1).setCellValue("Status");
+                headerRow.createCell(2).setCellValue("SubStatus");
+
+                // Populate data rows
+                int rowNum = 1;
                 for (BoxIdDetail detail : detailList) {
-                    writer.printf("\"%s\",\"%s\",\"%s\"\n", detail.serialNumber(), detail.status(), detail.subStatus());
+                    Row row = sheet.createRow(rowNum++);
+                    row.createCell(0).setCellValue(detail.serialNumber());
+                    row.createCell(1).setCellValue(detail.status());
+                    row.createCell(2).setCellValue(detail.subStatus());
                 }
+
+                // Autosize columns for better readability
+                sheet.autoSizeColumn(0);
+                sheet.autoSizeColumn(1);
+                sheet.autoSizeColumn(2);
+
+                workbook.write(fileOut);
+
                 statusLabel.getStyleClass().setAll("status-label-success");
                 statusLabel.setText("Exported contents of " + selectedBox.boxId());
             } catch (IOException e) {
@@ -295,6 +319,7 @@ public class BoxIdViewerController {
             }
         }
     }
+
 
     @FXML
     private void handleUpdateStatus() {
@@ -359,21 +384,21 @@ public class BoxIdViewerController {
                 // --- THIS IS THE CORRECTED QUERY ---
                 // It now only counts the LATEST status for each unique device.
                 String sql = """
-                        SELECT
-                            ds.box_id,
-                            COUNT(DISTINCT re.serial_number) as item_count,
-                            SUM(CASE WHEN ds.sub_status LIKE '%%Picked Up' THEN 0 ELSE 1 END) as non_archived_count
-                        FROM Device_Status ds
-                        JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id
-                        -- This subquery join ensures we are only looking at the most recent status record for each serial number
-                        JOIN (
-                            SELECT serial_number, MAX(receipt_id) as max_receipt_id
-                            FROM Receipt_Events
-                            GROUP BY serial_number
-                        ) latest ON re.serial_number = latest.serial_number AND re.receipt_id = latest.max_receipt_id
-                        WHERE ds.box_id IS NOT NULL AND ds.box_id != ''
-                        GROUP BY ds.box_id
-                    """;
+                            SELECT
+                                ds.box_id,
+                                COUNT(DISTINCT re.serial_number) as item_count,
+                                SUM(CASE WHEN ds.sub_status LIKE '%%Picked Up' THEN 0 ELSE 1 END) as non_archived_count
+                            FROM Device_Status ds
+                            JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id
+                            -- This subquery join ensures we are only looking at the most recent status record for each serial number
+                            JOIN (
+                                SELECT serial_number, MAX(receipt_id) as max_receipt_id
+                                FROM Receipt_Events
+                                GROUP BY serial_number
+                            ) latest ON re.serial_number = latest.serial_number AND re.receipt_id = latest.max_receipt_id
+                            WHERE ds.box_id IS NOT NULL AND ds.box_id != ''
+                            GROUP BY ds.box_id
+                        """;
 
                 if (!showArchivedCheck.isSelected()) {
                     sql += " HAVING non_archived_count > 0";
