@@ -41,23 +41,40 @@ public class DashboardController {
 
     private final ObservableList<TopModelStat> topModelsList = FXCollections.observableArrayList();
 
-    @FXML private BarChart<String, Number> intakeProcessedChart;
-    @FXML private PieChart inventoryPieChart, deploymentBreakdownChart;
-    @FXML private Label laptopsIntakenLabel, laptopsProcessedLabel, tabletsIntakenLabel, desktopsIntakenLabel, monitorsIntakenLabel;
-    @FXML private Label tabletsProcessedLabel, desktopsProcessedLabel, monitorsProcessedLabel, totalProcessedLabel;
-    @FXML private Label laptopsDisposedLabel, tabletsDisposedLabel, desktopsDisposedLabel, monitorsDisposedLabel;
-    @FXML private Label activeTriageLabel, awaitingDisposalLabel, avgTurnaroundLabel, boxesAssembledLabel, labelsCreatedLabel;
-    @FXML private Label deviceGoalPacingLabel, monitorGoalPacingLabel, timeRangeTitleLabel, breakdownTitleLabel;
-    @FXML private Label inventoryOverviewTitleLabel, healthTitleLabel, pacingTitleLabel, topModelsTitleLabel;
-    @FXML private ToggleGroup dateRangeToggleGroup;
-    @FXML private RadioButton days7Radio;
-    @FXML private GridPane mainGridPane;
-    @FXML private ColumnConstraints leftColumn, rightColumn;
-    @FXML private ScrollPane rightScrollPane;
-    @FXML private TableView<TopModelStat> topModelsTable;
-    @FXML private TableColumn<TopModelStat, String> modelNumberCol;
-    @FXML private TableColumn<TopModelStat, Integer> modelCountCol;
-    @FXML private Label boxesAssembledTitleLabel, labelsCreatedTitleLabel;
+    @FXML
+    private BarChart<String, Number> intakeProcessedChart;
+    @FXML
+    private PieChart inventoryPieChart, deploymentBreakdownChart;
+    @FXML
+    private Label laptopsIntakenLabel, laptopsProcessedLabel, tabletsIntakenLabel, desktopsIntakenLabel, monitorsIntakenLabel;
+    @FXML
+    private Label tabletsProcessedLabel, desktopsProcessedLabel, monitorsProcessedLabel, totalProcessedLabel;
+    @FXML
+    private Label laptopsDisposedLabel, tabletsDisposedLabel, desktopsDisposedLabel, monitorsDisposedLabel;
+    @FXML
+    private Label activeTriageLabel, awaitingDisposalLabel, avgTurnaroundLabel, boxesAssembledLabel, labelsCreatedLabel;
+    @FXML
+    private Label deviceGoalPacingLabel, monitorGoalPacingLabel, timeRangeTitleLabel, breakdownTitleLabel;
+    @FXML
+    private Label inventoryOverviewTitleLabel, healthTitleLabel, pacingTitleLabel, topModelsTitleLabel;
+    @FXML
+    private ToggleGroup dateRangeToggleGroup;
+    @FXML
+    private RadioButton days7Radio;
+    @FXML
+    private GridPane mainGridPane;
+    @FXML
+    private ColumnConstraints leftColumn, rightColumn;
+    @FXML
+    private ScrollPane rightScrollPane;
+    @FXML
+    private TableView<TopModelStat> topModelsTable;
+    @FXML
+    private TableColumn<TopModelStat, String> modelNumberCol;
+    @FXML
+    private TableColumn<TopModelStat, Integer> modelCountCol;
+    @FXML
+    private Label boxesAssembledTitleLabel, labelsCreatedTitleLabel;
 
     private double weeklyDeviceGoal = 100.0;
     private double weeklyMonitorGoal = 50.0;
@@ -75,7 +92,6 @@ public class DashboardController {
     private void setupCharts() {
         intakeSeries.setName("Devices Intaken");
         processedSeries.setName("Devices Processed");
-        // This is the correct place to add the series, just once at startup.
         intakeProcessedChart.getData().addAll(intakeSeries, processedSeries);
     }
 
@@ -187,14 +203,17 @@ public class DashboardController {
                     processedData.add(new XYChart.Data<>(dayString, counts[1]));
                 }
 
+                // *** THIS IS THE CORRECTED, SAFE WAY TO UPDATE THE CHART ***
+                // Simply update the data within the series. The chart is listening and will update itself.
+                // Do NOT clear the chart's main data list.
                 intakeSeries.getData().setAll(intakeData);
                 processedSeries.getData().setAll(processedData);
+                // *** END OF FIX ***
             });
         });
         new Thread(intakeVsProcessedTask).start();
     }
 
-    // --- All other methods remain the same ---
     private void loadGranularMetrics() {
         Task<Map<String, Integer>> task = new Task<>() {
             @Override
@@ -330,7 +349,7 @@ public class DashboardController {
             String originalName = d.getName();
             if (originalName != null && !originalName.contains("%")) {
                 double percentage = (d.getPieValue() / total) * 100;
-                d.setName(String.format("%s\n%d (%.1f%%)", originalName, (int) d.getPieValue(), percentage));
+                d.setName(String.format("%s\\n%d (%.1f%%)", originalName, (int) d.getPieValue(), percentage));
             }
         });
         chart.setData(data);

@@ -38,7 +38,7 @@ import java.util.stream.Collectors;
 
 public class AddAssetDialogController {
 
-    private static Set<String> cachedCategories = null;
+    private static final Set<String> cachedCategories = null;
     private final ObservableList<AssetEntry> assetEntries = FXCollections.observableArrayList();
     private final AssetDAO assetDAO = new AssetDAO();
     private final SkuDAO skuDAO = new SkuDAO();
@@ -55,7 +55,7 @@ public class AddAssetDialogController {
     @FXML
     private VBox standardModePane, monitorModePane;
     @FXML
-    private ComboBox<String> monitorPrinterCombo, categoryBox, sellScrapStatusCombo, sellScrapSubStatusCombo;
+    private ComboBox<String> monitorPrinterCombo, sellScrapStatusCombo, sellScrapSubStatusCombo;
     @FXML
     private TextField monitorSerialField, monitorModelField, monitorDescriptionField, monitorSkuSearchField, monitorSelectedSkuField;
     @FXML
@@ -67,7 +67,7 @@ public class AddAssetDialogController {
     @FXML
     private GridPane standardMonitorPane, manualMonitorPane;
     @FXML
-    private TextField manualSerialField, manualDescriptionField, makeField, modelField, descriptionField, imeiField;
+    private TextField manualSerialField, manualDescriptionField, makeField, modelField, descriptionField, imeiField, categoryField;
     @FXML
     private TextField disqualificationField, boxIdField;
     @FXML
@@ -171,9 +171,13 @@ public class AddAssetDialogController {
     }
 
     private void setupAutocomplete() {
+        // Autocomplete for standard text fields
+        new AutoCompletePopup(makeField, () -> assetDAO.findDistinctValuesLike("make", makeField.getText()));
+        new AutoCompletePopup(categoryField, () -> assetDAO.getAllDistinctCategories().stream().filter(s -> s.toLowerCase().contains(categoryField.getText().toLowerCase())).collect(Collectors.toList()));
         descriptionPopup = new AutoCompletePopup(descriptionField, () -> assetDAO.findDescriptionsLike(descriptionField.getText())).setOnSuggestionSelected(selectedValue -> assetDAO.findSkuDetails(selectedValue, "description").ifPresent(this::populateFieldsFromSku));
         modelPopup = new AutoCompletePopup(modelField, () -> assetDAO.findModelNumbersLike(modelField.getText())).setOnSuggestionSelected(selectedValue -> assetDAO.findSkuDetails(selectedValue, "model_number").ifPresent(this::populateFieldsFromSku));
     }
+
 
     public void initDataForEdit(AssetInfo assetInfo, Runnable onSaveCallback) {
         this.isEditMode = true;
@@ -209,7 +213,7 @@ public class AddAssetDialogController {
             modelField.setText(sku.getModelNumber());
             makeField.setText(sku.getMake());
             if (sku.getCategory() != null && !sku.getCategory().isEmpty()) {
-                categoryBox.setValue(sku.getCategory());
+                categoryField.setText(sku.getCategory());
             }
             standardIntakeHandler.applyMelRule(sku.getModelNumber(), sku.getDescription());
 
@@ -323,7 +327,7 @@ public class AddAssetDialogController {
         details.setMake(makeField.getText());
         details.setModelNumber(modelField.getText());
         details.setDescription(descriptionField.getText());
-        details.setCategory(categoryBox.getValue());
+        details.setCategory(categoryField.getText());
         details.setImei(imeiField.getText());
         return details;
     }
@@ -374,7 +378,7 @@ public class AddAssetDialogController {
     public void setFormAssetDetails(AssetInfo asset) {
         Platform.runLater(() -> {
             imeiField.setText(asset.getImei());
-            categoryBox.setValue(asset.getCategory());
+            categoryField.setText(asset.getCategory());
             makeField.setText(asset.getMake());
             modelField.setText(asset.getModelNumber());
             descriptionField.setText(asset.getDescription());
@@ -389,12 +393,10 @@ public class AddAssetDialogController {
     public void initData(Package pkg, PackageDetailController parent) {
         this.currentPackage = pkg;
         this.parentController = parent;
-        loadCategories();
     }
 
     public void initDataForBulkAdd(Package pkg, List<AssetEntry> entries) {
         this.currentPackage = pkg;
-        loadCategories();
         bulkAddCheckBox.setSelected(true);
 
         Task<List<AssetEntry>> lookupTask = new Task<>() {
@@ -523,24 +525,6 @@ public class AddAssetDialogController {
 
     public ObservableList<AssetEntry> getAssetEntries() {
         return assetEntries;
-    }
-
-    private void loadCategories() {
-        if (cachedCategories != null) {
-            categoryBox.setItems(FXCollections.observableArrayList(cachedCategories));
-            return;
-        }
-        Task<Set<String>> loadCategoriesTask = new Task<>() {
-            @Override
-            protected Set<String> call() {
-                return new TreeSet<>(assetDAO.getAllDistinctCategories());
-            }
-        };
-        loadCategoriesTask.setOnSucceeded(e -> {
-            cachedCategories = loadCategoriesTask.getValue();
-            categoryBox.setItems(FXCollections.observableArrayList(cachedCategories));
-        });
-        new Thread(loadCategoriesTask).start();
     }
 
     private void setupMonitorSkuSearch() {

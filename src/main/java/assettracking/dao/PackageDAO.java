@@ -80,7 +80,7 @@ public class PackageDAO {
 
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
-                packageList.add(new Package(rs.getInt("package_id"), rs.getString("tracking_number"), rs.getString("first_name"), rs.getString("last_name"), rs.getString("city"), rs.getString("state"), rs.getString("zip_code"), LocalDate.parse(rs.getString("receive_date"))));
+                packageList.add(new Package(rs.getInt("package_id"), rs.getString("tracking_number"), rs.getString("first_name"), rs.getString("last_name"), rs.getString("city"), rs.getString("state"), rs.getString("zip_code"), rs.getDate("receive_date").toLocalDate()));
             }
         }
         return packageList;
@@ -92,11 +92,14 @@ public class PackageDAO {
 
         try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-            stmt.setString(1, "%" + trackingFilter + "%");
+            // Trim to last 14 characters, matching the intake window behavior
+            String trimmedFilter = trackingFilter != null && trackingFilter.trim().length() > 14 ? trackingFilter.trim().substring(trackingFilter.trim().length() - 14) : (trackingFilter != null ? trackingFilter.trim() : "");
+
+            stmt.setString(1, "%" + trimmedFilter + "%");
             ResultSet rs = stmt.executeQuery();
 
             while (rs.next()) {
-                packageList.add(new Package(rs.getInt("package_id"), rs.getString("tracking_number"), rs.getString("first_name"), rs.getString("last_name"), rs.getString("city"), rs.getString("state"), rs.getString("zip_code"), LocalDate.parse(rs.getString("receive_date"))));
+                packageList.add(new Package(rs.getInt("package_id"), rs.getString("tracking_number"), rs.getString("first_name"), rs.getString("last_name"), rs.getString("city"), rs.getString("state"), rs.getString("zip_code"), rs.getDate("receive_date").toLocalDate()));
             }
         }
         return packageList;
@@ -201,21 +204,22 @@ public class PackageDAO {
         StringBuilder whereClause = new StringBuilder();
 
         if (trackingFilter != null && !trackingFilter.isEmpty()) {
+            String trimmedFilter = trackingFilter.trim().length() > 14 ? trackingFilter.trim().substring(trackingFilter.trim().length() - 14) : trackingFilter.trim();
             whereClause.append(" tracking_number LIKE ?");
-            params.add("%" + trackingFilter + "%");
+            params.add("%" + trimmedFilter + "%");
         }
         if (fromDate != null) {
-            if (!whereClause.isEmpty()) whereClause.append(" AND");
+            if (whereClause.length() > 0) whereClause.append(" AND");
             whereClause.append(" receive_date >= ?");
             params.add(fromDate);
         }
         if (toDate != null) {
-            if (!whereClause.isEmpty()) whereClause.append(" AND");
+            if (whereClause.length() > 0) whereClause.append(" AND");
             whereClause.append(" receive_date <= ?");
             params.add(toDate);
         }
         String fullQuery = selectClause + fromClause;
-        if (!whereClause.isEmpty()) {
+        if (whereClause.length() > 0) {
             fullQuery += " WHERE" + whereClause;
         }
         if (!forCount) {

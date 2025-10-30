@@ -167,8 +167,28 @@ public class MachineRemovalController {
                 }
 
                 Process process = pb.start();
-                Thread outThread = new Thread(() -> new BufferedReader(new InputStreamReader(process.getInputStream())).lines().forEach(line -> Platform.runLater(() -> processOutput(line, mode, totalTargets))));
-                Thread errThread = new Thread(() -> new BufferedReader(new InputStreamReader(process.getErrorStream())).lines().forEach(line -> Platform.runLater(() -> writeLog("ERROR", line))));
+                Thread outThread = new Thread(() -> {
+                    try (BufferedReader br = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                        String line;
+                        while ((line = br.readLine()) != null) {
+                            final String ln = line;
+                            Platform.runLater(() -> processOutput(ln, mode, totalTargets));
+                        }
+                    } catch (IOException ioe) {
+                        Platform.runLater(() -> writeLog("ERROR", "Failed reading process output: " + ioe.getMessage()));
+                    }
+                });
+                Thread errThread = new Thread(() -> {
+                    try (BufferedReader br = new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
+                        String line;
+                        while ((line = br.readLine()) != null) {
+                            final String ln = line;
+                            Platform.runLater(() -> writeLog("ERROR", ln));
+                        }
+                    } catch (IOException ioe) {
+                        Platform.runLater(() -> writeLog("ERROR", "Failed reading process error: " + ioe.getMessage()));
+                    }
+                });
                 outThread.start();
                 errThread.start();
                 process.waitFor();

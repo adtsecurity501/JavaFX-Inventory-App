@@ -37,6 +37,22 @@ public final class StageManager {
         if (owner != null) {
             stage.initOwner(owner);
             stage.initModality(Modality.WINDOW_MODAL);
+            // Keep modal dialogs from minimizing or getting hidden when clicking outside
+            stage.setAlwaysOnTop(true);
+            stage.focusedProperty().addListener((obs, wasFocused, isFocused) -> {
+                if (!isFocused) {
+                    stage.setIconified(false);
+                    Platform.runLater(() -> {
+                        stage.toFront();
+                        stage.requestFocus();
+                    });
+                }
+            });
+            stage.iconifiedProperty().addListener((obs, wasIconified, isIconified) -> {
+                if (isIconified) {
+                    Platform.runLater(() -> stage.setIconified(false));
+                }
+            });
         }
 
         Label titleLabel = new Label(" " + title);
