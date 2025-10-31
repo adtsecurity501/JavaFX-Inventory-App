@@ -74,6 +74,25 @@ public class StandardIntakeHandler {
     }
 
     public void handleSave() {
+        // *** THIS IS THE NEW VALIDATION LOGIC ***
+        if (controller.isBulkAddMode()) {
+            if (controller.getAssetEntries().isEmpty() || controller.getAssetEntries().stream().allMatch(e -> e.getSerialNumber().trim().isEmpty())) {
+                StageManager.showAlert(controller.getOwnerWindow(), Alert.AlertType.WARNING, "Input Required", "At least one device with a Serial Number is required in the table.");
+                return;
+            }
+        } else if (controller.isMultiSerialMode()) {
+            if (controller.getSerialsFromArea().length == 0) {
+                StageManager.showAlert(controller.getOwnerWindow(), Alert.AlertType.WARNING, "Input Required", "Please enter at least one Serial Number in the text area.");
+                return;
+            }
+        } else {
+            if (controller.getSerial().trim().isEmpty()) {
+                StageManager.showAlert(controller.getOwnerWindow(), Alert.AlertType.WARNING, "Input Required", "A Serial Number is required.");
+                return;
+            }
+        }
+        // *** END OF NEW VALIDATION LOGIC ***
+
         if (controller.isSellScrap() && "Disposed".equals(controller.getScrapStatus())) {
             if (!"Ready for Wipe".equals(controller.getScrapSubStatus()) && controller.getBoxId().isEmpty()) {
                 StageManager.showAlert(controller.getOwnerWindow(), Alert.AlertType.WARNING, "Box ID Required", "A Box ID is required for this disposed status.");

@@ -38,19 +38,22 @@
 
 
 /* ========================================================================== */
-/* COMBOBOX TABLE CELL STYLING                                                */
+/* COMBOBOX ARROW FIX (USING -fx-shape)                                       */
 /* ========================================================================== */
-.combo-box-table-cell {
-    /* *** THIS IS THE CORRECTED SVG DATA URL *** */
-    -fx-background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' height='1em' viewBox='0 0 512 512'%3e%3cpath fill='%236e6e6e' d='M233.4 406.6c12.5 12.5 32.8 12.5 45.3 0l192-192c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L256 338.7 86.6 169.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l192 192z'/%3e%3c/svg%3e");
-    -fx-background-repeat: no-repeat;
-    -fx-background-position: right 5px center;
-    -fx-background-size: 10px 10px;
-    -fx-cursor: hand;
+/* This rule targets the small region inside a ComboBox's arrow button. */
+.combo-box-base .arrow,
+.combo-box-table-cell .arrow {
+    /* Set the color of the arrow */
+    -fx-background-color: -color-fg-muted;
+
+    /* Define the shape of the arrow using an SVG path string */
+    -fx-shape: "M 0 0 L 8 0 L 4 4 Z";
 }
 
-.combo-box-table-cell:hover {
-    -fx-background-color: -color-bg-inset;
+/* Optional: Make the arrow brighter on hover */
+.combo-box-base:hover .arrow,
+.combo-box-table-cell:hover .arrow {
+    -fx-background-color: -color-fg-default;
 }
 
 

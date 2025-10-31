@@ -205,8 +205,8 @@ public class DashboardController {
                 }
 
                 // *** THIS IS THE FINAL, ROBUST FIX ***
-                // Update the data *within* the series. Do NOT clear the chart's main data list.
-                // This prevents the race condition that causes the exception.
+                // Update the data *within* the series. Do NOT touch the chart's main data list.
+                // This is the guaranteed safe way to prevent the race condition.
                 intakeSeries.getData().setAll(intakeData);
                 processedSeries.getData().setAll(processedData);
                 // *** END OF FIX ***

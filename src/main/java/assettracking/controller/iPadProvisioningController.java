@@ -98,16 +98,11 @@ public class iPadProvisioningController {
         stageEmailCol.setCellValueFactory(new PropertyValueFactory<>("employeeEmail"));
         stageSimCol.setCellFactory(TextFieldTableCell.forTableColumn());
         stageDeviceTypeCol.setCellValueFactory(new PropertyValueFactory<>("deviceType"));
-
-        // *** THIS IS THE MODIFIED SECTION ***
-        // Instead of a direct factory, we use a callback to create the cell and add our custom style class.
         stageDeviceTypeCol.setCellFactory(col -> {
             ComboBoxTableCell<StagedDevice, String> cell = new ComboBoxTableCell<>("iPad", "Tablet");
             cell.getStyleClass().add("combo-box-table-cell");
             return cell;
         });
-        // *** END OF MODIFIED SECTION ***
-
         stageDeviceTypeCol.setOnEditCommit(event -> event.getRowValue().setDeviceType(event.getNewValue()));
         stagingTable.setItems(stagedDeviceList);
         stagingTable.setRowFactory(tv -> new TableRow<>() {
@@ -303,6 +298,7 @@ public class iPadProvisioningController {
         serialScanField.requestFocus();
     }
 
+    // *** THIS IS THE MODIFIED METHOD ***
     @FXML
     private void handleStageUnassigned() {
         String serial = serialScanField.getText().trim().toUpperCase();
@@ -312,21 +308,37 @@ public class iPadProvisioningController {
         }
         if (stagedDeviceList.stream().anyMatch(d -> d.getSerialNumber().equals(serial))) {
             StageManager.showAlert(getStage(), Alert.AlertType.WARNING, "Duplicate", "Device " + serial + " is already staged.");
+            serialScanField.clear();
+            serialScanField.requestFocus();
             return;
         }
 
         try {
-            dao.findDeviceBySerial(serial).ifPresentOrElse(device -> {
-                stagedDeviceList.add(new StagedDevice(device));
-                statusLabel.setText("Added unassigned device: " + serial);
-                updateWorkflowControls();
-            }, () -> StageManager.showAlert(getStage(), Alert.AlertType.WARNING, "Not Found", "Serial " + serial + " not found."));
+            dao.findDeviceBySerial(serial).ifPresentOrElse(
+                    // This part runs if the device IS found in the database
+                    device -> {
+                        stagedDeviceList.add(new StagedDevice(device));
+                        statusLabel.setText("Added unassigned device: " + serial);
+                        updateWorkflowControls();
+                    },
+                    // This part runs if the device IS NOT found
+                    () -> {
+                        boolean addAnyway = StageManager.showConfirmationDialog(getStage(), "Device Not Found", "Serial number '" + serial + "' was not found in the device database.", "Do you want to add it to the staging list anyway with blank IMEI and SIM information?");
+                        if (addAnyway) {
+                            // Create a "dummy" device with only the serial number.
+                            BulkDevice newDevice = new BulkDevice(serial, "", "", "", "", "");
+                            stagedDeviceList.add(new StagedDevice(newDevice));
+                            statusLabel.setText("Added unassigned device (manual entry): " + serial);
+                            updateWorkflowControls();
+                        }
+                    });
         } catch (SQLException e) {
             StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Database Error", "Could not look up serial: " + e.getMessage());
         }
         serialScanField.clear();
         serialScanField.requestFocus();
     }
+
 
     @FXML
     private void handleExport() {
