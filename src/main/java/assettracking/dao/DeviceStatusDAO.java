@@ -46,6 +46,66 @@ public class DeviceStatusDAO {
         return 0;
     }
 
+    public BulkMoveResult bulkMoveBySerialList(String sourceBoxId, String destinationBoxId, Set<String> serialsToMove) throws SQLException {
+        List<String> foundSerials = new ArrayList<>();
+        // <<< THIS IS THE CORRECTED LINE
+        List<String> notFoundSerials = new ArrayList<>(serialsToMove);
+
+        String selectPlaceholders = String.join(",", Collections.nCopies(serialsToMove.size(), "?"));
+
+        // Step 1: Find which of the provided serials actually exist in the source box. This is a critical validation step.
+        String findSql = String.format("""
+        SELECT re.serial_number FROM Device_Status ds
+        JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id
+        WHERE ds.box_id = ? AND re.serial_number IN (%s)
+    """, selectPlaceholders);
+
+        try (Connection conn = DatabaseConnection.getInventoryConnection();
+             PreparedStatement findStmt = conn.prepareStatement(findSql)) {
+            findStmt.setString(1, sourceBoxId);
+            int i = 2;
+            for (String serial : serialsToMove) {
+                findStmt.setString(i++, serial);
+            }
+            ResultSet rs = findStmt.executeQuery();
+            while (rs.next()) {
+                String foundSerial = rs.getString("serial_number");
+                foundSerials.add(foundSerial);
+                notFoundSerials.remove(foundSerial);
+            }
+        }
+
+        if (foundSerials.isEmpty()) {
+            return new BulkMoveResult(Collections.emptyList(), new ArrayList<>(serialsToMove));
+        }
+
+        // Step 2: Update only the serials that were verified to be in the source box.
+        String updatePlaceholders = String.join(",", Collections.nCopies(foundSerials.size(), "?"));
+        String updateSql = String.format("""
+        UPDATE Device_Status SET box_id = ?
+        WHERE receipt_id IN (
+            SELECT MAX(re.receipt_id)
+            FROM Receipt_Events re
+            WHERE re.serial_number IN (%s)
+            GROUP BY re.serial_number
+        )
+    """, updatePlaceholders);
+
+        try (Connection conn = DatabaseConnection.getInventoryConnection();
+             PreparedStatement updateStmt = conn.prepareStatement(updateSql)) {
+            conn.setAutoCommit(false); // Start transaction
+            updateStmt.setString(1, destinationBoxId.trim().toUpperCase());
+            int i = 2;
+            for (String serial : foundSerials) {
+                updateStmt.setString(i++, serial);
+            }
+            updateStmt.executeUpdate();
+            conn.commit(); // Commit transaction
+        }
+
+        return new BulkMoveResult(foundSerials, notFoundSerials);
+    }
+
     public BulkUpdateResult bulkUpdateStatusBySerial(Set<String> serials, String newStatus, String newSubStatus, String note) throws SQLException {
         List<String> updatedSerials = new ArrayList<>();
         List<String> notFoundSerials = new ArrayList<>(serials); // Start with all serials, we'll remove the successful ones
@@ -287,6 +347,9 @@ public class DeviceStatusDAO {
             fullQuery += " LIMIT ? OFFSET ?";
         }
         return new DeviceStatusActions.QueryAndParams(fullQuery, params);
+    }
+
+    public record BulkMoveResult(List<String> movedSerials, List<String> notFoundOrFailedSerials) {
     }
 
     public record BulkUpdateResult(List<String> updated, List<String> notFound) {

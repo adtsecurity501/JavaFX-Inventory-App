@@ -14,7 +14,9 @@ import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
 import javafx.geometry.Insets;
+import javafx.scene.Parent;
 import javafx.scene.control.*;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.DataFormat;
@@ -22,6 +24,7 @@ import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.GridPane;
 import javafx.stage.FileChooser;
+import javafx.stage.Stage;
 import javafx.stage.Window;
 import javafx.util.Pair;
 import org.apache.poi.ss.usermodel.Row;
@@ -161,6 +164,25 @@ public class BoxIdViewerController {
         findBoxTask.setOnFailed(e -> StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Database Error", "An error occurred while searching for the serial number."));
 
         new Thread(findBoxTask).start();
+    }
+
+    @FXML
+    private void handleBulkMoveFromFile() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/BulkMoveDialog.fxml"));
+            Parent root = loader.load();
+
+            BulkMoveDialogController dialogController = loader.getController();
+            // Set a callback that will refresh this screen when the dialog is done
+            dialogController.setOnFinishedCallback(this::refreshAllData);
+
+            Stage stage = StageManager.createCustomStage(getOwnerWindow(), "Bulk Move Serials", root);
+            stage.showAndWait();
+
+        } catch (IOException e) {
+            StageManager.showAlert(getOwnerWindow(), Alert.AlertType.ERROR, "Error", "Could not open the bulk move dialog: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     private void setupTables() {

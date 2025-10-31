@@ -315,21 +315,41 @@ public class iPadProvisioningController {
 
         try {
             dao.findDeviceBySerial(serial).ifPresentOrElse(
-                    // This part runs if the device IS found in the database
                     device -> {
+                        // This part for found devices remains the same
                         stagedDeviceList.add(new StagedDevice(device));
                         statusLabel.setText("Added unassigned device: " + serial);
                         updateWorkflowControls();
                     },
-                    // This part runs if the device IS NOT found
                     () -> {
-                        boolean addAnyway = StageManager.showConfirmationDialog(getStage(), "Device Not Found", "Serial number '" + serial + "' was not found in the device database.", "Do you want to add it to the staging list anyway with blank IMEI and SIM information?");
+                        // This is the logic for when the device is NOT found
+                        boolean addAnyway = StageManager.showConfirmationDialog(getStage(), "Device Not Found", "Serial number '" + serial + "' was not found in the device database.", "Do you want to add it to the staging list anyway?");
                         if (addAnyway) {
-                            // Create a "dummy" device with only the serial number.
-                            BulkDevice newDevice = new BulkDevice(serial, "", "", "", "", "");
-                            stagedDeviceList.add(new StagedDevice(newDevice));
-                            statusLabel.setText("Added unassigned device (manual entry): " + serial);
-                            updateWorkflowControls();
+                            // --- THIS IS THE FIX ---
+                            // 1. Create the new device object
+                            BulkDevice newDevice = new BulkDevice(serial, "", "", "", "", "MANUAL_ADD");
+
+                            // 2. Save it to the database in the background
+                            Task<Boolean> saveTask = new Task<>() {
+                                @Override
+                                protected Boolean call() {
+                                    return dao.addManualDevice(newDevice);
+                                }
+                            };
+
+                            saveTask.setOnSucceeded(e -> {
+                                if (saveTask.getValue()) {
+                                    // 3. Only if the save was successful, add it to the UI list
+                                    stagedDeviceList.add(new StagedDevice(newDevice));
+                                    statusLabel.setText("Added unassigned device (manual entry): " + serial);
+                                    updateWorkflowControls();
+                                } else {
+                                    StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Database Error", "Failed to save the new device to the database. The device was not staged.");
+                                }
+                            });
+
+                            new Thread(saveTask).start();
+                            // --- END OF FIX ---
                         }
                     });
         } catch (SQLException e) {

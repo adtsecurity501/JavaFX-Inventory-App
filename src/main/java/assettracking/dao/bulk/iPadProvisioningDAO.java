@@ -31,6 +31,33 @@ public class iPadProvisioningDAO {
         }
     }
 
+    /**
+     * Inserts a single, manually created BulkDevice into the database.
+     * This is used when a user adds a device that wasn't found in the initial import.
+     * @param device The BulkDevice object to insert.
+     * @return true if the insertion was successful, false otherwise.
+     */
+    public boolean addManualDevice(BulkDevice device) {
+        String sql = "INSERT INTO Bulk_Devices (SerialNumber, IMEI, ICCID, Capacity, DeviceName, LastImportDate) " +
+                "VALUES (?, ?, ?, ?, ?, ?)";
+        try (Connection conn = DatabaseConnection.getInventoryConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setString(1, device.getSerialNumber());
+            stmt.setString(2, device.getImei());
+            stmt.setString(3, device.getIccid());
+            stmt.setString(4, device.getCapacity());
+            stmt.setString(5, device.getDeviceName());
+            stmt.setString(6, device.getLastImportDate());
+
+            return stmt.executeUpdate() > 0;
+        } catch (SQLException e) {
+            // Log the error for debugging purposes
+            System.err.println("Failed to insert manual device " + device.getSerialNumber() + ": " + e.getMessage());
+            return false;
+        }
+    }
+
     public Map<String, BulkDevice> findDevicesBySerials(List<String> serialNumbers) throws SQLException {
         Map<String, BulkDevice> results = new HashMap<>();
         if (serialNumbers == null || serialNumbers.isEmpty()) {

@@ -36,8 +36,8 @@ public class DashboardController {
     private final AtomicBoolean isRefreshing = new AtomicBoolean(false);
 
     // Bar Chart Series are now final fields, created only once.
-    private final XYChart.Series<String, Number> intakeSeries = new XYChart.Series<>();
-    private final XYChart.Series<String, Number> processedSeries = new XYChart.Series<>();
+    private XYChart.Series<String, Number> intakeSeries = new XYChart.Series<>();
+    private XYChart.Series<String, Number> processedSeries = new XYChart.Series<>();
 
     private final ObservableList<TopModelStat> topModelsList = FXCollections.observableArrayList();
 
@@ -204,12 +204,26 @@ public class DashboardController {
                     processedData.add(new XYChart.Data<>(dayString, counts[1]));
                 }
 
-                // *** THIS IS THE FINAL, ROBUST FIX ***
-                // Update the data *within* the series. Do NOT touch the chart's main data list.
-                // This is the guaranteed safe way to prevent the race condition.
+                // --- THIS IS THE ROBUST FIX ---
+
+                // 1. Create completely new series objects.
+                intakeSeries = new XYChart.Series<>();
+                intakeSeries.setName("Devices Intaken");
                 intakeSeries.getData().setAll(intakeData);
+
+                processedSeries = new XYChart.Series<>();
+                processedSeries.setName("Devices Processed");
                 processedSeries.getData().setAll(processedData);
-                // *** END OF FIX ***
+
+                // 2. Turn off animations to prevent race conditions.
+                intakeProcessedChart.setAnimated(false);
+
+                // 3. Replace the chart's entire data set with the new, complete series.
+                intakeProcessedChart.getData().setAll(intakeSeries, processedSeries);
+
+                // 4. Re-enable animations for future interactions on a subsequent pulse.
+                Platform.runLater(() -> intakeProcessedChart.setAnimated(true));
+                // --- END OF FIX ---
             });
         });
         new Thread(intakeVsProcessedTask).start();
