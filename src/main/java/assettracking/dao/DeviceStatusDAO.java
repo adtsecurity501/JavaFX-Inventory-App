@@ -55,13 +55,12 @@ public class DeviceStatusDAO {
 
         // Step 1: Find which of the provided serials actually exist in the source box. This is a critical validation step.
         String findSql = String.format("""
-        SELECT re.serial_number FROM Device_Status ds
-        JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id
-        WHERE ds.box_id = ? AND re.serial_number IN (%s)
-    """, selectPlaceholders);
+                    SELECT re.serial_number FROM Device_Status ds
+                    JOIN Receipt_Events re ON ds.receipt_id = re.receipt_id
+                    WHERE ds.box_id = ? AND re.serial_number IN (%s)
+                """, selectPlaceholders);
 
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement findStmt = conn.prepareStatement(findSql)) {
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement findStmt = conn.prepareStatement(findSql)) {
             findStmt.setString(1, sourceBoxId);
             int i = 2;
             for (String serial : serialsToMove) {
@@ -82,17 +81,16 @@ public class DeviceStatusDAO {
         // Step 2: Update only the serials that were verified to be in the source box.
         String updatePlaceholders = String.join(",", Collections.nCopies(foundSerials.size(), "?"));
         String updateSql = String.format("""
-        UPDATE Device_Status SET box_id = ?
-        WHERE receipt_id IN (
-            SELECT MAX(re.receipt_id)
-            FROM Receipt_Events re
-            WHERE re.serial_number IN (%s)
-            GROUP BY re.serial_number
-        )
-    """, updatePlaceholders);
+                    UPDATE Device_Status SET box_id = ?
+                    WHERE receipt_id IN (
+                        SELECT MAX(re.receipt_id)
+                        FROM Receipt_Events re
+                        WHERE re.serial_number IN (%s)
+                        GROUP BY re.serial_number
+                    )
+                """, updatePlaceholders);
 
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement updateStmt = conn.prepareStatement(updateSql)) {
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement updateStmt = conn.prepareStatement(updateSql)) {
             conn.setAutoCommit(false); // Start transaction
             updateStmt.setString(1, destinationBoxId.trim().toUpperCase());
             int i = 2;
@@ -289,10 +287,7 @@ public class DeviceStatusDAO {
                 // --- NEW: JOIN the Physical_Assets table to get the most current data ---
                 "LEFT JOIN Physical_Assets pa ON re.serial_number = pa.serial_number " + "LEFT JOIN Packages p ON re.package_id = p.package_id " + "LEFT JOIN Device_Status ds ON re.receipt_id = ds.receipt_id";
 
-        String selectClause = forCount ? "SELECT COUNT(DISTINCT re.serial_number)"
-                // --- UPDATED: Select category, make, and description from Physical_Assets (aliased as 'pa') ---
-                : "SELECT p.receive_date, re.receipt_id, re.serial_number, pa.category, pa.make, pa.description, " + "ds.status, ds.sub_status, ds.last_update, ds.change_log, " + "EXISTS(SELECT 1 FROM Flag_Devices fd WHERE fd.serial_number = re.serial_number) AS is_flagged";
-        // --- END OF CORRECTIONS ---
+        String selectClause = forCount ? "SELECT COUNT(DISTINCT re.serial_number)" : "SELECT p.receive_date, re.receipt_id, re.serial_number, pa.category, pa.make, pa.description, " + "ds.status, ds.sub_status, COALESCE(ds.last_update, p.receive_date) AS last_update, ds.change_log, " + "EXISTS(SELECT 1 FROM Flag_Devices fd WHERE fd.serial_number = re.serial_number) AS is_flagged";
 
         List<Object> params = new ArrayList<>();
         StringBuilder whereClause = new StringBuilder(" WHERE 1=1");
