@@ -34,13 +34,10 @@ public class DashboardController {
     private final DashboardDataService dataService = new DashboardDataService();
     private final AppSettingsDAO appSettingsDAO = new AppSettingsDAO();
     private final AtomicBoolean isRefreshing = new AtomicBoolean(false);
-
+    private final ObservableList<TopModelStat> topModelsList = FXCollections.observableArrayList();
     // Bar Chart Series are now final fields, created only once.
     private XYChart.Series<String, Number> intakeSeries = new XYChart.Series<>();
     private XYChart.Series<String, Number> processedSeries = new XYChart.Series<>();
-
-    private final ObservableList<TopModelStat> topModelsList = FXCollections.observableArrayList();
-
     @FXML
     private BarChart<String, Number> intakeProcessedChart;
     @FXML

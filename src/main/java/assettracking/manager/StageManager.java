@@ -109,6 +109,36 @@ public final class StageManager {
     }
 
     /**
+     * Creates a small, circular help button that displays an information dialog when clicked.
+     *
+     * @param title   The title of the help dialog window.
+     * @param content The detailed help text to display in the dialog.
+     * @return A configured Button node.
+     */
+    public static Button createHelpButton(String title, String content) {
+        Button helpButton = new Button("?");
+        helpButton.getStyleClass().add("help-button");
+        helpButton.setOnAction(e -> {
+            // Use a standard Alert for the help dialog
+            Alert helpAlert = new Alert(Alert.AlertType.INFORMATION);
+            helpAlert.setTitle(title);
+            helpAlert.setHeaderText(null); // No header
+
+            // Use a TextArea for better formatting and scrollability of long content
+            TextArea textArea = new TextArea(content);
+            textArea.setEditable(false);
+            textArea.setWrapText(true);
+            textArea.setPrefWidth(450);
+            textArea.setPrefHeight(300);
+
+            helpAlert.getDialogPane().setContent(textArea);
+            helpAlert.showAndWait();
+        });
+        return helpButton;
+    }
+
+
+    /**
      * Creates a custom-styled, draggable stage that is automatically centered on its owner.
      * This method preserves the original behavior for all existing dialogs.
      *

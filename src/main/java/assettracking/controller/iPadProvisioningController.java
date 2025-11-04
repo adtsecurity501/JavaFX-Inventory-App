@@ -65,6 +65,9 @@ public class iPadProvisioningController {
     private ToggleButton bulkModeToggle;
     @FXML
     private Button clearStagingButton;
+    @FXML
+    private Button helpButton;
+
 
     private FilteredList<RosterEntry> filteredRosterList;
     private boolean isDeviceListLoaded = false;
@@ -143,6 +146,36 @@ public class iPadProvisioningController {
         });
         dbResultsTable.setContextMenu(new ContextMenu(copyMenuItem));
     }
+
+    @FXML
+    private void showHelp() {
+        String helpContent = """
+                This tab is for provisioning large batches of iPads for deployments (e.g., new hires).
+                
+                STANDARD WORKFLOW:
+                
+                1. Import Device List:
+                   - Click 'Import Device List...' and select the "Device Information Full" Excel file from IT.
+                   - This loads all available iPads into the application's database. This only needs to be done once, or periodically to add new inventory.
+                
+                2. Import Roster:
+                   - Click 'Import Roster...' and select the current "Sales Readiness Roster" Excel file.
+                   - This loads the list of employees who need a device for this session.
+                
+                3. Assign Devices:
+                   - Turn ON 'Bulk Assignment Mode'.
+                   - Scan the physical serial number of an iPad. The cursor will move automatically.
+                   - Type the last 4-5 digits of the employee's 'SN Reference Number' from the roster. The list will filter.
+                   - Press Enter or click 'Add to Staging'. The device is now assigned to the employee.
+                   - Repeat for all devices.
+                
+                4. Export:
+                   - Once all devices are staged, click 'Export to Template...'.
+                   - This saves a pre-formatted Excel file to send to the service provider (e.g., vMOX) and saves the assignments in the database.
+                """;
+        StageManager.showAlert(getStage(), Alert.AlertType.INFORMATION, "iPad Provisioning Help", helpContent);
+    }
+
 
     private void setupEventListeners() {
         serialScanField.setOnAction(event -> {
@@ -314,44 +347,42 @@ public class iPadProvisioningController {
         }
 
         try {
-            dao.findDeviceBySerial(serial).ifPresentOrElse(
-                    device -> {
-                        // This part for found devices remains the same
-                        stagedDeviceList.add(new StagedDevice(device));
-                        statusLabel.setText("Added unassigned device: " + serial);
-                        updateWorkflowControls();
-                    },
-                    () -> {
-                        // This is the logic for when the device is NOT found
-                        boolean addAnyway = StageManager.showConfirmationDialog(getStage(), "Device Not Found", "Serial number '" + serial + "' was not found in the device database.", "Do you want to add it to the staging list anyway?");
-                        if (addAnyway) {
-                            // --- THIS IS THE FIX ---
-                            // 1. Create the new device object
-                            BulkDevice newDevice = new BulkDevice(serial, "", "", "", "", "MANUAL_ADD");
+            dao.findDeviceBySerial(serial).ifPresentOrElse(device -> {
+                // This part for found devices remains the same
+                stagedDeviceList.add(new StagedDevice(device));
+                statusLabel.setText("Added unassigned device: " + serial);
+                updateWorkflowControls();
+            }, () -> {
+                // This is the logic for when the device is NOT found
+                boolean addAnyway = StageManager.showConfirmationDialog(getStage(), "Device Not Found", "Serial number '" + serial + "' was not found in the device database.", "Do you want to add it to the staging list anyway?");
+                if (addAnyway) {
+                    // --- THIS IS THE FIX ---
+                    // 1. Create the new device object
+                    BulkDevice newDevice = new BulkDevice(serial, "", "", "", "", "MANUAL_ADD");
 
-                            // 2. Save it to the database in the background
-                            Task<Boolean> saveTask = new Task<>() {
-                                @Override
-                                protected Boolean call() {
-                                    return dao.addManualDevice(newDevice);
-                                }
-                            };
+                    // 2. Save it to the database in the background
+                    Task<Boolean> saveTask = new Task<>() {
+                        @Override
+                        protected Boolean call() {
+                            return dao.addManualDevice(newDevice);
+                        }
+                    };
 
-                            saveTask.setOnSucceeded(e -> {
-                                if (saveTask.getValue()) {
-                                    // 3. Only if the save was successful, add it to the UI list
-                                    stagedDeviceList.add(new StagedDevice(newDevice));
-                                    statusLabel.setText("Added unassigned device (manual entry): " + serial);
-                                    updateWorkflowControls();
-                                } else {
-                                    StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Database Error", "Failed to save the new device to the database. The device was not staged.");
-                                }
-                            });
-
-                            new Thread(saveTask).start();
-                            // --- END OF FIX ---
+                    saveTask.setOnSucceeded(e -> {
+                        if (saveTask.getValue()) {
+                            // 3. Only if the save was successful, add it to the UI list
+                            stagedDeviceList.add(new StagedDevice(newDevice));
+                            statusLabel.setText("Added unassigned device (manual entry): " + serial);
+                            updateWorkflowControls();
+                        } else {
+                            StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Database Error", "Failed to save the new device to the database. The device was not staged.");
                         }
                     });
+
+                    new Thread(saveTask).start();
+                    // --- END OF FIX ---
+                }
+            });
         } catch (SQLException e) {
             StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Database Error", "Could not look up serial: " + e.getMessage());
         }

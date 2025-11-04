@@ -10,6 +10,9 @@
     </padding>
     <top>
         <VBox spacing="10" style="-fx-padding: 0 0 10 0;">
+            <Label wrapText="true"
+                   text="This screen manages disposed assets grouped into virtual boxes. You can view contents, print labels, and perform bulk operations."/>
+            <Separator/>
             <HBox spacing="10" alignment="CENTER_LEFT">
                 <Label text="Search Box ID:"/>
                 <TextField fx:id="searchField" promptText="Enter Box ID to filter..." HBox.hgrow="ALWAYS"/>
@@ -63,11 +66,12 @@
         </SplitPane>
     </center>
     <bottom>
-        <HBox alignment="CENTER_RIGHT" spacing="10" style="-fx-padding: 10 0 0 0;">
+        <HBox fx:id="bottomButtonBox" alignment="CENTER_RIGHT" spacing="10" style="-fx-padding: 10 0 0 0;">
             <Label fx:id="statusLabel" HBox.hgrow="ALWAYS" maxWidth="Infinity"/>
+            <Button fx:id="helpButton" onAction="#showHelp" styleClass="help-button" text="?"/>
 
             <!-- THIS IS THE MODIFIED BUTTON -->
-            <Button text="Bulk Move Serials..." onAction="#handleBulkMoveFromFile" />
+            <Button text="Bulk Move Serials..." onAction="#handleBulkMoveFromFile"/>
 
             <Button fx:id="printLabelButton" onAction="#handlePrintLabel" text="Print Box Label"/>
             <Button fx:id="exportButton" onAction="#handleExport" text="Export Contents..."/>

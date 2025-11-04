@@ -8,10 +8,14 @@
         <Insets top="10" right="10" bottom="10" left="10"/>
     </padding>
     <top>
-        <HBox alignment="CENTER_LEFT" spacing="10" style="-fx-padding: 0 0 10 0;">
-            <Label text="Search:"/>
-            <TextField fx:id="searchField" promptText="Filter by any field..." HBox.hgrow="ALWAYS"/>
-        </HBox>
+        <VBox spacing="8" style="-fx-padding: 0 0 10 0;">
+            <Label wrapText="true"
+                   text="This screen manages pre-loaded data for SPECIFIC DEVICES. When a matching serial number is scanned during intake, its details (make, model, etc.) will be filled automatically."/>
+            <HBox alignment="CENTER_LEFT" spacing="10">
+                <Label text="Search Serial:"/>
+                <TextField fx:id="searchField" promptText="Filter by any field..." HBox.hgrow="ALWAYS"/>
+            </HBox>
+        </VBox>
     </top>
     <center>
         <TableView fx:id="autofillTable" editable="true">

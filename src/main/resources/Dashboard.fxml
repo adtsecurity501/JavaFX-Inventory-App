@@ -135,7 +135,7 @@
                             <Label text="Active Intake" styleClass="kpi-title"/>
                             <Label fx:id="activeTriageLabel" styleClass="kpi-metric, text-warning">
                                 <tooltip>
-                                    <Tooltip text="Counts devices with a current status of 'Intake'."/>
+                                    <Tooltip text="Counts all devices with a current status of 'Intake'."/>
                                 </tooltip>
                             </Label>
                         </VBox>

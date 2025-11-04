@@ -107,3 +107,22 @@
 .autocomplete-popup .list-cell { -fx-padding: 5 10; }
 .autocomplete-popup .list-cell:filled:hover,
 .autocomplete-popup .list-cell:filled:selected { -fx-background-color: -color-accent-subtle; -fx-text-fill: -color-fg-default; }
+
+/* ========================================================================== */
+/* HELP BUTTON STYLING                                                        */
+/* ========================================================================== */
+.help-button {
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-shape: "M 15 0 A 15 15 0 1 1 0 15 A 15 15 0 0 1 15 0 Z"; /* Creates a circle */
+    -fx-min-width: 24px;
+    -fx-max-width: 24px;
+    -fx-min-height: 24px;
+    -fx-max-height: 24px;
+    -fx-background-color: -color-accent-muted;
+    -fx-text-fill: white;
+}
+
+.help-button:hover {
+    -fx-background-color: -color-accent-emphasis;
+}

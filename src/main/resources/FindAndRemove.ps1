@@ -34,7 +34,7 @@ function Write-Result
 function Invoke-Search
 {
     $searchTerms = $targets -split ',' | Where-Object { $_ -ne "" }
-    Write-Log "Search starting for $($searchTerms.Count) term(s) in source: $source"
+    Write-Log "Search starting for $( $searchTerms.Count ) term(s) in source: $source"
 
     if (($source -eq 'AD' -or $source -eq 'Both') -and -not (Get-Module -ListAvailable -Name ActiveDirectory))
     {

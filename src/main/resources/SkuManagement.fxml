@@ -8,10 +8,14 @@
         <Insets bottom="10" left="10" right="10" top="10"/>
     </padding>
     <top>
-        <HBox alignment="CENTER_LEFT" spacing="10" style="-fx-padding: 0 0 10 0;">
-            <Label text="Search SKUs:"/>
-            <TextField fx:id="searchField" promptText="Enter any text to filter..." HBox.hgrow="ALWAYS"/>
-        </HBox>
+        <VBox spacing="8" style="-fx-padding: 0 0 10 0;">
+            <Label wrapText="true"
+                   text="This is the Product Catalog. It manages the master list of all asset TYPES (models, descriptions, and official SKUs) used for autofill during intake. Also used for autofill during label printing"/>
+            <HBox alignment="CENTER_LEFT" spacing="10">
+                <Label text="Search Catalog:"/>
+                <TextField fx:id="searchField" promptText="Enter any text to filter..." HBox.hgrow="ALWAYS"/>
+            </HBox>
+        </VBox>
     </top>
     <center>
         <TableView fx:id="skuTable" BorderPane.alignment="CENTER">

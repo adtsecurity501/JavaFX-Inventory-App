@@ -23,6 +23,7 @@ import javafx.scene.input.DataFormat;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.stage.Window;
@@ -83,12 +84,16 @@ public class BoxIdViewerController {
     private Button updateStatusButton;
     @FXML
     private Label statusLabel;
+    @FXML
+    private Button helpButton;
+    @FXML
+    private HBox bottomButtonBox;
+
 
     @FXML
     public void initialize() {
         setupTables();
         setupDragAndDrop();
-
 
         printLabelButton.setDisable(true);
         exportButton.setDisable(true);
@@ -110,11 +115,38 @@ public class BoxIdViewerController {
         });
 
         FilteredList<BoxIdSummary> filteredData = new FilteredList<>(summaryList, p -> true);
-        searchField.textProperty().addListener((obs, oldVal, newVal) -> filteredData.setPredicate(summary -> newVal == null || newVal.isEmpty() || summary.boxId().toLowerCase().contains(newVal.toLowerCase())));
+        searchField.textProperty().addListener((obs, oldVal, newVal) ->
+                filteredData.setPredicate(summary ->
+                        newVal == null || newVal.isEmpty() || summary.boxId().toLowerCase().contains(newVal.toLowerCase())
+                )
+        );
         summaryTable.setItems(filteredData);
 
         showArchivedCheck.selectedProperty().addListener((obs, oldVal, newVal) -> loadSummaryDataAsync());
         loadSummaryDataAsync();
+    }
+
+    @FXML
+    private void showHelp() {
+        String helpContent = """
+                This screen helps you manage disposed assets by grouping them into virtual boxes.
+                
+                WORKFLOWS:
+                
+                1. Drag and Drop:
+                   - Select one or more serial numbers from the 'Contents' table on the right.
+                   - Drag them over a different Box ID in the 'Summary' table on the left to move them.
+                
+                2. Bulk Move from List:
+                   - Click 'Bulk Move Serials...' to open a new window.
+                   - Enter the Source and Destination Box IDs.
+                   - Paste a list of serial numbers to move all of them in a single operation.
+                
+                3. Bulk Update Status:
+                   - Select a box from the Summary list.
+                   - Click 'Bulk Update Status...' to change the status for ALL items currently in that box.
+                """;
+        StageManager.showAlert(getOwnerWindow(), Alert.AlertType.INFORMATION, "Box ID Viewer Help", helpContent);
     }
 
     @FXML

@@ -34,6 +34,7 @@ public class iPadProvisioningDAO {
     /**
      * Inserts a single, manually created BulkDevice into the database.
      * This is used when a user adds a device that wasn't found in the initial import.
+     *
      * @param device The BulkDevice object to insert.
      * @return true if the insertion was successful, false otherwise.
      */

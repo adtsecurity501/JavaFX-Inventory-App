@@ -8,7 +8,11 @@
         <SplitPane dividerPositions="0.4" style="-fx-padding: 10 0 0 0;">
             <!-- Left Side: Workflow -->
             <VBox spacing="10" style="-fx-padding: 0 10 0 0;">
-                <Label styleClass="h4" text="Assignment Workflow"/>
+                <HBox alignment="CENTER_LEFT" spacing="10">
+                    <Label styleClass="h4" text="Assignment Workflow"/>
+                    <Region HBox.hgrow="ALWAYS"/>
+                    <Button fx:id="helpButton" onAction="#showHelp" styleClass="help-button" text="?"/>
+                </HBox>
                 <HBox alignment="CENTER_LEFT" spacing="10">
                     <Button fx:id="importDeviceListButton" onAction="#handleImportDeviceList"
                             text="Import Device List..."/>
