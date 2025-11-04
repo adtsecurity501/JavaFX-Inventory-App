@@ -36,6 +36,11 @@ Readiness Roster."
     - This prevents a potentially problematic device from being accidentally processed and shipped. The "Manage / Import
       Flags" screen provides a centralized UI to control this list.
 
+### Bulk Move Serials Between Boxes
+
+-   **The Problem**: During the disposal process, it's common for a large number of devices to be scanned into the wrong physical or virtual box. Manually moving dozens or hundreds of items one-by-one is tedious and error-prone.
+-   **The Solution**: The "Bulk Move Serials" feature provides a high-speed interface to correct these mistakes. A user provides the source box, the destination box, and a pasted list of serial numbers. The system validates which serials actually exist in the source box and moves only those, providing a clear report of which serials were moved and which were not found. This ensures both speed and data integrity.
+
 ### Excel Export: Snapshot vs. Audit Log
 
 - **The Requirement**: The main Excel export needs to answer the question: "What is the status of every asset in our
@@ -73,7 +78,7 @@ This is the "tribal knowledge" that will save the next developer hours of debugg
   are embedded in the JAR. You **must** use `getClass().getResourceAsStream("/path/to/resource")` to read them as an
   `InputStream`.
 - **SLF4J "Multiple Bindings" Warning**: If you see this during a build, it means a second logging library has been
-  added to the `pom.xml`. The project uses `logback-classic`. You should find and remove the dependency for
+  added to the `pom.xml`. The project is configured to use `logback-classic`. You should find and remove the dependency for
   `slf4j-simple`.
 
 ## 3. Database Schema Documentation
