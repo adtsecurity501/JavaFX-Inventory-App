@@ -3,6 +3,8 @@ package assettracking.data;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 
+import java.util.Objects;
+
 // A JavaFX Bean to represent a record from the SKU_Table
 public class Sku {
     private final StringProperty skuNumber;
@@ -80,5 +82,22 @@ public class Sku {
 
     public StringProperty descriptionProperty() {
         return description;
+    }
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Sku sku = (Sku) o;
+        // Handle cases where skuNumber might be null for new, unsaved SKUs
+        if (getSkuNumber() == null || sku.getSkuNumber() == null) {
+            return false;
+        }
+        return Objects.equals(getSkuNumber(), sku.getSkuNumber());
+    }
+
+    @Override
+    public int hashCode() {
+        // The hash code should be based on the same field(s) used in equals().
+        return Objects.hash(getSkuNumber());
     }
 }

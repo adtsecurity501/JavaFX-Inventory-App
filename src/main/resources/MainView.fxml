@@ -63,10 +63,10 @@
                 <Tab text="Label Printing">
                     <fx:include source="LabelPrinting.fxml"/>
                 </Tab>
-                <Tab text="SKU Management">
+                <Tab text="Product Catalog">
                     <fx:include source="SkuManagement.fxml"/>
                 </Tab>
-                <Tab text="Autofill Management">
+                <Tab text="Serial Number Lookup">
                     <fx:include source="AutofillManagement.fxml"/>
                 </Tab>
                 <Tab text="Data Management">

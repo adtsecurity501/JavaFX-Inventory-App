@@ -13,6 +13,7 @@ import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.stage.Stage;
 
 import java.util.List;
 import java.util.Optional;
@@ -74,9 +75,7 @@ public class SkuManagementController {
         sortedData.comparatorProperty().bind(skuTable.comparatorProperty());
         skuTable.setItems(sortedData);
 
-        skuTable.getSelectionModel().selectedItemProperty().addListener(
-                (obs, oldSelection, newSelection) -> populateForm(newSelection)
-        );
+        skuTable.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> populateForm(newSelection));
         refreshTable();
     }
 
@@ -101,47 +100,46 @@ public class SkuManagementController {
                 return skuDAO.getAllSkus();
             }
         };
-        loadSkusTask.setOnSucceeded(e -> {
-            skuList.setAll(loadSkusTask.getValue());
+        loadSkusTask.setOnSucceeded(e -> Platform.runLater(() -> {
+            // Use clear() and addAll() to prevent rendering bugs.
+            skuList.clear();
+            skuList.addAll(loadSkusTask.getValue());
             handleNew();
-        });
-        loadSkusTask.setOnFailed(e -> {
-            Throwable ex = loadSkusTask.getException();
-            statusLabel.setText("Error: Failed to load SKU data. See log for details.");
-        });
+        }));
+        loadSkusTask.setOnFailed(e -> Platform.runLater(() -> statusLabel.setText("Error: Failed to load SKU data.")));
         new Thread(loadSkusTask).start();
     }
 
     private void populateForm(Sku sku) {
-        // --- THIS IS THE FIX ---
-        // The logic to clear the form is now inside this method, but crucially,
-        // it does NOT call requestFocus().
-
-        // Suppress the listeners before programmatically changing the text
         categoryPopup.suppressListener(true);
         manufacturerPopup.suppressListener(true);
 
         if (sku == null) {
-            // A selection was cleared. Clear the form fields but do not steal focus.
             skuNumberField.clear();
             modelNumberField.clear();
             categoryField.clear();
             manufacturerField.clear();
             descriptionField.clear();
-            skuNumberField.setEditable(true);
+            skuNumberField.setEditable(true); // Editable for new entries
             statusLabel.setText("");
         } else {
-            // A valid SKU was selected. Populate the form.
             skuNumberField.setText(sku.getSkuNumber());
             modelNumberField.setText(sku.getModelNumber());
             categoryField.setText(sku.getCategory());
             manufacturerField.setText(sku.getManufacturer());
             descriptionField.setText(sku.getDescription());
-            skuNumberField.setEditable(false);
+
+            // --- THIS IS THE KEY LOGIC CHANGE ---
+            // Only lock the SKU field if a SKU number already exists.
+            if (sku.getSkuNumber() != null && !sku.getSkuNumber().isBlank()) {
+                skuNumberField.setEditable(false);
+            } else {
+                skuNumberField.setEditable(true);
+                skuNumberField.requestFocus(); // Prompt user to enter a SKU
+            }
+            // --- END OF CHANGE ---
         }
 
-        // --- AND RE-ENABLE THEM AFTERWARDS ---
-        // We use Platform.runLater to ensure this happens after the text change is fully processed
         Platform.runLater(() -> {
             categoryPopup.suppressListener(false);
             manufacturerPopup.suppressListener(false);
@@ -161,73 +159,119 @@ public class SkuManagementController {
     private void handleDelete() {
         Sku selectedSku = skuTable.getSelectionModel().getSelectedItem();
         if (selectedSku == null) {
-            StageManager.showAlert(skuTable.getScene().getWindow(), Alert.AlertType.WARNING, "No Selection", "Please select an SKU from the table to delete.");
+            StageManager.showAlert(getStage(), Alert.AlertType.WARNING, "No Selection", "Please select an SKU to delete.");
             return;
         }
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION, "Are you sure you want to delete SKU: " + selectedSku.getSkuNumber() + "?", ButtonType.YES, ButtonType.NO);
-        Optional<ButtonType> result = alert.showAndWait();
-        if (result.isPresent() && result.get() == ButtonType.YES) {
+        if (StageManager.showDeleteConfirmationDialog(getStage(), "SKU", selectedSku.getSkuNumber())) {
             if (skuDAO.deleteSku(selectedSku.getSkuNumber())) {
+                // Modify the local list directly. Do NOT call refreshTable().
+                skuList.remove(selectedSku);
                 statusLabel.setText("Successfully deleted SKU: " + selectedSku.getSkuNumber());
-                refreshTable();
+                handleNew();
             } else {
-                statusLabel.setText("Error: Could not delete SKU.");
+                statusLabel.setText("Error: Could not delete SKU from the database.");
             }
         }
     }
 
-    // --- THIS METHOD IS MODIFIED ---
+    private Stage getStage() {
+        return (Stage) skuTable.getScene().getWindow();
+    }
+
     @FXML
     private void handleSave() {
-        String modelNumber = modelNumberField.getText();
-        String description = descriptionField.getText();
-        String skuNumber = skuNumberField.getText().trim(); // Use trimmed version for checks
+        String skuNumber = Optional.ofNullable(skuNumberField.getText()).orElse("").trim();
+        String modelNumber = Optional.ofNullable(modelNumberField.getText()).orElse("");
+        String description = Optional.ofNullable(descriptionField.getText()).orElse("");
+        String category = Optional.ofNullable(categoryField.getText()).orElse("");
+        String manufacturer = Optional.ofNullable(manufacturerField.getText()).orElse("");
 
-        // Validation: A record must have at least a Model Number or a Description.
-        if ((modelNumber == null || modelNumber.trim().isEmpty()) && (description == null || description.trim().isEmpty())) {
-            StageManager.showAlert(skuTable.getScene().getWindow(), Alert.AlertType.WARNING, "Input Error", "An entry must have at least a Model Number or a Description.");
+        if (modelNumber.trim().isEmpty() && description.trim().isEmpty()) {
+            StageManager.showAlert(getStage(), Alert.AlertType.WARNING, "Input Error", "An entry must have at least a Model Number or a Description.");
             return;
         }
 
-        Sku sku = new Sku();
-        sku.setSkuNumber(skuNumberField.getText()); // Use untrimmed for saving to allow spaces if needed
-        sku.setModelNumber(modelNumberField.getText());
-        sku.setCategory(categoryField.getText());
-        sku.setManufacturer(manufacturerField.getText());
-        sku.setDescription(descriptionField.getText());
-
-        boolean success;
         Sku selectedSku = skuTable.getSelectionModel().getSelectedItem();
 
-        // --- THIS IS THE CORRECTED LOGIC ---
-        // Determine if we are updating an existing SKU or adding a new one.
-        boolean isUpdateOperation = !skuNumberField.isEditable() &&
-                selectedSku != null &&
-                selectedSku.getSkuNumber().equals(sku.getSkuNumber());
+        if (selectedSku == null) {
+            // --- SCENARIO 1: ADDING A COMPLETELY NEW SKU ---
+            Sku newSku = new Sku();
+            newSku.setSkuNumber(skuNumber);
+            newSku.setModelNumber(modelNumber);
+            newSku.setDescription(description);
+            newSku.setCategory(category);
+            newSku.setManufacturer(manufacturer);
 
-        if (isUpdateOperation) {
-            // We are editing an existing item selected from the table
-            success = skuDAO.updateSku(sku);
-        } else {
-            // We are adding a new item
-            if (skuNumber.isEmpty()) {
-                // Let the database handle the blank SKU for autofill entries
-                success = skuDAO.addSku(sku);
+            if (!skuNumber.isEmpty() && skuDAO.findSkuByNumber(skuNumber).isPresent()) {
+                StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Duplicate SKU", "An SKU with the number '" + skuNumber + "' already exists.");
+                return;
+            }
+
+            if (skuDAO.addSku(newSku)) {
+                skuList.add(newSku);
+                statusLabel.setText("Successfully added new SKU.");
+                handleNew();
             } else {
-                // If SKU is not empty, check if it already exists to prevent duplicates
-                if (skuDAO.findSkuByNumber(skuNumber).isPresent()) {
-                    StageManager.showAlert(skuTable.getScene().getWindow(), Alert.AlertType.ERROR, "Duplicate SKU", "An SKU with the number '" + skuNumber + "' already exists. Please use a unique SKU number.");
-                    return; // Stop the save process
+                statusLabel.setText("Error: Could not save new SKU.");
+            }
+        } else {
+            // --- SCENARIO 2: EDITING AN EXISTING SKU ---
+            if (!skuNumberField.isEditable()) {
+                // This is a standard update for an entry that already has a SKU.
+                selectedSku.setModelNumber(modelNumber);
+                selectedSku.setDescription(description);
+                selectedSku.setCategory(category);
+                selectedSku.setManufacturer(manufacturer);
+
+                if (skuDAO.updateSku(selectedSku)) {
+                    statusLabel.setText("Successfully updated SKU: " + selectedSku.getSkuNumber());
+                    skuTable.refresh();
+                    handleNew();
+                } else {
+                    statusLabel.setText("Error: Could not update SKU.");
                 }
-                success = skuDAO.addSku(sku);
+            } else {
+                // The SKU field was editable, meaning the original entry was SKU-less.
+                if (!skuNumber.isBlank()) {
+                    // User is ASSIGNING a NEW SKU to the SKU-less entry.
+                    if (skuDAO.findSkuByNumber(skuNumber).isPresent()) {
+                        StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Duplicate SKU", "An SKU with the number '" + skuNumber + "' already exists.");
+                        return;
+                    }
+                    Sku updatedSku = createSkuFromForm();
+                    if (skuDAO.replaceSku(selectedSku, updatedSku)) {
+                        skuList.remove(selectedSku);
+                        skuList.add(updatedSku);
+                        statusLabel.setText("Successfully assigned SKU and updated entry.");
+                        handleNew();
+                    } else {
+                        statusLabel.setText("Error: Could not replace SKU entry.");
+                    }
+                } else {
+                    // THIS IS THE NEW LOGIC PATH:
+                    // User is just EDITING a SKU-less entry and leaving it SKU-less.
+                    Sku updatedSku = createSkuFromForm();
+                    if (skuDAO.updateSkuLessEntry(selectedSku, updatedSku)) {
+                        skuList.remove(selectedSku);
+                        skuList.add(updatedSku);
+                        statusLabel.setText("Successfully updated SKU-less entry.");
+                        handleNew();
+                    } else {
+                        statusLabel.setText("Error: Could not update SKU-less entry.");
+                    }
+                }
             }
         }
+    }
 
-        if (success) {
-            statusLabel.setText("Successfully saved entry.");
-            refreshTable();
-        } else {
-            statusLabel.setText("Error: Could not save entry. The SKU might already exist.");
-        }
+    // Add this new helper method to the controller to reduce code duplication
+    private Sku createSkuFromForm() {
+        Sku sku = new Sku();
+        sku.setSkuNumber(Optional.ofNullable(skuNumberField.getText()).orElse("").trim());
+        sku.setModelNumber(Optional.ofNullable(modelNumberField.getText()).orElse(""));
+        sku.setDescription(Optional.ofNullable(descriptionField.getText()).orElse(""));
+        sku.setCategory(Optional.ofNullable(categoryField.getText()).orElse(""));
+        sku.setManufacturer(Optional.ofNullable(manufacturerField.getText()).orElse(""));
+        return sku;
     }
 }

@@ -252,6 +252,121 @@ public class SkuDAO {
     }
 
     /**
+     * Transactionally updates a SKU-less entry by deleting the old version and inserting the new one.
+     * It identifies the old entry by its model and description.
+     *
+     * @param oldSku The original Sku object to identify the row to delete.
+     * @param newSku The Sku object with the updated information to insert.
+     * @return true if the transaction was successful, false otherwise.
+     */
+    public boolean updateSkuLessEntry(Sku oldSku, Sku newSku) {
+        String deleteSql = "DELETE FROM SKU_Table WHERE (sku_number IS NULL OR sku_number = '') AND model_number = ? AND description = ?";
+        String insertSql = "INSERT INTO SKU_Table (sku_number, model_number, category, manufac, description) VALUES (?, ?, ?, ?, ?)";
+        Connection conn = null;
+
+        try {
+            conn = DatabaseConnection.getInventoryConnection();
+            conn.setAutoCommit(false); // Start transaction
+
+            // Step 1: Delete the old record based on its original model and description
+            try (PreparedStatement deleteStmt = conn.prepareStatement(deleteSql)) {
+                deleteStmt.setString(1, oldSku.getModelNumber());
+                deleteStmt.setString(2, oldSku.getDescription());
+                deleteStmt.executeUpdate();
+            }
+
+            // Step 2: Insert the new record with the updated details
+            try (PreparedStatement insertStmt = conn.prepareStatement(insertSql)) {
+                insertStmt.setString(1, newSku.getSkuNumber()); // This will be blank
+                insertStmt.setString(2, newSku.getModelNumber());
+                insertStmt.setString(3, newSku.getCategory());
+                insertStmt.setString(4, newSku.getManufacturer());
+                insertStmt.setString(5, newSku.getDescription());
+                insertStmt.executeUpdate();
+            }
+
+            conn.commit(); // Commit both changes
+            return true;
+
+        } catch (SQLException e) {
+            System.err.println("DB transaction failed during SKU-less update: " + e.getMessage());
+            if (conn != null) try {
+                conn.rollback();
+            } catch (SQLException ex) { /* ignored */ }
+            return false;
+        } finally {
+            if (conn != null) {
+                try {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                } catch (SQLException e) { /* ignored */ }
+            }
+        }
+    }
+
+    /**
+     * Replaces an old SKU entry (identified by its model and description) with a new one.
+     * This is used specifically for assigning a SKU number to an entry that didn't have one.
+     * The operation is performed within a single transaction.
+     *
+     * @param oldSku The original Sku object to be deleted.
+     * @param newSku The new Sku object to be inserted.
+     * @return true if the transaction was successful, false otherwise.
+     */
+    public boolean replaceSku(Sku oldSku, Sku newSku) {
+        // This query is designed to be very specific to avoid deleting the wrong record.
+        // It targets a row where the SKU is null or empty AND the model and description match.
+        String deleteSql = "DELETE FROM SKU_Table WHERE (sku_number IS NULL OR sku_number = '') AND model_number = ? AND description = ?";
+        String insertSql = "INSERT INTO SKU_Table (sku_number, model_number, category, manufac, description) VALUES (?, ?, ?, ?, ?)";
+
+        Connection conn = null;
+        try {
+            conn = DatabaseConnection.getInventoryConnection();
+            conn.setAutoCommit(false); // Start transaction
+
+            // Step 1: Delete the old record
+            try (PreparedStatement deleteStmt = conn.prepareStatement(deleteSql)) {
+                deleteStmt.setString(1, oldSku.getModelNumber());
+                deleteStmt.setString(2, oldSku.getDescription());
+                deleteStmt.executeUpdate();
+            }
+
+            // Step 2: Insert the new record
+            try (PreparedStatement insertStmt = conn.prepareStatement(insertSql)) {
+                insertStmt.setString(1, newSku.getSkuNumber());
+                insertStmt.setString(2, newSku.getModelNumber());
+                insertStmt.setString(3, newSku.getCategory());
+                insertStmt.setString(4, newSku.getManufacturer());
+                insertStmt.setString(5, newSku.getDescription());
+                insertStmt.executeUpdate();
+            }
+
+            conn.commit(); // Commit both changes if they were successful
+            return true;
+
+        } catch (SQLException e) {
+            System.err.println("Database transaction failed during SKU replacement: " + e.getMessage());
+            if (conn != null) {
+                try {
+                    conn.rollback(); // Undo any changes if an error occurred
+                } catch (SQLException ex) {
+                    System.err.println("Failed to rollback SKU replacement transaction: " + ex.getMessage());
+                }
+            }
+            return false;
+        } finally {
+            if (conn != null) {
+                try {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                } catch (SQLException e) {
+                    System.err.println("Failed to close connection after SKU replacement: " + e.getMessage());
+                }
+            }
+        }
+    }
+
+    /**
      * Finds SKUs that have a non-empty sku_number, specifically for label printing.
      * Returns a list of formatted strings "SKU - Description" for display in suggestions.
      *
