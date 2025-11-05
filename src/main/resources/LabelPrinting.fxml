@@ -58,9 +58,22 @@
                     <TextField fx:id="deploySkuField" editable="false" promptText="Selected SKU will appear here"/>
                     <TextField fx:id="deployDescriptionField" editable="false"
                                promptText="Selected Description will appear here"/>
+                    <Separator/>
                     <Label text="Step 2: Scan Serial Numbers"/>
-                    <TextField fx:id="deploySerialField" onAction="#handleDeploySerialScan"
-                               promptText="Scan serial number here..."/>
+
+                    <!-- THIS IS THE NEW DUAL-INPUT SECTION -->
+                    <HBox alignment="CENTER_LEFT" spacing="5">
+                        <ToggleButton fx:id="multiSerialToggle" text="Multi-Line Paste"/>
+                        <StackPane HBox.hgrow="ALWAYS">
+                            <TextField fx:id="deploySerialField" onAction="#handleDeploySerialScan"
+                                       promptText="Scan single serial and press Enter..."/>
+                            <TextArea fx:id="deploySerialArea" prefHeight="150.0" managed="false" visible="false"
+                                      promptText="Paste serial numbers here, one per line."/>
+                        </StackPane>
+                    </HBox>
+                    <Button fx:id="printAllButton" onAction="#handlePrintAllFromList" text="Print All Serials from List"
+                            styleClass="success" maxWidth="Infinity" managed="false" visible="false"/>
+                    <!-- END OF NEW SECTION -->
                 </VBox>
             </ScrollPane>
 

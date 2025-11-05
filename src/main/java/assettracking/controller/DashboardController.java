@@ -36,8 +36,8 @@ public class DashboardController {
     private final AtomicBoolean isRefreshing = new AtomicBoolean(false);
     private final ObservableList<TopModelStat> topModelsList = FXCollections.observableArrayList();
     // Bar Chart Series are now final fields, created only once.
-    private XYChart.Series<String, Number> intakeSeries = new XYChart.Series<>();
-    private XYChart.Series<String, Number> processedSeries = new XYChart.Series<>();
+    private final XYChart.Series<String, Number> intakeSeries = new XYChart.Series<>();
+    private final XYChart.Series<String, Number> processedSeries = new XYChart.Series<>();
     @FXML
     private BarChart<String, Number> intakeProcessedChart;
     @FXML
@@ -201,24 +201,16 @@ public class DashboardController {
                     processedData.add(new XYChart.Data<>(dayString, counts[1]));
                 }
 
-                // --- THIS IS THE ROBUST FIX ---
+                // --- THIS IS THE FINAL, ROBUST FIX ---
+                // Do NOT create new Series objects. Do NOT touch the chart's main data list.
+                // Only modify the data *within* the existing series objects.
 
-                // 1. Create completely new series objects.
-                intakeSeries = new XYChart.Series<>();
-                intakeSeries.setName("Devices Intaken");
+                intakeProcessedChart.setAnimated(false); // Disable animation during the update
+
                 intakeSeries.getData().setAll(intakeData);
-
-                processedSeries = new XYChart.Series<>();
-                processedSeries.setName("Devices Processed");
                 processedSeries.getData().setAll(processedData);
 
-                // 2. Turn off animations to prevent race conditions.
-                intakeProcessedChart.setAnimated(false);
-
-                // 3. Replace the chart's entire data set with the new, complete series.
-                intakeProcessedChart.getData().setAll(intakeSeries, processedSeries);
-
-                // 4. Re-enable animations for future interactions on a subsequent pulse.
+                // Re-enable animation on the next UI pulse
                 Platform.runLater(() -> intakeProcessedChart.setAnimated(true));
                 // --- END OF FIX ---
             });

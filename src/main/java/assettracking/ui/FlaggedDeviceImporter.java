@@ -1,11 +1,13 @@
 package assettracking.ui;
 
 import assettracking.db.DatabaseConnection;
+import assettracking.manager.StageManager;
 import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.scene.control.Alert;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import javafx.stage.Window;
 import org.apache.poi.ss.usermodel.*;
 
 import java.io.File;
@@ -22,10 +24,7 @@ public class FlaggedDeviceImporter {
     public void importFromFile(Stage owner, Runnable onFinished) {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Select Flagged Devices File");
-        fileChooser.getExtensionFilters().addAll(
-                new FileChooser.ExtensionFilter("Excel Files", "*.xlsx", "*.xls"),
-                new FileChooser.ExtensionFilter("All Files", "*.*")
-        );
+        fileChooser.getExtensionFilters().addAll(new FileChooser.ExtensionFilter("Excel Files", "*.xlsx", "*.xls"), new FileChooser.ExtensionFilter("All Files", "*.*"));
         File selectedFile = fileChooser.showOpenDialog(owner);
 
         if (selectedFile != null) {
@@ -37,7 +36,8 @@ public class FlaggedDeviceImporter {
             };
 
             importTask.setOnSucceeded(e -> {
-                showAlert(Alert.AlertType.INFORMATION, "Import Complete", importTask.getValue());
+                // THIS IS THE FIX: We pass the 'owner' stage to the showAlert method
+                showAlert(owner, Alert.AlertType.INFORMATION, "Import Complete", importTask.getValue());
                 if (onFinished != null) {
                     onFinished.run();
                 }
@@ -46,7 +46,8 @@ public class FlaggedDeviceImporter {
             importTask.setOnFailed(e -> {
                 Throwable ex = importTask.getException();
                 ex.printStackTrace();
-                showAlert(Alert.AlertType.ERROR, "Import Failed", "An error occurred during the import: " + ex.getMessage());
+                // THIS IS THE FIX: We also pass the 'owner' stage here for error alerts
+                showAlert(owner, Alert.AlertType.ERROR, "Import Failed", "An error occurred during the import: " + ex.getMessage());
             });
 
             new Thread(importTask).start();
@@ -57,8 +58,7 @@ public class FlaggedDeviceImporter {
         Map<String, String> dataToImport = new LinkedHashMap<>();
         int skippedRowCount = 0;
 
-        try (FileInputStream fis = new FileInputStream(file);
-             Workbook workbook = WorkbookFactory.create(fis)) {
+        try (FileInputStream fis = new FileInputStream(file); Workbook workbook = WorkbookFactory.create(fis)) {
 
             Sheet sheet = workbook.getSheetAt(0);
             if (sheet.getPhysicalNumberOfRows() < 2) {
@@ -145,13 +145,10 @@ public class FlaggedDeviceImporter {
         }
     }
 
-    private void showAlert(Alert.AlertType alertType, String title, String content) {
+    private void showAlert(Window owner, Alert.AlertType alertType, String title, String content) {
         Platform.runLater(() -> {
-            Alert alert = new Alert(alertType);
-            alert.setTitle(title);
-            alert.setHeaderText(null);
-            alert.setContentText(content);
-            alert.showAndWait();
+            // Use the StageManager for consistency and custom styling
+            StageManager.showAlert(owner, alertType, title, content);
         });
     }
 }

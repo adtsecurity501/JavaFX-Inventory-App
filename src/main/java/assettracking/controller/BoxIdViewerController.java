@@ -115,11 +115,7 @@ public class BoxIdViewerController {
         });
 
         FilteredList<BoxIdSummary> filteredData = new FilteredList<>(summaryList, p -> true);
-        searchField.textProperty().addListener((obs, oldVal, newVal) ->
-                filteredData.setPredicate(summary ->
-                        newVal == null || newVal.isEmpty() || summary.boxId().toLowerCase().contains(newVal.toLowerCase())
-                )
-        );
+        searchField.textProperty().addListener((obs, oldVal, newVal) -> filteredData.setPredicate(summary -> newVal == null || newVal.isEmpty() || summary.boxId().toLowerCase().contains(newVal.toLowerCase())));
         summaryTable.setItems(filteredData);
 
         showArchivedCheck.selectedProperty().addListener((obs, oldVal, newVal) -> loadSummaryDataAsync());

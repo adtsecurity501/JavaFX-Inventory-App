@@ -6,6 +6,7 @@ import assettracking.label.service.ZplPrinterService;
 import assettracking.ui.AutoCompletePopup;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
+import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.control.*;
@@ -16,6 +17,7 @@ import javafx.scene.layout.VBox;
 import javax.print.PrintService;
 import javax.print.PrintServiceLookup;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -80,6 +82,12 @@ public class LabelPrintingController {
     @SuppressWarnings("unused")
     @FXML
     private RadioButton barcodeFullRadio;
+    @FXML
+    private ToggleButton multiSerialToggle;
+    @FXML
+    private TextArea deploySerialArea;
+    @FXML
+    private Button printAllButton;
 
     // --- NEW: References to popups ---
     private AutoCompletePopup imageSkuPopup;
@@ -91,6 +99,20 @@ public class LabelPrintingController {
         setupSearchableSkuFields();
         setupAutocomplete();
         setupMenuToggles();
+
+        multiSerialToggle.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
+            deploySerialField.setVisible(!isSelected);
+            deploySerialField.setManaged(!isSelected);
+            deploySerialArea.setVisible(isSelected);
+            deploySerialArea.setManaged(isSelected);
+            printAllButton.setVisible(isSelected);
+            printAllButton.setManaged(isSelected);
+            if (isSelected) {
+                deploySerialArea.requestFocus();
+            } else {
+                deploySerialField.requestFocus();
+            }
+        });
 
         // --- THIS IS THE CORRECTED AND ROBUST WORKFLOW LOGIC ---
 
@@ -118,6 +140,84 @@ public class LabelPrintingController {
             // Always print after the IMEI has been entered.
             handlePrintAssetTag();
         });
+    }
+
+    @FXML
+    private void handlePrintAllFromList() {
+        String sku = deploySkuField.getText().trim();
+        String description = deployDescriptionField.getText();
+        String printerName = printerNameField.getValue();
+        String serialsText = deploySerialArea.getText();
+
+        // --- Validation ---
+        if (sku.isEmpty()) {
+            showAlert(Alert.AlertType.WARNING, "SKU Missing", "Please select a SKU before printing.");
+            deploySkuSearchField.requestFocus();
+            return;
+        }
+        if (printerName == null) {
+            showAlert(Alert.AlertType.WARNING, "Printer Missing", "Please select a SKU/Item printer.");
+            printerNameField.requestFocus();
+            return;
+        }
+        if (serialsText == null || serialsText.isBlank()) {
+            showAlert(Alert.AlertType.WARNING, "Input Missing", "Please paste at least one serial number into the text area.");
+            deploySerialArea.requestFocus();
+            return;
+        }
+
+        String[] serials = serialsText.trim().split("\\r?\\n");
+        List<String> validSerials = Arrays.stream(serials).map(String::trim).filter(s -> !s.isEmpty()).toList();
+
+        if (validSerials.isEmpty()) {
+            showAlert(Alert.AlertType.WARNING, "Input Missing", "No valid serial numbers found in the text area.");
+            return;
+        }
+
+        // --- Background Task for Printing ---
+        Task<String> printTask = new Task<>() {
+            @Override
+            protected String call() throws Exception {
+                int successCount = 0;
+                int totalCount = validSerials.size();
+                for (int i = 0; i < totalCount; i++) {
+                    if (isCancelled()) break;
+                    String serial = validSerials.get(i);
+                    updateMessage("Printing " + (i + 1) + "/" + totalCount + ": " + serial);
+
+                    String adtZpl = ZplPrinterService.getAdtLabelZpl(sku, description);
+                    String serialZpl = ZplPrinterService.getSerialLabelZpl(sku, serial);
+
+                    boolean s1 = printerService.sendZplToPrinter(printerName, adtZpl);
+                    boolean s2 = printerService.sendZplToPrinter(printerName, serialZpl);
+
+                    if (s1 && s2) {
+                        successCount++;
+                    }
+                    updateProgress(i + 1, totalCount);
+                }
+                return String.format("Finished. Successfully printed labels for %d of %d serials.", successCount, totalCount);
+            }
+        };
+
+        // --- UI Updates ---
+        statusLabel.textProperty().bind(printTask.messageProperty());
+        printAllButton.setDisable(true);
+
+        printTask.setOnSucceeded(e -> {
+            statusLabel.textProperty().unbind();
+            updateStatus(printTask.getValue(), false);
+            deploySerialArea.clear();
+            printAllButton.setDisable(false);
+        });
+
+        printTask.setOnFailed(e -> {
+            statusLabel.textProperty().unbind();
+            updateStatus("A critical error occurred during printing. Check printer connection.", true);
+            printAllButton.setDisable(false);
+        });
+
+        new Thread(printTask).start();
     }
 
     private void setupMenuToggles() {

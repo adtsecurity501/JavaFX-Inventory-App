@@ -87,9 +87,10 @@ public class FlagManagementDialogController {
     @FXML
     private void handleImportFromFile() {
         // Re-use the existing importer logic
-        new FlaggedDeviceImporter().importFromFile(getStage(), this::loadFlags // This is the magic: it reloads the table after the import finishes
+        new FlaggedDeviceImporter().importFromFile(getStage(),   // <-- THIS IS THE FIX: Pass the current stage as the owner
+                this::loadFlags // This is the callback to reload the table
         );
-        // Also trigger the main screen's callback if it exists
+
         if (onSaveCallback != null) onSaveCallback.run();
     }
 
