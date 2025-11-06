@@ -47,6 +47,8 @@ public class AddAssetDialogController {
     public ToggleGroup conditionToggleGroup;
     @FXML
     public TextField serialField;
+    @FXML
+    private Label dispositionWarningLabel;
     // --- FXML Fields ---
     @FXML
     private RadioButton standardIntakeRadio, monitorIntakeRadio, refurbRadioButton, newRadioButton;
@@ -176,6 +178,20 @@ public class AddAssetDialogController {
         new AutoCompletePopup(categoryField, () -> assetDAO.getAllDistinctCategories().stream().filter(s -> s.toLowerCase().contains(categoryField.getText().toLowerCase())).collect(Collectors.toList()));
         descriptionPopup = new AutoCompletePopup(descriptionField, () -> assetDAO.findDescriptionsLike(descriptionField.getText())).setOnSuggestionSelected(selectedValue -> assetDAO.findSkuDetails(selectedValue, "description").ifPresent(this::populateFieldsFromSku));
         modelPopup = new AutoCompletePopup(modelField, () -> assetDAO.findModelNumbersLike(modelField.getText())).setOnSuggestionSelected(selectedValue -> assetDAO.findSkuDetails(selectedValue, "model_number").ifPresent(this::populateFieldsFromSku));
+    }
+
+    /**
+     * Sets the text and visibility of the new warning label in the disposition pane.
+     */
+    public void setDispositionWarning(String text) {
+        if (text == null || text.isEmpty()) {
+            dispositionWarningLabel.setVisible(false);
+            dispositionWarningLabel.setManaged(false);
+        } else {
+            dispositionWarningLabel.setText(text);
+            dispositionWarningLabel.setVisible(true);
+            dispositionWarningLabel.setManaged(true);
+        }
     }
 
 
@@ -434,6 +450,8 @@ public class AddAssetDialogController {
 
     @FXML
     private void handleLookupSerial() {
+        // ADD THIS LINE at the beginning to clear the warning on each new lookup
+        setDispositionWarning(null);
         standardIntakeHandler.handleLookupSerial();
     }
 

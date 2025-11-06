@@ -37,6 +37,10 @@ public class MainViewController {
     private Tab iPadProvisioningTab;
     @FXML
     private iPadProvisioningController iPadProvisioningController;
+    @FXML
+    private Tab imagingStatusTab;
+    @FXML
+    private ImagingStatusController imagingStatusController;
 
     private double xOffset = 0;
     private double yOffset = 0;
@@ -65,7 +69,6 @@ public class MainViewController {
         Platform.runLater(() -> {
             TabPane tabPane = iPadProvisioningTab.getTabPane();
             tabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
-                // If the newly selected tab is our iPad Provisioning tab, refresh its data.
                 if (newTab == iPadProvisioningTab) {
                     iPadProvisioningController.refreshData();
                 }

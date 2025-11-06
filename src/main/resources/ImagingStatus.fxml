@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<VBox xmlns:fx="http://javafx.com/fxml/1" fx:controller="assettracking.controller.ImagingStatusController"
+      spacing="10" style="-fx-padding: 15;">
+
+    <Label styleClass="h3" text="Imaging Email Processor"/>
+    <Label wrapText="true"
+           text="This tool reads imaging-complete emails from Outlook. Use the settings to configure the folder and IP filters."/>
+    <Separator/>
+
+    <HBox spacing="10" alignment="CENTER_LEFT">
+        <HBox alignment="CENTER_LEFT" spacing="20"
+              style="-fx-padding: 5; -fx-border-color: -color-border-muted; -fx-border-radius: 4;">
+            <Label text="Search Mode:"/>
+            <RadioButton fx:id="unreadModeRadio" text="Unread Only" selected="true">
+                <toggleGroup>
+                    <ToggleGroup fx:id="searchModeToggleGroup"/>
+                </toggleGroup>
+            </RadioButton>
+            <RadioButton fx:id="dateModeRadio" text="By Single Date" toggleGroup="$searchModeToggleGroup"/>
+
+            <!-- ADD THIS NEW RADIO BUTTON -->
+            <RadioButton fx:id="rangeModeRadio" text="By Date Range" toggleGroup="$searchModeToggleGroup"/>
+
+            <!-- This HBox will contain our date pickers -->
+            <HBox fx:id="datePickerBox" spacing="5" alignment="CENTER_LEFT">
+                <DatePicker fx:id="datePicker" visible="false" managed="false"/>
+                <!-- The Java code will add the "To:" label and second DatePicker here -->
+            </HBox>
+        </HBox>
+        <Region HBox.hgrow="ALWAYS"/>
+
+        <!-- NEW TOGGLE BUTTON FOR AUTO-REFRESH -->
+        <ToggleButton fx:id="autoRefreshToggle" text="Auto-Refresh: OFF"/>
+
+        <Button onAction="#handleOpenSettings" text="Settings..."/>
+        <Button fx:id="checkEmailsButton" onAction="#handleCheckEmails" text="Check for Emails" styleClass="success"
+                prefHeight="40.0"/>
+    </HBox>
+
+    <HBox alignment="CENTER_LEFT" spacing="10">
+        <Label fx:id="statusLabel" style="-fx-font-weight: bold;"/>
+        <ProgressBar fx:id="progressBar" prefWidth="200" visible="false"/>
+    </HBox>
+
+    <TitledPane text="Show Verbose Log" collapsible="true" expanded="false">
+        <BorderPane>
+            <center>
+                <TextArea fx:id="logTextArea" editable="false" prefHeight="150.0" wrapText="true"
+                          promptText="Detailed script output will appear here..."/>
+            </center>
+            <bottom>
+                <HBox alignment="CENTER_RIGHT" style="-fx-padding: 5 0 0 0;">
+                    <Button onAction="#handleClearLog" text="Clear Log"/>
+                </HBox>
+            </bottom>
+        </BorderPane>
+    </TitledPane>
+
+    <SplitPane dividerPositions="0.7" VBox.vgrow="ALWAYS">
+        <VBox spacing="5">
+            <HBox alignment="CENTER_LEFT" spacing="10" style="-fx-padding: 5 0 5 0;">
+                <Label styleClass="h4" text="Parsed Email Results"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Button onAction="#handleClearResults" text="Clear Results"/>
+                <Button onAction="#handleCopyResults" text="Copy Table"/>
+            </HBox>
+            <TableView fx:id="resultsTable" VBox.vgrow="ALWAYS">
+                <columns>
+                    <TableColumn fx:id="computerNameCol" text="Computer Name" prefWidth="150"/>
+                    <TableColumn fx:id="serialNumberCol" text="Serial Number" prefWidth="150"/>
+                    <TableColumn fx:id="reimageTimeCol" text="Reimage Duration" prefWidth="120"/>
+                    <TableColumn fx:id="failedInstallsCol" text="Failed Installs" prefWidth="300"/>
+                </columns>
+                <placeholder>
+                    <Label text="No imaging results to display."/>
+                </placeholder>
+            </TableView>
+        </VBox>
+        <VBox spacing="5" style="-fx-padding: 0 0 0 10;">
+            <Label styleClass="h4" text="AD / SCCM Search"/>
+            <ListView fx:id="adResultsList" VBox.vgrow="ALWAYS">
+                <placeholder>
+                    <Label text="Select a result to check AD."/>
+                </placeholder>
+            </ListView>
+        </VBox>
+    </SplitPane>
+</VBox>

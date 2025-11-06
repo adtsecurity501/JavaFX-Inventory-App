@@ -2,6 +2,7 @@ package assettracking.controller.handler;
 
 import assettracking.controller.AddAssetDialogController;
 import assettracking.controller.MachineRemovalSelectionController;
+import assettracking.dao.FlaggedDeviceDAO;
 import assettracking.data.AssetInfo;
 import assettracking.manager.IntakeService;
 import assettracking.manager.MachineRemovalService;
@@ -14,24 +15,16 @@ import javafx.scene.control.Alert;
 import javafx.stage.Stage;
 
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-/**
- * Manages all UI logic and event handling for the "Standard Intake" panel.
- */
 public class StandardIntakeHandler {
 
     private final AddAssetDialogController controller;
     private final MachineRemovalService removalService = new MachineRemovalService();
-
+    private final FlaggedDeviceDAO flaggedDeviceDAO = new FlaggedDeviceDAO();
 
     public StandardIntakeHandler(AddAssetDialogController controller) {
         this.controller = controller;
@@ -41,7 +34,7 @@ public class StandardIntakeHandler {
         String serialToLookup = controller.getSerial();
         if (serialToLookup.isEmpty()) return;
 
-        controller.setFormAssetDetails(new AssetInfo()); // Clears the form fields
+        controller.setFormAssetDetails(new AssetInfo());
         controller.setProbableCause("");
         controller.setMelAction("");
 
@@ -50,31 +43,63 @@ public class StandardIntakeHandler {
             applyMelRule(asset.getModelNumber(), asset.getDescription());
         });
 
-        try (Connection conn = controller.getDbConnection(); PreparedStatement flagStmt = conn.prepareStatement("SELECT flag_reason FROM Flag_Devices WHERE serial_number = ?")) { // Query no longer needs sub_status
-            flagStmt.setString(1, serialToLookup);
-            ResultSet rs = flagStmt.executeQuery();
-            if (rs.next()) {
-                final String reason = rs.getString("flag_reason");
-                // The reason is no longer needed here, as the status is now fixed
-                controller.setFlaggedDeviceFields();
-                controller.setProbableCause("Flagged Reason: " + reason);
-            }
-        } catch (SQLException e) {
-            controller.setProbableCause("DB Error checking flag.");
-        }
-    }
+        flaggedDeviceDAO.getFlagBySerial(serialToLookup).ifPresent(flagData -> {
+            controller.setFlaggedDeviceFields();
+            String reason = flagData.reason();
+            String displayReason = reason;
 
-    public void applyMelRule(String modelNumber, String description) {
-        controller.getAssetDAO().findMelRule(modelNumber, description).ifPresent(rule -> {
-            controller.setMelAction("MEL Action: " + rule.action());
-            if ("Dispose".equalsIgnoreCase(rule.action())) {
-                controller.setDispositionFieldsForDispose();
+            if (flagData.preventRemoval()) {
+                // Remove the tag for display purposes
+                if (reason != null) {
+                    displayReason = reason.replace("[NOREMOVE]", "").trim();
+                }
+                // Set the main flag reason in its original location
+                controller.setProbableCause("Flagged: " + displayReason);
+                // SET THE NEW WARNING in the disposition area
+                controller.setDispositionWarning("WARNING: This device will NOT be automatically removed from AD/SCCM on intake.");
+            } else {
+                // If not prevented, clear any lingering warning and set the normal reason
+                controller.setDispositionWarning(null);
+                controller.setProbableCause("Flagged Reason: " + reason);
             }
         });
     }
 
+    private void runAutomatedMachineRemoval(String serialNumber) {
+        controller.updateStandardIntakeFeedback("Searching AD/SCCM for " + serialNumber + "...");
+
+        if (flaggedDeviceDAO.isAutoRemovalPrevented(serialNumber)) {
+            Platform.runLater(() -> controller.updateStandardIntakeFeedback("Asset processed. Auto-removal from AD/SCCM was skipped as per flag."));
+            System.out.println("Skipping auto-removal for " + serialNumber + " due to [NOREMOVE] flag.");
+            return;
+        }
+
+        removalService.search(List.of(serialNumber)).thenAccept(results -> {
+            Map<String, List<MachineRemovalService.SearchResult>> groupedResults = results.stream().filter(r -> "OK".equalsIgnoreCase(r.status())).collect(Collectors.groupingBy(MachineRemovalService.SearchResult::source));
+
+            List<MachineRemovalService.SearchResult> adResults = groupedResults.getOrDefault("AD", Collections.emptyList());
+            List<MachineRemovalService.SearchResult> sccmResults = groupedResults.getOrDefault("SCCM", Collections.emptyList());
+
+            if (adResults.size() > 1 || sccmResults.size() > 1) {
+                Platform.runLater(() -> showManualSelectionDialog(serialNumber, results));
+            } else {
+                List<String> namesToRemove = results.stream().map(MachineRemovalService.SearchResult::computerName).distinct().collect(Collectors.toList());
+
+                if (!namesToRemove.isEmpty()) {
+                    removalService.remove(namesToRemove).thenAccept(log -> {
+                        String logMessage = "Auto-Removal for S/N " + serialNumber + ": " + String.join(". ", log);
+                        System.out.println(logMessage);
+                        Platform.runLater(() -> controller.updateStandardIntakeFeedback("Asset processed. Auto-removed from AD/SCCM."));
+                    });
+                } else {
+                    Platform.runLater(() -> controller.updateStandardIntakeFeedback("Asset processed. Not found in AD/SCCM."));
+                }
+            }
+        });
+    }
+
+    // ... handleSave() and other existing methods ...
     public void handleSave() {
-        // *** THIS IS THE NEW VALIDATION LOGIC ***
         if (controller.isBulkAddMode()) {
             if (controller.getAssetEntries().isEmpty() || controller.getAssetEntries().stream().allMatch(e -> e.getSerialNumber().trim().isEmpty())) {
                 StageManager.showAlert(controller.getOwnerWindow(), Alert.AlertType.WARNING, "Input Required", "At least one device with a Serial Number is required in the table.");
@@ -91,7 +116,6 @@ public class StandardIntakeHandler {
                 return;
             }
         }
-        // *** END OF NEW VALIDATION LOGIC ***
 
         if (controller.isSellScrap() && "Disposed".equals(controller.getScrapStatus())) {
             if (!"Ready for Wipe".equals(controller.getScrapSubStatus()) && controller.getBoxId().isEmpty()) {
@@ -107,18 +131,15 @@ public class StandardIntakeHandler {
             String result = saveTask.getValue();
             if (controller.getParentController() != null) controller.getParentController().refreshData();
 
-            // --- NEW INTEGRATION LOGIC ---
             AssetInfo details = controller.getAssetDetailsFromForm();
             String category = details.getCategory();
 
-            // We only run this for single, non-bulk intakes
             if (!controller.isBulkAddMode() && !controller.isMultiSerialMode()) {
                 String serial = controller.getSerial();
                 if (("Laptop".equalsIgnoreCase(category) || "Desktop".equalsIgnoreCase(category) || "Getac".equalsIgnoreCase(category)) && !serial.isEmpty()) {
                     runAutomatedMachineRemoval(serial);
                 }
             }
-            // --- END OF NEW LOGIC ---
 
             if (result.toLowerCase().contains("error")) {
                 controller.updateStandardIntakeFeedback(result);
@@ -137,29 +158,11 @@ public class StandardIntakeHandler {
         new Thread(saveTask).start();
     }
 
-    private void runAutomatedMachineRemoval(String serialNumber) {
-        controller.updateStandardIntakeFeedback("Searching AD/SCCM for " + serialNumber + "...");
-
-        removalService.search(List.of(serialNumber)).thenAccept(results -> {
-            Map<String, List<MachineRemovalService.SearchResult>> groupedResults = results.stream().filter(r -> "OK".equalsIgnoreCase(r.status())).collect(Collectors.groupingBy(MachineRemovalService.SearchResult::source));
-
-            List<MachineRemovalService.SearchResult> adResults = groupedResults.getOrDefault("AD", Collections.emptyList());
-            List<MachineRemovalService.SearchResult> sccmResults = groupedResults.getOrDefault("SCCM", Collections.emptyList());
-
-            if (adResults.size() > 1 || sccmResults.size() > 1) {
-                Platform.runLater(() -> showManualSelectionDialog(serialNumber, results));
-            } else {
-                List<String> namesToRemove = results.stream().map(MachineRemovalService.SearchResult::computerName).distinct().collect(Collectors.toList());
-
-                if (!namesToRemove.isEmpty()) {
-                    removalService.remove(namesToRemove).thenAccept(log -> {
-                        String logMessage = "Auto-Removal for S/N " + serialNumber + ": " + String.join(". ", log);
-                        System.out.println(logMessage); // Log to console for now
-                        Platform.runLater(() -> controller.updateStandardIntakeFeedback("Asset processed. Auto-removed from AD/SCCM."));
-                    });
-                } else {
-                    Platform.runLater(() -> controller.updateStandardIntakeFeedback("Asset processed. Not found in AD/SCCM."));
-                }
+    public void applyMelRule(String modelNumber, String description) {
+        controller.getAssetDAO().findMelRule(modelNumber, description).ifPresent(rule -> {
+            controller.setMelAction("MEL Action: " + rule.action());
+            if ("Dispose".equalsIgnoreCase(rule.action())) {
+                controller.setDispositionFieldsForDispose();
             }
         });
     }
@@ -172,7 +175,7 @@ public class StandardIntakeHandler {
             dialogController.initData(serialNumber, results);
 
             Stage stage = StageManager.createCustomStage(controller.getOwnerWindow(), "Multiple Machines Found", root);
-            stage.show(); // Use show() instead of showAndWait() to not block the intake process
+            stage.show();
 
         } catch (IOException e) {
             System.err.println("Failed to open machine removal selection dialog: " + e.getMessage());
@@ -186,7 +189,7 @@ public class StandardIntakeHandler {
             @Override
             protected String call() {
                 if (controller.isBulkAddMode()) {
-                    return intakeService.processFromTable(new ArrayList<>(controller.getAssetEntries()), controller.isSellScrap(), controller.getScrapStatus(), controller.getScrapSubStatus(), controller.getScrapReason(), controller.getBoxId());
+                    return intakeService.processFromTable(new java.util.ArrayList<>(controller.getAssetEntries()), controller.isSellScrap(), controller.getScrapStatus(), controller.getScrapSubStatus(), controller.getScrapReason(), controller.getBoxId());
                 } else {
                     AssetInfo details = controller.getAssetDetailsFromForm();
                     String[] serials = controller.isMultiSerialMode() ? controller.getSerialsFromArea() : new String[]{controller.getSerial()};

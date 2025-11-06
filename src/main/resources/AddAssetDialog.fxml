@@ -214,6 +214,8 @@
                                            GridPane.columnIndex="0"/>
                                     <TextField fx:id="boxIdField" GridPane.rowIndex="4" GridPane.columnIndex="1"/>
                                 </GridPane>
+                                <Label fx:id="dispositionWarningLabel" managed="false" visible="false" wrapText="true"
+                                       styleClass="error-label" style="-fx-padding: 10 0 0 0;"/>
                             </VBox>
                         </HBox>
                     </TitledPane>

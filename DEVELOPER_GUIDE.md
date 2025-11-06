@@ -118,7 +118,7 @@ Task<Map<String, Integer>> task = new Task<>() {
             @Override
             protected Map<String, Integer> call() throws Exception {
                 // This runs on a background thread (SAFE FOR LONG OPERATIONS)
-                return dataService.getGranularMetrics(...);
+                return dataService.getGranularMetrics(...)
             }
         };
 

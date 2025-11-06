@@ -79,6 +79,9 @@
                 <Tab text="Machine Removal">
                     <fx:include source="MachineRemoval.fxml"/>
                 </Tab>
+                <Tab fx:id="imagingStatusTab" text="Imaging Status">
+                    <fx:include source="ImagingStatus.fxml"/>
+                </Tab>
             </TabPane>
         </VBox>
     </center>
