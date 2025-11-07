@@ -1,9 +1,30 @@
-import argparse
-import re
+import os
 import sys
-import win32com.client
-from datetime import datetime, timedelta
 
+# --- THIS IS THE DEFINITIVE FIX ---
+# This block makes the script self-aware of its location, which is essential
+# for finding the pywintypes and pythoncom DLLs in an embedded/standalone environment.
+try:
+    # sys.executable is the full path to the python.exe being run.
+    # os.path.dirname gets the directory that contains it.
+    executable_dir = os.path.dirname(sys.executable)
+    # Add this directory to Python's search path. Now it can find the DLLs.
+    sys.path.append(executable_dir)
+    # For extra safety, also add the location of other pywin32 files.
+    sys.path.append(os.path.join(executable_dir, 'Lib', 'site-packages', 'win32'))
+    sys.path.append(os.path.join(executable_dir, 'Lib', 'site-packages', 'win32', 'lib'))
+except Exception as e:
+    # This is a safeguard; it should not fail.
+    print(f"LOG:FATAL:Could not modify Python search path. Error: {e}")
+# --- END OF FIX ---
+
+import win32com.client
+import re
+from datetime import datetime, timedelta
+import argparse
+
+
+# --- The rest of the script is unchanged ---
 
 # --- LOGGING FUNCTION ---
 def log(level, message):
@@ -27,7 +48,6 @@ def parse_email_body(body, keywords):
     data = {'serial_number': 'N/A', 'reimage_time': 'N/A', 'failed_installs': '0'}
     lines = body.splitlines()
     failed_apps = []
-
     summary_found = False
     for line in lines:
         if "the following" in line.lower() and "items failed to install" in line.lower():
@@ -36,7 +56,6 @@ def parse_email_body(body, keywords):
                 data['failed_installs'] = f"{match.group(1)} items (from summary)"
                 summary_found = True
                 break
-
     if not summary_found:
         fail_keyword = keywords['failed'].lower()
         for line in lines:
@@ -45,12 +64,10 @@ def parse_email_body(body, keywords):
                 if len(parts) > 1:
                     app_name = parts[1].strip()
                     failed_apps.append(app_name)
-
         if not failed_apps:
             data['failed_installs'] = '0'
         else:
             data['failed_installs'] = ", ".join(failed_apps)
-
     for line in lines:
         try:
             lower_line = line.lower()
@@ -61,7 +78,6 @@ def parse_email_body(body, keywords):
         except IndexError:
             log("WARN", f"Could not parse a keyword line: '{line}'")
             continue
-
     return data
 
 
@@ -80,15 +96,12 @@ def main():
     parser.add_argument("--kw_time", default="Time to reimage:", help="Keyword for Reimage Time.")
     parser.add_argument("--kw_failed", default="items failed to install:", help="Keyword for Failed Installs.")
     args = parser.parse_args()
-
     keywords = {'serial': args.kw_serial, 'time': args.kw_time, 'failed': args.kw_failed}
-
     try:
         outlook = win32com.client.Dispatch("Outlook.Application").GetNamespace("MAPI")
     except Exception as e:
         log("ERROR", f"Could not connect to Outlook. Is it running? Error: {e}")
         sys.exit(1)
-
     try:
         log("INFO", f"Attempting to find folder '{args.folder_name}' in default mailbox...")
         mailbox_root = outlook.GetDefaultFolder(6).Parent
@@ -100,12 +113,10 @@ def main():
     except Exception as e:
         log("ERROR", f"An unexpected error occurred while trying to access Outlook folders. Error: {e}")
         sys.exit(1)
-
     if args.test_connection:
         print(
             f"SUCCESS: Successfully connected to Outlook and found folder '{folder.Name}'. It contains {folder.Items.Count} total items.")
         sys.exit(0)
-
     filter_str = ""
     if args.search_mode == "UNREAD":
         filter_str = "[Unread] = true"
@@ -118,13 +129,10 @@ def main():
         start_str = start_dt.strftime('%m/%d/%Y %H:%M %p')
         end_str = end_dt.strftime('%m/%d/%Y %H:%M %p')
         filter_str = f"[ReceivedTime] >= '{start_str}' AND [ReceivedTime] < '{end_str}'"
-
     if args.subject_filter:
         if filter_str: filter_str += " AND "
         filter_str += f"@SQL=\"urn:schemas:httpmail:subject\" LIKE '%{args.subject_filter}%'"
-
     log("INFO", f"Using filter: {filter_str}")
-
     try:
         messages = folder.Items.Restrict(filter_str)
         messages.Sort("[ReceivedTime]", True)
@@ -133,7 +141,6 @@ def main():
         sys.exit(1)
     log("INFO", f"Found {messages.Count} item(s) matching filter.")
     processed_count = 0
-
     for message in list(messages):
         try:
             computer_name = "N/A"
@@ -154,11 +161,8 @@ def main():
         except Exception as e:
             log("ERROR", f"Failed to process email with subject '{message.Subject}'. Error: {e}")
             continue
-
     log("INFO", f"Finished. Processed {processed_count} emails.")
 
 
-# --- THIS IS THE FIX ---
-# The following lines must be indented to be part of the main script body.
 if __name__ == "__main__":
     main()
