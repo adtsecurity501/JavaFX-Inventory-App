@@ -68,13 +68,7 @@ public class TemplateService {
 
     public List<String> getTemplateNames() {
         try (Stream<Path> stream = Files.list(templatesDirectory)) {
-            return stream
-                    .filter(file -> !Files.isDirectory(file))
-                    .map(Path::getFileName)
-                    .map(Path::toString)
-                    .filter(name -> name.endsWith(".json"))
-                    .sorted()
-                    .collect(Collectors.toList());
+            return stream.filter(file -> !Files.isDirectory(file)).map(Path::getFileName).map(Path::toString).filter(name -> name.endsWith(".json")).sorted().collect(Collectors.toList());
         } catch (IOException e) {
             System.err.println("Could not read template directory: " + e.getMessage());
             return new ArrayList<>();
@@ -84,6 +78,79 @@ public class TemplateService {
     private void createDefaultTemplatesIfNotExists() {
         createAssetTagTemplate();
         createAssetTagWithImeiTemplate();
+        createAssetTagWithEsimTemplate(); // ADD THIS LINE
+        createAssetTagWithImeiAndEsimTemplate(); // ADD THIS LINE
+
+    }
+
+    private void createAssetTagWithImeiAndEsimTemplate() {
+        String templateName = "Asset_Tag_with_IMEI_and_eSIM.json";
+        File templateFile = templatesDirectory.resolve(templateName).toFile();
+        if (templateFile.exists()) return;
+
+        LabelTemplate template = new LabelTemplate();
+        template.setName("Asset Tag with IMEI and eSIM");
+        template.setWidth(508); // Standard width for a 2-inch label
+        template.setHeight(203); // Standard height for a 1-inch label
+
+        // Use smaller fonts and barcode heights to fit everything
+        int fontSize = 20;
+        int barcodeHeight = 25;
+
+        // ADT Info (at the very top)
+        template.getElements().add(createText("Property of ADT", 14, 15, 18));
+        template.getElements().add(createText("Help Desk: 1-877-238-4357", 250, 15, 18));
+
+        // S/N Section (top)
+        template.getElements().add(createText("S/N: ${serial}", 14, 40, fontSize));
+        template.getElements().add(createBarcode("${serial}", 60, barcodeHeight));
+
+        // IMEI Section (middle)
+        template.getElements().add(createText("IMEI: ${imei}", 14, 90, fontSize));
+        template.getElements().add(createBarcode("${imei}", 110, barcodeHeight));
+
+        // eSIM Section (bottom)
+        template.getElements().add(createText("eSIM: ${esim}", 14, 140, fontSize));
+        template.getElements().add(createBarcode("${esim}", 160, barcodeHeight));
+
+        try {
+            saveTemplate(template);
+        } catch (IOException e) {
+            System.err.println("Database error creating combined IMEI/eSIM template: " + e.getMessage());
+        }
+    }
+
+    // --- ADD THIS ENTIRE NEW METHOD ---
+    private void createAssetTagWithEsimTemplate() {
+        String templateName = "Asset_Tag_with_eSIM.json";
+        File templateFile = templatesDirectory.resolve(templateName).toFile();
+        if (templateFile.exists()) return;
+
+        LabelTemplate template = new LabelTemplate();
+        template.setName("Asset Tag with eSIM");
+        template.setWidth(508);
+        template.setHeight(203);
+
+        // This layout mirrors the IMEI template, but with eSIM text and variable
+        template.getElements().add(createText("Property of ADT, LLC", 14, 29, 18));
+        template.getElements().add(createText("Help Desk:", 318, 24, 18));
+        template.getElements().add(createText("1-877-238-4357", 318, 43, 18));
+
+        // S/N Section
+        template.getElements().add(createText("S/N:", 14, 64, 27));
+        template.getElements().add(createText("${serial}", 81, 64, 27));
+        template.getElements().add(createBarcode("${serial}", 92, 40));
+
+        // eSIM Section
+        template.getElements().add(createText("eSIM:", 14, 135, 27)); // Changed text
+        template.getElements().add(createText("${esim}", 101, 135, 27)); // Changed variable
+        template.getElements().add(createBarcode("${esim}", 163, 40));   // Changed variable
+
+        try {
+            saveTemplate(template);
+        } catch (IOException e) {
+            System.err.println("Database error creating eSIM template: " + e.getMessage());
+        }
     }
 
     private void createAssetTagTemplate() {

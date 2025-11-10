@@ -3,6 +3,7 @@ package assettracking.controller;
 import assettracking.dao.SkuDAO;
 import assettracking.data.Sku;
 import assettracking.label.service.ZplPrinterService;
+import assettracking.manager.StageManager;
 import assettracking.ui.AutoCompletePopup;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -13,6 +14,7 @@ import javafx.scene.control.*;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
 
 import javax.print.PrintService;
 import javax.print.PrintServiceLookup;
@@ -39,6 +41,10 @@ public class LabelPrintingController {
     private ToggleGroup menuGroup;
     @FXML
     private StackPane mainStackPane;
+    @FXML
+    private CheckBox assetEsimCheckbox; // Add new field
+    @FXML
+    private TextField assetEsimField;   // Add new field
     @FXML
     private Pane welcomePane;
     @FXML
@@ -119,27 +125,41 @@ public class LabelPrintingController {
         // This listener enables/disables the IMEI field.
         assetImeiCheckbox.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
             assetImeiField.setDisable(!isSelected);
-            // Always return focus to the serial field when the mode changes.
-            Platform.runLater(() -> assetSerialField.requestFocus());
+            // We no longer uncheck the other box.
         });
 
-        // Event handler for when "Enter" is pressed in the serial field.
+
+        // Listener for NEW eSIM checkbox
+        assetEsimCheckbox.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
+            assetEsimField.setDisable(!isSelected);
+            // We no longer uncheck the other box.
+        });
+
+        // Event handler for the Serial field
         assetSerialField.setOnAction(event -> {
-            if (assetImeiCheckbox.isSelected()) {
-                // If IMEI is needed, reliably move focus to the IMEI field.
+            if (assetImeiCheckbox.isSelected() && !assetImeiField.isDisable()) {
                 Platform.runLater(() -> assetImeiField.requestFocus());
+            } else if (assetEsimCheckbox.isSelected() && !assetEsimField.isDisable()) {
+                Platform.runLater(() -> assetEsimField.requestFocus());
             } else {
-                // If IMEI is not needed, print immediately.
                 handlePrintAssetTag();
             }
         });
 
-        // Event handler for when "Enter" is pressed in the IMEI field.
-        // NOTE THE FIX: The handler is on 'assetImeiField', not 'imeiField'.
+        // Event handler for the IMEI field.
         assetImeiField.setOnAction(event -> {
-            // Always print after the IMEI has been entered.
-            handlePrintAssetTag();
+            // If eSIM is also checked, move focus there. Otherwise, print.
+            if (assetEsimCheckbox.isSelected() && !assetEsimField.isDisable()) {
+                Platform.runLater(() -> assetEsimField.requestFocus());
+            } else {
+                handlePrintAssetTag();
+            }
         });
+
+        // Event handler for the eSIM field (always the last one).
+        assetEsimField.setOnAction(event -> handlePrintAssetTag());
+
+        // --- END OF NEW LOGIC ---
     }
 
     @FXML
@@ -415,6 +435,17 @@ public class LabelPrintingController {
         updateStatus("Printed " + successCount + " of " + copies + " labels for SKU: " + sku, successCount != copies);
     }
 
+    /**
+     * Helper method to get the current window (Stage) for displaying dialogs.
+     *
+     * @return The current Stage.
+     */
+    private Stage getStage() {
+        // We can get the stage from any UI element that is part of the scene.
+        // statusLabel is a good, reliable choice.
+        return (Stage) statusLabel.getScene().getWindow();
+    }
+
     @FXML
     private void handlePrintSerial() {
         String sku = serialSkuField.getText().trim();
@@ -435,45 +466,36 @@ public class LabelPrintingController {
 
     @FXML
     private void handlePrintAssetTag() {
-        String serial;
-        String imei = null;
-
-        // The logic to get the data remains the same
-        if (assetTagStandardRadio.isSelected()) {
-            serial = assetSerialField.getText().trim();
-            if (assetImeiCheckbox.isSelected()) {
-                imei = assetImeiField.getText().trim();
-            }
-        } else {
-            showAlert(Alert.AlertType.INFORMATION, "Not Implemented", "Combined iPad/Samsung format not yet implemented in this view.");
-            return;
-        }
+        String serial = assetSerialField.getText().trim();
+        // Use the checkbox selection to decide whether to get the text.
+        String imei = assetImeiCheckbox.isSelected() ? assetImeiField.getText().trim() : null;
+        String esim = assetEsimCheckbox.isSelected() ? assetEsimField.getText().trim() : null;
 
         if (serial.isEmpty()) {
-            showAlert(Alert.AlertType.WARNING, "Input Missing", "Serial Number is required.");
+            StageManager.showAlert(getStage(), Alert.AlertType.WARNING, "Input Missing", "Serial Number is required.");
             return;
         }
-
-        // This is a new check: if IMEI is required but empty, stop.
         if (assetImeiCheckbox.isSelected() && (imei == null || imei.isEmpty())) {
-            showAlert(Alert.AlertType.WARNING, "Input Missing", "IMEI is required when the checkbox is selected.");
+            StageManager.showAlert(getStage(), Alert.AlertType.WARNING, "Input Missing", "IMEI is required when the checkbox is selected.");
+            return;
+        }
+        if (assetEsimCheckbox.isSelected() && (esim == null || esim.isEmpty())) {
+            StageManager.showAlert(getStage(), Alert.AlertType.WARNING, "Input Missing", "eSIM is required when the checkbox is selected.");
             return;
         }
 
-        String zpl = ZplPrinterService.getAssetTagZpl(serial, imei);
+        // Call the updated service method with all three parameters.
+        String zpl = ZplPrinterService.getAssetTagZpl(serial, imei, esim);
 
         if (printerService.sendZplToPrinter(assetPrinterNameField.getValue(), zpl)) {
             updateStatus("Printed asset tag for S/N: " + serial, false);
 
-            // --- THIS IS THE NEW RESET LOGIC ---
-            // Use Platform.runLater to ensure the UI updates happen smoothly after printing.
             Platform.runLater(() -> {
                 assetSerialField.clear();
                 assetImeiField.clear();
-                assetSerialField.requestFocus(); // Move focus back to the start
+                assetEsimField.clear();
+                assetSerialField.requestFocus();
             });
-            // --- END OF RESET LOGIC ---
-
         } else {
             updateStatus("Failed to print asset tag.", true);
         }

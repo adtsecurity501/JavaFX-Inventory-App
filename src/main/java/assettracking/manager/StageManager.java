@@ -109,6 +109,56 @@ public final class StageManager {
     }
 
     /**
+     * Creates a custom-styled, draggable stage that is modal but does NOT have the always-on-top behavior.
+     * This is specifically for the cascading, non-blocking-but-modal popups.
+     *
+     * @param owner   The parent window.
+     * @param title   The title for the window's title bar.
+     * @param content The root node of the content to display.
+     * @return The newly created Stage.
+     */
+    public static Stage createCascadingModalStage(Window owner, String title, Node content) {
+        Stage stage = new Stage();
+        stage.initStyle(StageStyle.UNDECORATED);
+        if (owner != null) {
+            stage.initOwner(owner);
+            // This is the key difference: standard modality without the always-on-top hacks.
+            stage.initModality(Modality.WINDOW_MODAL);
+        }
+
+        // The rest of this method is identical to createCustomStage...
+        Label titleLabel = new Label(" " + title);
+        titleLabel.getStyleClass().add("title-bar-text");
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        Button minimizeButton = createWindowButton("M 0 5 H 10", stage, "minimize");
+        Button maximizeButton = createWindowButton("M 0 1 H 9 V 10 H 0 Z", stage, "maximize");
+        Button closeButton = createWindowButton("M 0 0 L 10 10 M 10 0 L 0 10", stage, "close");
+        closeButton.getStyleClass().add("window-close-button");
+        HBox titleBar = new HBox(10, titleLabel, spacer, minimizeButton, maximizeButton, closeButton);
+        titleBar.getStyleClass().add("title-bar");
+        titleBar.setPadding(new Insets(0, 0, 0, 10));
+        titleBar.setAlignment(Pos.CENTER_LEFT);
+        titleBar.setOnMousePressed(event -> {
+            xOffset = event.getSceneX();
+            yOffset = event.getSceneY();
+        });
+        titleBar.setOnMouseDragged(event -> {
+            stage.setX(event.getScreenX() - xOffset);
+            stage.setY(event.getScreenY() - yOffset);
+        });
+        BorderPane root = new BorderPane();
+        root.setTop(titleBar);
+        root.setCenter(content);
+        root.setStyle("-fx-background-color: -color-bg-default;");
+        Scene scene = new Scene(root);
+        scene.getStylesheets().addAll(Application.getUserAgentStylesheet(), Objects.requireNonNull(StageManager.class.getResource("/style.css")).toExternalForm());
+        stage.setScene(scene);
+
+        return stage;
+    }
+
+    /**
      * Creates a small, circular help button that displays an information dialog when clicked.
      *
      * @param title   The title of the help dialog window.

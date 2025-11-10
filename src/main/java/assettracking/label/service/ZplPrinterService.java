@@ -52,7 +52,7 @@ public class ZplPrinterService {
 
     // --- METHODS MIGRATED FROM ORIGINAL APPLICATION ---
 
-    public static String getAssetTagZpl(String serial, String imei) {
+    public static String getAssetTagZpl(String serial, String imei, String esim) {
         try {
             TemplateService templateService = new TemplateService();
             ZplGeneratorService generator = new ZplGeneratorService();
@@ -61,24 +61,30 @@ public class ZplPrinterService {
             Map<String, String> data = new HashMap<>();
             data.put("serial", serial != null ? serial : "");
 
-            if (imei != null && !imei.isBlank()) {
+            // REVISED LOGIC: Check for the most specific case (both) first.
+            if (imei != null && !imei.isBlank() && esim != null && !esim.isBlank()) {
+                template = templateService.loadTemplate("Asset_Tag_with_IMEI_and_eSIM.json");
+                data.put("imei", imei);
+                data.put("esim", esim);
+            } else if (esim != null && !esim.isBlank()) {
+                template = templateService.loadTemplate("Asset_Tag_with_eSIM.json");
+                data.put("esim", esim);
+            } else if (imei != null && !imei.isBlank()) {
                 template = templateService.loadTemplate("Asset_Tag_with_IMEI.json");
                 data.put("imei", imei);
             } else {
                 template = templateService.loadTemplate("Standard_Asset_Tag.json");
             }
-            String generatedZpl = generator.generate(template, data);
 
-            // --- THIS IS THE CORRECTED COMMAND ---
-            // ^MMC,Y tells the printer to set its mode to "Cutter" and to
-            // cut after each label printed in this job.
+            String generatedZpl = generator.generate(template, data);
             return generatedZpl.replace("^XZ", "^MMC,Y^XZ");
 
         } catch (IOException e) {
-            System.err.println("Database error: " + e.getMessage());
+            System.err.println("Database error loading asset tag template: " + e.getMessage());
             return "^XA^FO50,50^A0N,40,40^FDError: Template Not Found^FS^XZ";
         }
     }
+
 
     public static String getGenericBarcodeZpl(String barcode) {
         return String.format("""

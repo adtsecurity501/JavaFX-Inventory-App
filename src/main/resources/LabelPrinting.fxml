@@ -142,6 +142,11 @@
                         <TextField fx:id="assetSerialField" promptText="Serial Number"/>
                         <CheckBox fx:id="assetImeiCheckbox" text="Include IMEI"/>
                         <TextField fx:id="assetImeiField" disable="true" promptText="IMEI (Optional)"/>
+
+                        <!-- ADD THESE TWO NEW CONTROLS -->
+                        <CheckBox fx:id="assetEsimCheckbox" text="Include eSIM"/>
+                        <TextField fx:id="assetEsimField" disable="true" promptText="eSIM (Optional)"/>
+                        <!-- END OF NEW CONTROLS -->
                     </VBox>
                     <Button onAction="#handlePrintAssetTag" styleClass="accent" text="Print Asset Tag"/>
                 </VBox>
