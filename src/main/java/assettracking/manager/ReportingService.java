@@ -227,7 +227,7 @@ public class ReportingService {
         sheet.createRow(summaryRowNum).createCell(0).setCellValue("Performance Metrics (Based on this Report):");
         sheet.getRow(summaryRowNum).getCell(0).setCellStyle(headerStyle);
         sheet.createRow(summaryRowNum + 1).createCell(0).setCellValue("Average Days in Current Status");
-        sheet.getRow(summaryRowNum + 1).createCell(1).setCellFormula("AVERAGE('Full Data Report'!O:O)");
+        sheet.getRow(summaryRowNum + 1).createCell(1).setCellFormula("AVERAGE('Full Data Report'!P:P)");
         sheet.autoSizeColumn(0);
         sheet.autoSizeColumn(1);
     }

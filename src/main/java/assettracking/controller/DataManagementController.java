@@ -2,6 +2,7 @@ package assettracking.controller;
 
 import assettracking.dao.AppSettingsDAO;
 import assettracking.dao.DeviceStatusDAO;
+import assettracking.db.DatabaseConnection;
 import assettracking.manager.*;
 import assettracking.ui.MelRulesImporter;
 import javafx.concurrent.Task;
@@ -24,6 +25,8 @@ import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.sql.Connection;
+import java.sql.Statement;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -102,6 +105,51 @@ public class DataManagementController {
             StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Invalid Input", "Goals must be valid numbers.");
         }
     }
+
+    @FXML
+    private void handleCreateBackup() {
+        boolean confirmed = StageManager.showConfirmationDialog(getStage(), "Confirm Database Backup", "This will create a safe, live backup of the entire inventory database.", "The backup will be saved as a .zip file in the 'Backups' folder on the server. Do you want to continue?");
+
+        if (!confirmed) {
+            statusLabel.setText("Backup cancelled by user.");
+            return;
+        }
+
+        Task<String> backupTask = new Task<>() {
+            @Override
+            protected String call() throws Exception {
+                updateProgress(-1, -1); // Indeterminate progress
+                updateMessage("Creating live database backup...");
+                String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
+                String backupFilePath = "\\\\UTSPRJ2C2333\\Server\\Backups\\inventory_backup_" + timestamp + ".zip";
+
+                try (Connection conn = DatabaseConnection.getInventoryConnection(); Statement stmt = conn.createStatement()) {
+                    stmt.executeUpdate(String.format("BACKUP TO '%s'", backupFilePath));
+                    return "Successfully created backup:\n" + backupFilePath;
+                }
+            }
+        };
+
+        // This is the code we want to run AFTER the task is done and the bar is hidden.
+        Runnable onFinish = () -> {
+            statusLabel.textProperty().unbind();
+            if (backupTask.isDone() && !backupTask.isCancelled() && backupTask.getException() == null) {
+                statusLabel.setText("Backup task finished.");
+                StageManager.showAlert(getStage(), Alert.AlertType.INFORMATION, "Backup Complete", backupTask.getValue());
+            } else {
+                statusLabel.setText("Backup failed. See error dialog.");
+                Throwable ex = backupTask.getException();
+                StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Backup Failed", "A critical error occurred: " + ex.getMessage());
+            }
+        };
+
+        // Bind the UI elements and pass the onFinish code to the progress bar manager.
+        statusLabel.textProperty().bind(backupTask.messageProperty());
+        MainViewController.getInstance().bindProgressBar(backupTask, onFinish);
+
+        new Thread(backupTask).start();
+    }
+
 
     @FXML
     private void handleExport() {

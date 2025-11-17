@@ -78,18 +78,17 @@ public class MainViewController {
 
     /**
      * Binds a background task's progress to the global progress bar and makes it visible.
-     * Automatically handles unbinding and hiding when the task finishes.
+     * This is the new, more powerful version.
      *
-     * @param task The background task to monitor.
+     * @param task     The background task to monitor.
+     * @param onFinish A piece of code to run after the task completes (successfully or not) and the bar is hidden. Can be null.
      */
-    public void bindProgressBar(Task<?> task) {
+    public void bindProgressBar(Task<?> task, Runnable onFinish) {
         Platform.runLater(() -> {
-            // Show the container and bind properties
             globalProgressContainer.setVisible(true);
             globalProgressContainer.setManaged(true);
             globalProgressBar.progressProperty().bind(task.progressProperty());
 
-            // --- NEW: Bind the label to show the percentage ---
             task.progressProperty().addListener((obs, oldProgress, newProgress) -> {
                 if (newProgress != null) {
                     globalProgressLabel.setText(String.format("%.0f%%", newProgress.doubleValue() * 100));
@@ -97,22 +96,27 @@ public class MainViewController {
             });
         });
 
-        var originalOnSucceeded = task.getOnSucceeded();
-        var originalOnFailed = task.getOnFailed();
-
         task.setOnSucceeded(e -> {
             hideProgressBar();
-            if (originalOnSucceeded != null) {
-                originalOnSucceeded.handle(e);
+            if (onFinish != null) {
+                Platform.runLater(onFinish);
             }
         });
 
         task.setOnFailed(e -> {
             hideProgressBar();
-            if (originalOnFailed != null) {
-                originalOnFailed.handle(e);
+            if (onFinish != null) {
+                Platform.runLater(onFinish);
             }
         });
+    }
+
+    /**
+     * Overloaded version for tasks that don't need to run code on completion.
+     * This ensures other parts of your application don't break.
+     */
+    public void bindProgressBar(Task<?> task) {
+        bindProgressBar(task, null);
     }
 
     /**

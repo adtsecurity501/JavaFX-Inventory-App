@@ -123,6 +123,12 @@ public class BoxIdViewerController {
     }
 
     @FXML
+    private void handleRefresh() {
+        refreshAllData();
+        statusLabel.setText("Data refreshed.");
+    }
+
+    @FXML
     private void showHelp() {
         String helpContent = """
                 This screen helps you manage disposed assets by grouping them into virtual boxes.

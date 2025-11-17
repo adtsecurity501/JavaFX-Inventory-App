@@ -67,6 +67,8 @@
                             text="Run Automated Import from Folders"/>
                     <Button fx:id="manageFoldersButton" onAction="#handleManageFolders" text="Manage Import Folders..."
                             GridPane.columnIndex="1"/>
+                    <Button onAction="#handleCreateBackup" text="Create Database Backup..."
+                            styleClass="accent" GridPane.columnIndex="2"/>
                 </GridPane>
             </VBox>
         </TitledPane>

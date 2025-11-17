@@ -23,6 +23,7 @@
                 <TextField fx:id="serialSearchField" onAction="#handleSearchBySerial"
                            promptText="Find which box a serial is in..." HBox.hgrow="ALWAYS"/>
                 <Button fx:id="serialSearchButton" text="Find" onAction="#handleSearchBySerial"/>
+                <Button onAction="#handleRefresh" text="Refresh" styleClass="success"/>
             </HBox>
         </VBox>
     </top>
