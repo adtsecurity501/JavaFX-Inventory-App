@@ -12,10 +12,12 @@
     <!-- Step 1: Package Selection -->
     <TitledPane text="Step 1: Select the Package for these Assets" collapsible="false">
         <HBox spacing="10" alignment="CENTER_LEFT" style="-fx-padding: 10;">
-            <Label text="Search/Select Package:" HBox.hgrow="NEVER"/>
+            <Label text="Package Tracking #:" HBox.hgrow="NEVER"/>
             <ComboBox fx:id="packageComboBox" editable="true" prefWidth="400.0" HBox.hgrow="ALWAYS"
-                      promptText="Type tracking number to search..."/>
-            <Button text="Create New Package..." onAction="#handleNewPackage"/>
+                      promptText="Type to search OR enter a new tracking number..."/>
+
+            <!-- MODIFIED: Changed the button text and onAction method name -->
+            <Button text="Create Generic Package" onAction="#handleCreateGenericPackage"/>
         </HBox>
     </TitledPane>
 

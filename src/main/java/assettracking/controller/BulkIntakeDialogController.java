@@ -20,10 +20,7 @@ import javafx.util.StringConverter;
 import java.sql.Connection;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 
 public class BulkIntakeDialogController {
 
@@ -123,31 +120,56 @@ public class BulkIntakeDialogController {
     }
 
     @FXML
-    private void handleNewPackage() {
+    private void handleCreateGenericPackage() {
         String trackingNumber = "BULK_INTAKE_" + new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        // This logic remains the same
         int packageId = packageDAO.addPackage(trackingNumber, "SYSTEM", "BULK", "DEPOT", "UT", "84660", LocalDate.now());
 
         if (packageId != -1) {
             Package newPackage = new Package(packageId, trackingNumber, "SYSTEM", "BULK", "DEPOT", "UT", "84660", LocalDate.now());
-            packageComboBox.getItems().addFirst(newPackage);
+            packageComboBox.getItems().add(0, newPackage);
             packageComboBox.getSelectionModel().select(newPackage);
-            StageManager.showAlert(getStage(), Alert.AlertType.INFORMATION, "Package Created", "New package created with tracking number:\n" + trackingNumber);
+            StageManager.showAlert(getStage(), Alert.AlertType.INFORMATION, "Package Created", "New generic package created:\n" + trackingNumber);
         } else {
             StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Error", "Could not create a new package.");
         }
     }
 
+
     @FXML
     private void handleProcessIntake() {
-        Package selectedPackage = packageComboBox.getSelectionModel().getSelectedItem();
         String serialsText = serialsTextArea.getText();
-
-        if (selectedPackage == null) {
-            StageManager.showAlert(getStage(), Alert.AlertType.WARNING, "Input Required", "You must select or create a package.");
-            return;
-        }
         if (serialsText == null || serialsText.trim().isEmpty()) {
             StageManager.showAlert(getStage(), Alert.AlertType.WARNING, "Input Required", "Please paste at least one serial number.");
+            return;
+        }
+
+        Package selectedPackage = null;
+
+        Package itemFromList = packageComboBox.getSelectionModel().getSelectedItem();
+        String textFromEditor = packageComboBox.getEditor().getText();
+
+        if (itemFromList != null) {
+            selectedPackage = itemFromList;
+        } else if (textFromEditor != null && !textFromEditor.isBlank()) {
+            String newTrackingNumber = textFromEditor.trim().toUpperCase();
+
+            Optional<Package> existingPkgOpt = packageDAO.findPackageByTracking(newTrackingNumber);
+            if (existingPkgOpt.isPresent()) {
+                selectedPackage = existingPkgOpt.get();
+            } else {
+                int packageId = packageDAO.addPackage(newTrackingNumber, "SYSTEM", "BULK", "DEPOT", "UT", "84660", LocalDate.now());
+                if (packageId != -1) {
+                    selectedPackage = new Package(packageId, newTrackingNumber, "SYSTEM", "BULK", "DEPOT", "UT", "84660", LocalDate.now());
+                } else {
+                    StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Database Error", "Could not create new package for tracking number: " + newTrackingNumber);
+                    return;
+                }
+            }
+        }
+
+        if (selectedPackage == null) {
+            StageManager.showAlert(getStage(), Alert.AlertType.WARNING, "Input Required", "You must select, scan, or create a package.");
             return;
         }
 
@@ -165,18 +187,22 @@ public class BulkIntakeDialogController {
         successLabel.setText("Processing...");
         failedLabel.setText("Processing...");
 
+        // --- THIS IS THE FIX ---
+        // Create a final copy of the selectedPackage to be used inside the Task.
+        final Package finalSelectedPackage = selectedPackage;
+
         Task<Void> intakeTask = new Task<>() {
             @Override
             protected Void call() throws Exception {
                 List<String> success = new ArrayList<>();
                 List<String> failed = new ArrayList<>();
-                IntakeService intakeService = new IntakeService(selectedPackage, false); // Assuming refurbished
+                // Use the final copy here
+                IntakeService intakeService = new IntakeService(finalSelectedPackage, false);
 
                 try (Connection conn = DatabaseConnection.getInventoryConnection()) {
                     conn.setAutoCommit(false);
                     ReceiptEventDAO receiptDAO = new ReceiptEventDAO();
                     for (String serial : serials) {
-                        // Check if serial already exists
                         if (receiptDAO.findMostRecentReceiptId(serial).isPresent()) {
                             failed.add(serial + " (Already exists in database)");
                         } else {
