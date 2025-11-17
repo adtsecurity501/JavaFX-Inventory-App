@@ -68,6 +68,19 @@ public class AssetDAO {
         return Optional.ofNullable(asset);
     }
 
+    public boolean upsertAsset(Connection conn, AssetInfo asset) throws SQLException {
+        String sql = "MERGE INTO Physical_Assets (serial_number, imei, category, make, description, part_number) KEY(serial_number) VALUES (?, ?, ?, ?, ?, ?)";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, asset.getSerialNumber());
+            stmt.setString(2, asset.getImei());
+            stmt.setString(3, asset.getCategory());
+            stmt.setString(4, asset.getMake());
+            stmt.setString(5, asset.getDescription());
+            stmt.setString(6, asset.getModelNumber());
+            return stmt.executeUpdate() > 0;
+        }
+    }
+
     /**
      * Finds descriptions case-insensitively, fetching a broad list from the DB
      * and then performing intelligent, prioritized sorting within the Java code.

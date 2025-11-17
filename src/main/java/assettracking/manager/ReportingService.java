@@ -39,14 +39,15 @@ public class ReportingService {
     private static final Logger logger = LoggerFactory.getLogger(ReportingService.class);
 
     public void exportToXLSX(File file, Window owner) {
-        String[] headers = {"Tracking Number", "First Name", "Last Name", "City", "State", "Zip", "Receive Date", "Category", "Description", "IMEI", "Serial Number", "Status Change Date", "Status", "Sub Status", "Days in Current Status", "Total Days to Process"};
+        // MODIFIED: Added "Box ID" to the headers
+        String[] headers = {"Tracking Number", "First Name", "Last Name", "City", "State", "Zip", "Receive Date", "Category", "Description", "IMEI", "Serial Number", "Status Change Date", "Status", "Sub Status", "Box ID", "Days in Current Status", "Total Days to Process"};
 
-        // --- THIS IS THE CORRECTED QUERY ---
+        // MODIFIED: Added ds.box_id to the SELECT statement
         String query = """
                     SELECT
                         p.tracking_number, p.first_name, p.last_name, p.city, p.state, p.zip_code, p.receive_date,
                         re.category, re.description, re.imei, re.serial_number, ds.last_update AS status_change_date,
-                        ds.status, ds.sub_status
+                        ds.status, ds.sub_status, ds.box_id
                     FROM Receipt_Events re
                     INNER JOIN (
                         SELECT serial_number, MAX(receipt_id) AS max_receipt_id
@@ -57,12 +58,8 @@ public class ReportingService {
                     LEFT JOIN Device_Status ds ON re.receipt_id = ds.receipt_id
                     ORDER BY ds.last_update DESC NULLS LAST, p.receive_date DESC
                 """;
-        // --- END OF CORRECTION ---
 
         try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(query); ResultSet rs = stmt.executeQuery(); XSSFWorkbook workbook = new XSSFWorkbook()) {
-
-            // ... the rest of the method from this point on is unchanged ...
-            // (No need to copy it all, just replace the query string at the top)
 
             XSSFSheet dataSheet = workbook.createSheet("Full Data Report");
             XSSFSheet summarySheet = workbook.createSheet("Summary Dashboard");
@@ -116,17 +113,19 @@ public class ReportingService {
                 String status = rs.getString("status");
                 row.createCell(12).setCellValue(status);
                 row.createCell(13).setCellValue(rs.getString("sub_status"));
+                row.createCell(14).setCellValue(rs.getString("box_id"));
+
                 statusCounts.merge(status != null ? status : "Not Set", 1, Integer::sum);
                 if (statusTimestamp != null) {
                     long daysInStatus = ChronoUnit.DAYS.between(statusTimestamp.toLocalDate(), LocalDate.now());
-                    Cell daysInStatusCell = row.createCell(14);
+                    Cell daysInStatusCell = row.createCell(15);
                     daysInStatusCell.setCellValue(daysInStatus);
                     if (daysInStatus > 30) daysInStatusCell.setCellStyle(dangerStyle);
                     else if (daysInStatus > 14) daysInStatusCell.setCellStyle(warningStyle);
                 }
                 if (receiveDate != null && statusTimestamp != null) {
                     long daysToProcess = ChronoUnit.DAYS.between(receiveDate, statusTimestamp.toLocalDate());
-                    row.createCell(15).setCellValue(daysToProcess);
+                    row.createCell(16).setCellValue(daysToProcess);
                 }
             }
             if (rowNum > 1) {
@@ -159,14 +158,15 @@ public class ReportingService {
     }
 
     public void exportToCSV(File file, Window owner) {
-        String header = "Tracking Number,First Name,Last Name,City,State,Zip,Receive Date,Category,Description,IMEI,Serial Number,Status Change Date,Status,Sub Status";
+        // MODIFIED: Added "Box ID" to the header string
+        String header = "Tracking Number,First Name,Last Name,City,State,Zip,Receive Date,Category,Description,IMEI,Serial Number,Status Change Date,Status,Sub Status,Box ID";
 
-        // --- THIS IS THE CORRECTED QUERY ---
+        // MODIFIED: Added ds.box_id to the SELECT statement
         String query = """
                     SELECT
                         p.tracking_number, p.first_name, p.last_name, p.city, p.state, p.zip_code, p.receive_date,
                         re.category, re.description, re.imei, re.serial_number, ds.last_update AS status_change_date,
-                        ds.status, ds.sub_status
+                        ds.status, ds.sub_status, ds.box_id
                     FROM Receipt_Events re
                     INNER JOIN (
                         SELECT serial_number, MAX(receipt_id) AS max_receipt_id
@@ -177,7 +177,6 @@ public class ReportingService {
                     LEFT JOIN Device_Status ds ON re.receipt_id = ds.receipt_id
                     ORDER BY ds.last_update DESC NULLS LAST, p.receive_date DESC
                 """;
-        // --- END OF CORRECTION ---
 
         try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(query); ResultSet rs = stmt.executeQuery(); PrintWriter writer = new PrintWriter(file)) {
 
@@ -198,6 +197,7 @@ public class ReportingService {
                 row.add(escapeCSV(rs.getString("status_change_date")));
                 row.add(escapeCSV(rs.getString("status")));
                 row.add(escapeCSV(rs.getString("sub_status")));
+                row.add(escapeCSV(rs.getString("box_id")));
                 writer.println(String.join(",", row));
             }
             Platform.runLater(() -> StageManager.showAlert(owner, Alert.AlertType.INFORMATION, "Success", "Export successful: " + file.getAbsolutePath()));

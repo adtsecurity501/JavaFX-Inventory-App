@@ -31,7 +31,9 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 public class ImagingStatusController {
 
@@ -139,108 +141,119 @@ public class ImagingStatusController {
 
     @FXML
     private void handleCheckEmails() {
+        boolean isAutoRefresh = !Platform.isFxApplicationThread();
+
         if (!isOutlookRunning()) {
             StageManager.showAlert(resultsTable.getScene().getWindow(), Alert.AlertType.WARNING, "Outlook is Not Running", "Please open the classic Outlook desktop application before checking for emails.");
-            if (autoRefreshTimeline.getStatus() == Animation.Status.RUNNING) {
-                autoRefreshToggle.setSelected(false);
-            }
+            if (isAutoRefresh) autoRefreshToggle.setSelected(false);
             return;
         }
-
         String folderPath = settingsDAO.getSetting(FOLDER_KEY).orElse("");
         if (folderPath.isEmpty()) {
             statusLabel.setText("Error: Outlook Folder Path is not set. Please configure it in Settings.");
-            if (autoRefreshTimeline.getStatus() == Animation.Status.RUNNING) {
-                autoRefreshToggle.setSelected(false);
-            }
+            if (isAutoRefresh) autoRefreshToggle.setSelected(false);
             return;
         }
 
         checkEmailsButton.setDisable(true);
-        logTextArea.clear();
-        appendToLog("Starting email check process...");
+        if (!isAutoRefresh) {
+            logTextArea.clear();
+        }
+        appendToLog(isAutoRefresh ? "Auto-Refresh triggered..." : "Manual email check started...");
         statusLabel.setText("Checking for emails...");
         progressBar.setVisible(true);
         progressBar.setProgress(-1.0);
-        adResultsList.getItems().clear();
 
-        // --- THIS IS THE CORRECTED LOGIC ---
         List<String> command = new ArrayList<>();
         command.add(folderPath);
 
-        // Only add flags if they have a value
-        String subjectFilter = settingsDAO.getSetting(SUBJECT_KEY).orElse("").trim();
-        if (!subjectFilter.isEmpty()) {
+        settingsDAO.getSetting(SUBJECT_KEY).filter(s -> !s.isBlank()).ifPresent(s -> {
             command.add("--subject_filter");
-            command.add(subjectFilter);
-        }
-
-        String ipFilter = settingsDAO.getSetting(IP_KEY).orElse("").trim();
-        if (!ipFilter.isEmpty()) {
+            command.add(s);
+        });
+        settingsDAO.getSetting(IP_KEY).filter(s -> !s.isBlank()).ifPresent(s -> {
             command.add("--ip_filter");
-            command.add(ipFilter);
-        }
+            command.add(s);
+        });
 
-        if (unreadModeRadio.isSelected()) {
+        // --- THIS IS THE CORRECTED AND SIMPLIFIED LOGIC ---
+        // We will now always provide values for start_date and end_date.
+        String startDateParam = "none";
+        String endDateParam = "none";
+
+        if (isAutoRefresh || unreadModeRadio.isSelected()) {
             command.add("--search_mode");
             command.add("UNREAD");
-        } else {
+            if (isAutoRefresh) appendToLog("Auto-Refresh: Forcing search mode to 'UNREAD'.");
+
+        } else if (rangeModeRadio.isSelected()) {
             LocalDate startDate = datePicker.getValue();
-            if (startDate == null) {
-                statusLabel.setText("Error: Please select a start date.");
-                // reset UI and return
+            LocalDate endDate = endDatePicker.getValue();
+            if (startDate == null || endDate == null) {
+                resetUiOnError("Please select a start and end date for the range search.");
                 return;
             }
+            command.add("--search_mode");
+            command.add("RANGE");
+            startDateParam = startDate.format(DateTimeFormatter.ISO_LOCAL_DATE);
+            endDateParam = endDate.format(DateTimeFormatter.ISO_LOCAL_DATE);
 
-            if (rangeModeRadio.isSelected()) {
-                LocalDate endDate = endDatePicker.getValue();
-                if (endDate == null) {
-                    statusLabel.setText("Error: Please select an end date for the range.");
-                    // reset UI and return
-                    return;
-                }
-                command.add("--search_mode");
-                command.add("RANGE");
-                command.add("--start_date");
-                command.add(startDate.format(DateTimeFormatter.ISO_LOCAL_DATE));
-                command.add("--end_date");
-                command.add(endDate.format(DateTimeFormatter.ISO_LOCAL_DATE));
-            } else { // Single Date mode
-                command.add("--search_mode");
-                command.add("DATE");
-                command.add("--start_date");
-                command.add(startDate.format(DateTimeFormatter.ISO_LOCAL_DATE));
+        } else { // Single Date Mode is the only remaining option
+            LocalDate startDate = datePicker.getValue();
+            if (startDate == null) {
+                resetUiOnError("Please select a date for the search.");
+                return;
             }
+            command.add("--search_mode");
+            command.add("DATE");
+            startDateParam = startDate.format(DateTimeFormatter.ISO_LOCAL_DATE);
+            // endDateParam remains "none"
         }
 
-        // Add keyword arguments (these have defaults in the Python script, so they are safe)
-        command.add("--kw_comp_name");
-        command.add(settingsDAO.getSetting(COMP_NAME_KEY).orElse("Computer Name:"));
+        command.add("--start_date");
+        command.add(startDateParam);
+        command.add("--end_date");
+        command.add(endDateParam);
+        // --- END OF CORRECTED LOGIC ---
+
         command.add("--kw_serial");
-        command.add(settingsDAO.getSetting(SERIAL_KEY).orElse("Serial Number:"));
+        command.add(settingsDAO.getSetting(SERIAL_KEY).orElse("Serial Number"));
         command.add("--kw_time");
-        command.add(settingsDAO.getSetting(TIME_KEY).orElse("Time to reimage:"));
+        command.add(settingsDAO.getSetting(TIME_KEY).orElse("Job Total Run Time"));
         command.add("--kw_failed");
-        command.add(settingsDAO.getSetting(FAILED_KEY).orElse("items failed to install:"));
+        command.add(settingsDAO.getSetting(FAILED_KEY).orElse("NOTINSTALLED"));
 
         CompletableFuture<List<ImagingResult>> future = emailService.fetchAndParseEmails(command);
 
         future.thenAccept(results -> Platform.runLater(() -> {
             if (results != null && !results.isEmpty()) {
-                imagingResults.addAll(0, results);
-                String title = "New Imaging Results";
-                String message = "Successfully processed " + results.size() + " new email(s).";
-                statusLabel.setText(message);
-                DesktopNotifier.showNotification(title, message);
+                Set<String> existingSerials = imagingResults.stream().map(ImagingResult::getSerialNumber).collect(Collectors.toSet());
+                List<ImagingResult> newUniqueResults = results.stream().filter(r -> !existingSerials.contains(r.getSerialNumber())).toList();
+                if (!newUniqueResults.isEmpty()) {
+                    imagingResults.addAll(0, newUniqueResults);
+                    String title = "New Imaging Results";
+                    String message = "Successfully processed " + newUniqueResults.size() + " new email(s).";
+                    statusLabel.setText(message);
+                    DesktopNotifier.showNotification(title, message);
+                } else {
+                    statusLabel.setText("No *new* imaging emails found matching the criteria.");
+                }
             } else {
-                statusLabel.setText("No new imaging emails found matching the criteria.");
+                statusLabel.setText("No imaging emails found matching the criteria.");
             }
         })).whenComplete((v, throwable) -> Platform.runLater(() -> {
             checkEmailsButton.setDisable(false);
             progressBar.setVisible(false);
         }));
-        // --- END OF CORRECTED LOGIC ---
     }
+
+    // --- NEW HELPER METHOD TO REDUCE CODE DUPLICATION ---
+    private void resetUiOnError(String message) {
+        statusLabel.setText("Error: " + message);
+        checkEmailsButton.setDisable(false);
+        progressBar.setVisible(false);
+    }
+
 
     // --- The rest of the file is unchanged ---
 

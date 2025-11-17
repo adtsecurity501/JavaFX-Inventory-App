@@ -21,6 +21,8 @@
                             GridPane.columnIndex="1"/>
                     <Button fx:id="exportButton" onAction="#handleExport" text="Export All Device Data..."
                             GridPane.columnIndex="2"/>
+                    <Button fx:id="restoreFromExcelButton" onAction="#handleRestoreFromExcel"
+                            text="Restore from Excel Backup..." styleClass="danger" GridPane.columnIndex="3"/>
                 </GridPane>
             </VBox>
         </TitledPane>

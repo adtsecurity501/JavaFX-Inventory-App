@@ -10,6 +10,7 @@ import javafx.scene.Scene;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+import org.apache.poi.openxml4j.util.ZipSecureFile;
 
 import java.io.IOException;
 import java.util.Map;
@@ -17,6 +18,8 @@ import java.util.Map;
 public class MainApp extends Application {
 
     public static void main(String[] args) {
+        ZipSecureFile.setMinInflateRatio(0.001);
+
         launch(args);
     }
 

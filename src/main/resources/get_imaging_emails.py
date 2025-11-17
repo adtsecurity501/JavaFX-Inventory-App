@@ -1,37 +1,25 @@
+import argparse
 import os
+import re
 import sys
+from datetime import datetime
 
-# --- THIS IS THE DEFINITIVE FIX ---
-# This block makes the script self-aware of its location, which is essential
-# for finding the pywintypes and pythoncom DLLs in an embedded/standalone environment.
+import win32com.client
+
+# Self-awareness block for embedded Python
 try:
-    # sys.executable is the full path to the python.exe being run.
-    # os.path.dirname gets the directory that contains it.
     executable_dir = os.path.dirname(sys.executable)
-    # Add this directory to Python's search path. Now it can find the DLLs.
     sys.path.append(executable_dir)
-    # For extra safety, also add the location of other pywin32 files.
     sys.path.append(os.path.join(executable_dir, 'Lib', 'site-packages', 'win32'))
     sys.path.append(os.path.join(executable_dir, 'Lib', 'site-packages', 'win32', 'lib'))
 except Exception as e:
-    # This is a safeguard; it should not fail.
     print(f"LOG:FATAL:Could not modify Python search path. Error: {e}")
-# --- END OF FIX ---
-
-import win32com.client
-import re
-from datetime import datetime, timedelta
-import argparse
 
 
-# --- The rest of the script is unchanged ---
-
-# --- LOGGING FUNCTION ---
 def log(level, message):
     print(f"LOG:{level}:{message}")
 
 
-# --- RECURSIVE FOLDER FINDER ---
 def find_folder_recursive(base_folder, target_name):
     target_name_lower = target_name.lower()
     if base_folder.Name.lower() == target_name_lower:
@@ -43,8 +31,8 @@ def find_folder_recursive(base_folder, target_name):
     return None
 
 
-# --- EMAIL BODY PARSING LOGIC ---
 def parse_email_body(body, keywords):
+    # This function is unchanged and correct
     data = {'serial_number': 'N/A', 'reimage_time': 'N/A', 'failed_installs': '0'}
     lines = body.splitlines()
     failed_apps = []
@@ -81,86 +69,106 @@ def parse_email_body(body, keywords):
     return data
 
 
-# --- MAIN SCRIPT LOGIC ---
 def main():
     parser = argparse.ArgumentParser(description="Process Outlook emails for imaging status.")
     parser.add_argument("folder_name", help="Name of the Outlook folder to search for.")
-    parser.add_argument("--test_connection", action="store_true", help="Only test the folder connection.")
-    parser.add_argument("--subject_filter", default="", help="Filter emails where subject contains this text.")
-    parser.add_argument("--ip_filter", default="none", help="IP address prefix to filter by.")
-    parser.add_argument("--search_mode", default="UNREAD", choices=["UNREAD", "DATE", "RANGE"], help="Search mode.")
-    parser.add_argument("--start_date", default="none", help="Start date for DATE or RANGE mode (YYYY-MM-DD).")
-    parser.add_argument("--end_date", default="none", help="End date for RANGE mode (YYYY-MM-DD).")
-    parser.add_argument("--kw_comp_name", default="Computer Name:", help="Keyword for Computer Name (ignored).")
-    parser.add_argument("--kw_serial", default="Serial Number:", help="Keyword for Serial Number.")
-    parser.add_argument("--kw_time", default="Time to reimage:", help="Keyword for Reimage Time.")
-    parser.add_argument("--kw_failed", default="items failed to install:", help="Keyword for Failed Installs.")
+    parser.add_argument("--test_connection", action="store_true")
+    parser.add_argument("--subject_filter", default=None)
+    parser.add_argument("--ip_filter", default=None)
+    parser.add_argument("--search_mode", default="UNREAD", choices=["UNREAD", "DATE", "RANGE"])
+    parser.add_argument("--start_date", default=None)
+    parser.add_argument("--end_date", default=None)
+    parser.add_argument("--kw_serial", default="Serial Number:")
+    parser.add_argument("--kw_time", default="Time to reimage:")
+    parser.add_argument("--kw_failed", default="NOTINSTALLED")
     args = parser.parse_args()
+
     keywords = {'serial': args.kw_serial, 'time': args.kw_time, 'failed': args.kw_failed}
+
     try:
         outlook = win32com.client.Dispatch("Outlook.Application").GetNamespace("MAPI")
     except Exception as e:
         log("ERROR", f"Could not connect to Outlook. Is it running? Error: {e}")
         sys.exit(1)
+
     try:
-        log("INFO", f"Attempting to find folder '{args.folder_name}' in default mailbox...")
+        log("INFO", f"Attempting to find folder '{args.folder_name}'...")
         mailbox_root = outlook.GetDefaultFolder(6).Parent
         folder = find_folder_recursive(mailbox_root, args.folder_name)
         if not folder:
-            log("ERROR", f"Could not find the folder named '{args.folder_name}' anywhere in your default mailbox.")
+            log("ERROR", f"Could not find folder named '{args.folder_name}'.")
             sys.exit(1)
-        log("INFO", f"Successfully accessed folder: '{folder.Name}' (Full Path: {folder.FolderPath})")
+        log("INFO", f"Successfully accessed folder: '{folder.Name}'.")
     except Exception as e:
-        log("ERROR", f"An unexpected error occurred while trying to access Outlook folders. Error: {e}")
+        log("ERROR", f"Error accessing Outlook folders: {e}")
         sys.exit(1)
+
     if args.test_connection:
         print(
             f"SUCCESS: Successfully connected to Outlook and found folder '{folder.Name}'. It contains {folder.Items.Count} total items.")
         sys.exit(0)
-    filter_str = ""
-    if args.search_mode == "UNREAD":
-        filter_str = "[Unread] = true"
-    elif args.search_mode in ["DATE", "RANGE"] and args.start_date != "none":
-        start_dt = datetime.strptime(args.start_date, '%Y-%m-%d')
-        if args.search_mode == "RANGE" and args.end_date != "none":
-            end_dt = datetime.strptime(args.end_date, '%Y-%m-%d') + timedelta(days=1)
-        else:
-            end_dt = start_dt + timedelta(days=1)
-        start_str = start_dt.strftime('%m/%d/%Y %H:%M %p')
-        end_str = end_dt.strftime('%m/%d/%Y %H:%M %p')
-        filter_str = f"[ReceivedTime] >= '{start_str}' AND [ReceivedTime] < '{end_str}'"
-    if args.subject_filter:
-        if filter_str: filter_str += " AND "
-        filter_str += f"@SQL=\"urn:schemas:httpmail:subject\" LIKE '%{args.subject_filter}%'"
-    log("INFO", f"Using filter: {filter_str}")
-    try:
-        messages = folder.Items.Restrict(filter_str)
-        messages.Sort("[ReceivedTime]", True)
-    except Exception as e:
-        log("ERROR", f"Failed to apply filter to folder items. Error: {e}")
-        sys.exit(1)
-    log("INFO", f"Found {messages.Count} item(s) matching filter.")
+
+    # --- THIS IS THE NEW RELIABLE FILTERING LOGIC ---
+    log("INFO", "Fetching all items from folder to filter in script. This may take a moment...")
+    all_messages = folder.Items
+    all_messages.Sort("[ReceivedTime]", True)
+
+    log("INFO", f"Found {all_messages.Count} total items. Applying filters now...")
+
+    filtered_messages = []
+
+    start_dt = datetime.strptime(args.start_date, '%Y-%m-%d') if args.start_date else None
+    end_dt = datetime.strptime(args.end_date, '%Y-%m-%d') if args.end_date else None
+
+    for message in all_messages:
+        # Filter by Unread status
+        if args.search_mode == "UNREAD" and message.UnRead is False:
+            continue
+
+        # Filter by Date (tz-aware comparison)
+        if start_dt:
+            received_time_local = message.ReceivedTime.replace(tzinfo=None)
+            if args.search_mode == "DATE" and received_time_local.date() != start_dt.date():
+                continue
+            if args.search_mode == "RANGE":
+                if not (start_dt.date() <= received_time_local.date() <= end_dt.date()):
+                    continue
+
+        # Filter by Subject
+        if args.subject_filter and args.subject_filter.lower() not in message.Subject.lower():
+            continue
+
+        # If all checks pass, add it to our list
+        filtered_messages.append(message)
+    # --- END OF NEW LOGIC ---
+
+    log("INFO", f"Found {len(filtered_messages)} item(s) matching ALL filter criteria.")
     processed_count = 0
-    for message in list(messages):
+
+    for message in filtered_messages:
         try:
+            if args.ip_filter and args.ip_filter not in message.Body:
+                continue
+
             computer_name = "N/A"
             subject_match = re.search(r'^([^\s]+)', message.Subject)
             if subject_match:
                 computer_name = subject_match.group(1).strip()
             else:
-                log("WARN", f"Could not parse computer name from subject: '{message.Subject}'. Skipping email.")
+                log("WARN", f"Could not parse computer name from subject: '{message.Subject}'.")
                 continue
-            if args.ip_filter != "none" and args.ip_filter not in message.Body:
-                continue
+
             body_data = parse_email_body(message.Body, keywords)
             print(
                 f"PARSED_EMAIL:{computer_name}_||_{body_data['serial_number']}_||_{body_data['reimage_time']}_||_{body_data['failed_installs']}")
             processed_count += 1
+
             if args.search_mode == "UNREAD":
                 message.UnRead = False
         except Exception as e:
             log("ERROR", f"Failed to process email with subject '{message.Subject}'. Error: {e}")
             continue
+
     log("INFO", f"Finished. Processed {processed_count} emails.")
 
 

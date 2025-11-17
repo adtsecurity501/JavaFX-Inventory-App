@@ -36,6 +36,50 @@ public class PackageDAO {
         return -1;
     }
 
+    public Optional<Package> findPackageByTrackingNumber(Connection conn, String trackingNumber) throws SQLException {
+        String sql = "SELECT * FROM Packages WHERE tracking_number = ?";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, trackingNumber);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return Optional.of(new Package(rs.getInt("package_id"), rs.getString("tracking_number"), rs.getString("first_name"), rs.getString("last_name"), rs.getString("city"), rs.getString("state"), rs.getString("zip_code"), rs.getDate("receive_date").toLocalDate()));
+            }
+        }
+        return Optional.empty();
+    }
+
+    public int addPackage(Connection conn, String tracking, String firstName, String lastName, String city, String state, String zip, LocalDate date) throws SQLException {
+        String sql = "INSERT INTO Packages (tracking_number, first_name, last_name, city, state, zip_code, receive_date) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        try (PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            stmt.setString(1, tracking);
+            stmt.setString(2, firstName);
+            stmt.setString(3, lastName);
+            stmt.setString(4, city);
+            stmt.setString(5, state);
+            stmt.setString(6, zip);
+            stmt.setObject(7, date);
+            stmt.executeUpdate();
+            try (ResultSet rs = stmt.getGeneratedKeys()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+            }
+        }
+        return -1;
+    }
+
+    public Optional<Package> findPackageByTracking(Connection conn, String trackingNumber) throws SQLException {
+        String sql = "SELECT * FROM Packages WHERE tracking_number = ?";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, trackingNumber);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return Optional.of(new Package(rs.getInt("package_id"), rs.getString("tracking_number"), rs.getString("first_name"), rs.getString("last_name"), rs.getString("city"), rs.getString("state"), rs.getString("zip_code"), rs.getDate("receive_date").toLocalDate()));
+            }
+        }
+        return Optional.empty();
+    }
+
     // --- THIS IS THE METHOD THAT WAS MISSING ---
     public Optional<Package> findPackageByTracking(String trackingNumber) {
         String sql = "SELECT * FROM Packages WHERE tracking_number = ?";

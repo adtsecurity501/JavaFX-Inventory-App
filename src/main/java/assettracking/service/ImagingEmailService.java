@@ -26,18 +26,17 @@ public class ImagingEmailService {
     public CompletableFuture<String> testOutlookConnection(String folderName) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                return executePython(List.of("--test_connection", folderName));
+                return executePython(List.of(folderName, "--test_connection"));
             } catch (Exception e) {
                 return "FATAL: Could not execute script. " + e.getMessage();
             }
         });
     }
 
-    public CompletableFuture<List<ImagingResult>> fetchAndParseEmails(List<String> command) {
+    public CompletableFuture<List<ImagingResult>> fetchAndParseEmails(List<String> commandArgs) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                String fullOutput = executePython(command);
-
+                String fullOutput = executePython(commandArgs);
                 List<ImagingResult> results = new ArrayList<>();
                 Matcher matcher = EMAIL_BLOCK_PATTERN.matcher(fullOutput);
                 while (matcher.find()) {
@@ -46,8 +45,7 @@ public class ImagingEmailService {
                         results.add(new ImagingResult(parts[0], parts[1], parts[2], parts[3]));
                     }
                 }
-
-                logger.info("Python script finished. Parsed {} results.", results.size());
+                logger.info("Python script finished. Parsed {} results from output.", results.size());
                 return results;
             } catch (Exception e) {
                 logger.error("Failed to fetch and parse emails", e);
@@ -60,29 +58,23 @@ public class ImagingEmailService {
         Path scriptPath = extractScriptToTemp("get_imaging_emails.py");
 
         List<String> command = new ArrayList<>();
-
-        // --- THIS IS THE KEY CHANGE ---
-        // 1. Define the path to the bundled python executable.
         String pythonExecutable = "python/python.exe";
 
-        // 2. Check if the bundled python exists.
         if (new java.io.File(pythonExecutable).exists()) {
-            // If it exists, use it.
             command.add(pythonExecutable);
-            logger.info("Using bundled Python executable.");
         } else {
-            // If not, fall back to the system's python.
             command.add("python.exe");
-            logger.warn("Bundled Python not found at '{}'. Falling back to system PATH. The application may not be portable.", pythonExecutable);
+            logger.warn("Bundled Python not found. Falling back to system PATH.");
         }
-        // --- END OF KEY CHANGE ---
 
         command.add(scriptPath.toAbsolutePath().toString());
         command.addAll(args);
 
-        logger.info("Executing Python script with command: {}", String.join(" ", command));
+        List<String> finalCommand = command.stream().filter(arg -> arg != null && !arg.isBlank()).collect(Collectors.toList());
 
-        ProcessBuilder pb = new ProcessBuilder(command);
+        logger.info("Executing final Python command: {}", String.join(" ", finalCommand));
+
+        ProcessBuilder pb = new ProcessBuilder(finalCommand);
         Process process = pb.start();
 
         String fullOutput = new BufferedReader(new InputStreamReader(process.getInputStream())).lines().collect(Collectors.joining("\n"));

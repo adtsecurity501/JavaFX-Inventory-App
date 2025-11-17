@@ -3,10 +3,10 @@ package assettracking.manager;
 import assettracking.dao.bulk.iPadProvisioningDAO;
 import assettracking.data.bulk.BulkDevice;
 import assettracking.db.DatabaseConnection;
-import com.github.pjfanning.xlsx.StreamingReader;
 import com.opencsv.CSVReader;
 import com.opencsv.exceptions.CsvException;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -106,7 +106,10 @@ public class DeviceImportService {
     private List<BulkDevice> streamExcelData(File file) throws IOException {
         List<BulkDevice> devices = new ArrayList<>();
         String now = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
-        try (FileInputStream fis = new FileInputStream(file); Workbook workbook = StreamingReader.builder().rowCacheSize(100).bufferSize(4096).open(fis)) {
+
+        // THIS IS THE CORRECTED CODE BLOCK
+        try (FileInputStream fis = new FileInputStream(file); Workbook workbook = new XSSFWorkbook(fis)) { // Use the standard XSSFWorkbook
+
             if (workbook.getNumberOfSheets() == 0) {
                 logger.warn("Excel file '{}' is empty and has no sheets.", file.getName());
                 return devices;
@@ -115,20 +118,22 @@ public class DeviceImportService {
             Map<String, Integer> headerMap = null;
             for (Row row : sheet) {
                 if (headerMap == null) {
+                    // This logic correctly finds the header row and continues
                     Map<String, Integer> potentialHeaders = getHeaderMap(row);
                     if (potentialHeaders.containsKey("serial") || potentialHeaders.containsKey("serial number")) {
                         headerMap = potentialHeaders;
                         continue;
                     } else {
-                        continue;
+                        continue; // Keep searching for the header row
                     }
                 }
                 processRow(row, headerMap, now).ifPresent(devices::add);
             }
             if (headerMap == null) {
-                logger.error("Required 'Serial Number' or 'Serial' column not found in the first sheet of file {}. Aborting file read.", file.getName());
+                logger.error("Required 'Serial Number' or 'Serial' column not found in file {}. Aborting file read.", file.getName());
             }
         }
+        // The rest of the method is identical
         return devices;
     }
 

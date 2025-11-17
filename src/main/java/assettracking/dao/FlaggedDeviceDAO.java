@@ -16,11 +16,8 @@ public class FlaggedDeviceDAO {
     private static final String NO_REMOVE_TAG = "[NOREMOVE]";
 
     public boolean flagDevice(String serialNumber, String reason) {
-        String sql = "MERGE INTO Flag_Devices (serial_number, status, sub_status, flag_reason) " +
-                "KEY(serial_number) " +
-                "VALUES (?, 'Flag!', 'Requires Review', ?)";
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        String sql = "MERGE INTO Flag_Devices (serial_number, status, sub_status, flag_reason) " + "KEY(serial_number) " + "VALUES (?, 'Flag!', 'Requires Review', ?)";
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setString(1, serialNumber);
             stmt.setString(2, reason);
@@ -32,12 +29,20 @@ public class FlaggedDeviceDAO {
         }
     }
 
+    public boolean flagDevice(Connection conn, String serialNumber, String reason) throws SQLException {
+        // This H2-specific "MERGE" statement will INSERT a new flag or UPDATE an existing one.
+        String sql = "MERGE INTO Flag_Devices (serial_number, status, sub_status, flag_reason) KEY(serial_number) VALUES (?, 'Flag!', 'Requires Review', ?)";
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, serialNumber);
+            stmt.setString(2, reason);
+            return stmt.executeUpdate() > 0;
+        }
+    }
+
     public List<FlaggedDeviceData> getAllFlags() {
         List<FlaggedDeviceData> flags = new ArrayList<>();
         String sql = "SELECT serial_number, flag_reason FROM Flag_Devices ORDER BY serial_number";
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql); ResultSet rs = stmt.executeQuery()) {
 
             while (rs.next()) {
                 String serial = rs.getString("serial_number");
@@ -53,8 +58,7 @@ public class FlaggedDeviceDAO {
 
     public Optional<FlaggedDeviceData> getFlagBySerial(String serialNumber) {
         String sql = "SELECT flag_reason FROM Flag_Devices WHERE serial_number = ?";
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, serialNumber);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
@@ -71,8 +75,7 @@ public class FlaggedDeviceDAO {
 
     public boolean unflagDevice(String serialNumber) {
         String sql = "DELETE FROM Flag_Devices WHERE serial_number = ?";
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, serialNumber);
             return stmt.executeUpdate() > 0;
         } catch (SQLException e) {
@@ -83,8 +86,7 @@ public class FlaggedDeviceDAO {
 
     public boolean isAutoRemovalPrevented(String serialNumber) {
         String sql = "SELECT flag_reason FROM Flag_Devices WHERE serial_number = ?";
-        try (Connection conn = DatabaseConnection.getInventoryConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+        try (Connection conn = DatabaseConnection.getInventoryConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, serialNumber);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {

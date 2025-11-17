@@ -69,6 +69,8 @@ public class DataManagementController {
     @SuppressWarnings("unused")
     @FXML
     private Button applyGoalsButton;
+    @FXML
+    private Button restoreFromExcelButton;
 
 
     private DeviceStatusDAO deviceStatusDAO;
@@ -160,6 +162,42 @@ public class DataManagementController {
         }
     }
 
+    @FXML
+    private void handleRestoreFromExcel() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Select Excel Backup File");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Excel Files (*.xlsx)", "*.xlsx"));
+        File file = fileChooser.showOpenDialog(getStage());
+
+        if (file != null) {
+            // THIS IS THE SIMPLIFIED LOGIC
+            Task<String> restoreTask = new ExcelRestoreTask(file);
+
+            MainViewController.getInstance().bindProgressBar(restoreTask);
+            statusLabel.textProperty().bind(restoreTask.messageProperty());
+
+            restoreTask.setOnSucceeded(e -> {
+                statusLabel.textProperty().unbind();
+                statusLabel.setText("Restore process finished.");
+                StageManager.showAlert(getStage(), Alert.AlertType.INFORMATION, "Restore Complete", restoreTask.getValue());
+            });
+
+            restoreTask.setOnFailed(e -> {
+                statusLabel.textProperty().unbind();
+                statusLabel.setText("Restore process failed. See logs for details.");
+                Throwable ex = restoreTask.getException();
+                String errorMessage = ex.getMessage();
+
+                if (ex.getCause() instanceof IOException && ex.getCause().getMessage().contains("used by another process")) {
+                    StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "File in Use", "The restore process failed because the selected Excel file is currently open. Please close the file and try again.");
+                } else {
+                    StageManager.showAlert(getStage(), Alert.AlertType.ERROR, "Restore Failed", "An error occurred:\n" + errorMessage);
+                }
+            });
+
+            new Thread(restoreTask).start();
+        }
+    }
 
     @FXML
     private void handleRunAutoImport() {
