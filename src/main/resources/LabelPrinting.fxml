@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
@@ -60,8 +59,6 @@
                                promptText="Selected Description will appear here"/>
                     <Separator/>
                     <Label text="Step 2: Scan Serial Numbers"/>
-
-                    <!-- THIS IS THE NEW DUAL-INPUT SECTION -->
                     <HBox alignment="CENTER_LEFT" spacing="5">
                         <ToggleButton fx:id="multiSerialToggle" text="Multi-Line Paste"/>
                         <StackPane HBox.hgrow="ALWAYS">
@@ -73,7 +70,6 @@
                     </HBox>
                     <Button fx:id="printAllButton" onAction="#handlePrintAllFromList" text="Print All Serials from List"
                             styleClass="success" maxWidth="Infinity" managed="false" visible="false"/>
-                    <!-- END OF NEW SECTION -->
                 </VBox>
             </ScrollPane>
 
@@ -85,14 +81,9 @@
                     <Label text="Step 1: Find and Select SKU"/>
                     <TextField fx:id="singleSkuSearchField" promptText="Search for SKU or Description..."/>
                     <ListView fx:id="singleSkuListView" prefHeight="120.0"/>
-
-                    <!-- THIS IS THE FIX: Added the visible TextField and modified the button -->
                     <TextField fx:id="singleSkuField" editable="false" promptText="Selected SKU will appear here"/>
-
                     <Label text="Step 2: Print"/>
                     <Button onAction="#handlePrintSingle" styleClass="accent" text="Print 1 Label for Selected SKU"/>
-                    <!-- The old hidden TextField inside the button is no longer needed -->
-
                 </VBox>
             </ScrollPane>
 
@@ -121,41 +112,56 @@
                     <ListView fx:id="serialSkuListView" prefHeight="120.0"/>
                     <TextField fx:id="serialSkuField" editable="false" promptText="Selected SKU will appear here"/>
                     <Label text="Step 2: Scan Serial Number"/>
-                    <TextField fx:id="serialSerialField" onAction="#handlePrintSerial"
-                               promptText="Scan serial and press Enter to print..."/>
+                    <HBox alignment="CENTER_LEFT" spacing="5">
+                        <ToggleButton fx:id="serialMultiSerialToggle" text="Multi-Line Paste"/>
+                        <StackPane HBox.hgrow="ALWAYS">
+                            <TextField fx:id="serialSerialField" onAction="#handlePrintSerial"
+                                       promptText="Scan single serial and press Enter..."/>
+                            <TextArea fx:id="serialSerialArea" prefHeight="150.0" managed="false" visible="false"
+                                      promptText="Paste serial numbers here, one per line."/>
+                        </StackPane>
+                    </HBox>
+                    <Button fx:id="serialPrintAllButton" onAction="#handlePrintAllSerialsFromList"
+                            text="Print All Serials from List" styleClass="success" maxWidth="Infinity"
+                            managed="false" visible="false"/>
                 </VBox>
             </ScrollPane>
 
-            <!-- Other panes remain unchanged -->
+            <!-- 5. Print Asset Tag Pane -->
             <ScrollPane fx:id="printAssetTagPane" fitToWidth="true" styleClass="content-pane" visible="false">
                 <VBox spacing="15.0" style="-fx-padding: 20;">
                     <Label styleClass="h4" text="Print Asset Tag"/>
                     <Separator/>
-                    <HBox spacing="20.0">
-                        <RadioButton fx:id="assetTagStandardRadio" selected="true" text="Standard">
-                            <toggleGroup>
-                                <ToggleGroup fx:id="assetTagTypeGroup"/>
-                            </toggleGroup>
-                        </RadioButton>
-                    </HBox>
-                    <VBox fx:id="assetStandardPane" spacing="10.0">
-                        <TextField fx:id="assetSerialField" promptText="Serial Number"/>
-                        <CheckBox fx:id="assetImeiCheckbox" text="Include IMEI"/>
-                        <TextField fx:id="assetImeiField" disable="true" promptText="IMEI (Optional)"/>
-
-                        <!-- ADD THESE TWO NEW CONTROLS -->
-                        <CheckBox fx:id="assetEsimCheckbox" text="Include eSIM"/>
-                        <TextField fx:id="assetEsimField" disable="true" promptText="eSIM (Optional)"/>
-                        <!-- END OF NEW CONTROLS -->
-                    </VBox>
-                    <Button onAction="#handlePrintAssetTag" styleClass="accent" text="Print Asset Tag"/>
+                    <TabPane tabClosingPolicy="UNAVAILABLE">
+                        <Tab text="Single Device">
+                            <VBox spacing="10.0" style="-fx-padding: 20;">
+                                <TextField fx:id="assetSerialField" promptText="Serial Number"/>
+                                <CheckBox fx:id="assetImeiCheckbox" text="Include IMEI"/>
+                                <TextField fx:id="assetImeiField" disable="true" promptText="IMEI (Optional)"/>
+                                <CheckBox fx:id="assetEsimCheckbox" text="Include eSIM"/>
+                                <TextField fx:id="assetEsimField" disable="true" promptText="eSIM (Optional)"/>
+                                <Button onAction="#handlePrintAssetTag" styleClass="accent" text="Print Asset Tag"/>
+                            </VBox>
+                        </Tab>
+                        <Tab text="Bulk from List">
+                            <VBox spacing="10.0" style="-fx-padding: 20;">
+                                <Label text="Paste data from Excel. Columns should be: Serial, IMEI (optional), eSIM (optional)"
+                                       wrapText="true"/>
+                                <TextArea fx:id="assetTagArea" prefHeight="200.0"
+                                          promptText="KF6QRH63QP    351036278656987    89148000009226370163&#10;Y2C2WWT4W4    356134570750791"/>
+                                <Button onAction="#handlePrintAllAssetTagsFromList" styleClass="success"
+                                        text="Print All Asset Tags from List" maxWidth="Infinity"/>
+                            </VBox>
+                        </Tab>
+                    </TabPane>
                 </VBox>
             </ScrollPane>
+
+            <!-- 6. Generic Barcode Pane -->
             <ScrollPane fx:id="printBarcodePane" fitToWidth="true" styleClass="content-pane" visible="false">
                 <VBox spacing="15.0" style="-fx-padding: 20;">
                     <Label styleClass="h4" text="Print Generic Barcode"/>
                     <Separator/>
-                    <!-- NEW SECTION FOR RADIO BUTTONS -->
                     <VBox spacing="5">
                         <Label text="Barcode Length Options:"/>
                         <HBox spacing="20" alignment="CENTER_LEFT" style="-fx-padding: 5 0 0 0;">
@@ -175,6 +181,8 @@
                     <Button onAction="#handlePrintGenericBarcode" styleClass="accent" text="Print Barcode"/>
                 </VBox>
             </ScrollPane>
+
+            <!-- 7. Image Labels Pane -->
             <ScrollPane fx:id="imageLabelsPane" fitToWidth="true" styleClass="content-pane" visible="false">
                 <VBox spacing="15.0" style="-fx-padding: 20;">
                     <Label styleClass="h4" text="Bulk Image Labels"/>

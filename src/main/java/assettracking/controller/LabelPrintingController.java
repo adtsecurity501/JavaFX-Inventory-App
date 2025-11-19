@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 public class LabelPrintingController {
 
@@ -42,9 +43,9 @@ public class LabelPrintingController {
     @FXML
     private StackPane mainStackPane;
     @FXML
-    private CheckBox assetEsimCheckbox; // Add new field
+    private CheckBox assetEsimCheckbox;
     @FXML
-    private TextField assetEsimField;   // Add new field
+    private TextField assetEsimField;
     @FXML
     private Pane welcomePane;
     @FXML
@@ -95,6 +96,18 @@ public class LabelPrintingController {
     @FXML
     private Button printAllButton;
 
+    // --- NEW FIELDS for Serial Label Pane ---
+    @FXML
+    private ToggleButton serialMultiSerialToggle;
+    @FXML
+    private TextArea serialSerialArea;
+    @FXML
+    private Button serialPrintAllButton;
+
+    // --- NEW FIELD for Asset Tag Pane ---
+    @FXML
+    private TextArea assetTagArea;
+
     // --- NEW: References to popups ---
     private AutoCompletePopup imageSkuPopup;
     private AutoCompletePopup imageDeviceSkuPopup;
@@ -120,19 +133,29 @@ public class LabelPrintingController {
             }
         });
 
-        // --- THIS IS THE CORRECTED AND ROBUST WORKFLOW LOGIC ---
+        serialMultiSerialToggle.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
+            serialSerialField.setVisible(!isSelected);
+            serialSerialField.setManaged(!isSelected);
+            serialSerialArea.setVisible(isSelected);
+            serialSerialArea.setManaged(isSelected);
+            serialPrintAllButton.setVisible(isSelected);
+            serialPrintAllButton.setManaged(isSelected);
+            if (isSelected) {
+                serialSerialArea.requestFocus();
+            } else {
+                serialSerialField.requestFocus();
+            }
+        });
 
         // This listener enables/disables the IMEI field.
         assetImeiCheckbox.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
             assetImeiField.setDisable(!isSelected);
-            // We no longer uncheck the other box.
         });
 
 
         // Listener for NEW eSIM checkbox
         assetEsimCheckbox.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
             assetEsimField.setDisable(!isSelected);
-            // We no longer uncheck the other box.
         });
 
         // Event handler for the Serial field
@@ -158,8 +181,6 @@ public class LabelPrintingController {
 
         // Event handler for the eSIM field (always the last one).
         assetEsimField.setOnAction(event -> handlePrintAssetTag());
-
-        // --- END OF NEW LOGIC ---
     }
 
     @FXML
@@ -240,6 +261,72 @@ public class LabelPrintingController {
         new Thread(printTask).start();
     }
 
+    @FXML
+    private void handlePrintAllSerialsFromList() {
+        String sku = serialSkuField.getText().trim();
+        String printerName = printerNameField.getValue();
+        String serialsText = serialSerialArea.getText();
+
+        if (sku.isEmpty()) {
+            showAlert(Alert.AlertType.WARNING, "SKU Missing", "Please select a SKU before printing.");
+            serialSkuSearchField.requestFocus();
+            return;
+        }
+        if (printerName == null) {
+            showAlert(Alert.AlertType.WARNING, "Printer Missing", "Please select a SKU/Item printer.");
+            printerNameField.requestFocus();
+            return;
+        }
+        if (serialsText == null || serialsText.isBlank()) {
+            showAlert(Alert.AlertType.WARNING, "Input Missing", "Please paste at least one serial number into the text area.");
+            serialSerialArea.requestFocus();
+            return;
+        }
+
+        String[] serials = serialsText.trim().split("\\r?\\n");
+        List<String> validSerials = Arrays.stream(serials).map(String::trim).filter(s -> !s.isEmpty()).toList();
+
+        if (validSerials.isEmpty()) {
+            showAlert(Alert.AlertType.WARNING, "Input Missing", "No valid serial numbers found in the text area.");
+            return;
+        }
+
+        Task<String> printTask = new Task<>() {
+            @Override
+            protected String call() throws Exception {
+                int successCount = 0;
+                int totalCount = validSerials.size();
+                for (int i = 0; i < totalCount; i++) {
+                    if (isCancelled()) break;
+                    String serial = validSerials.get(i);
+                    updateMessage("Printing " + (i + 1) + "/" + totalCount + ": " + serial);
+                    String serialZpl = ZplPrinterService.getSerialLabelZpl(sku, serial);
+                    if (printerService.sendZplToPrinter(printerName, serialZpl)) {
+                        successCount++;
+                    }
+                    updateProgress(i + 1, totalCount);
+                }
+                return String.format("Finished. Successfully printed serial labels for %d of %d devices.", successCount, totalCount);
+            }
+        };
+
+        statusLabel.textProperty().bind(printTask.messageProperty());
+        serialPrintAllButton.setDisable(true);
+        printTask.setOnSucceeded(e -> {
+            statusLabel.textProperty().unbind();
+            updateStatus(printTask.getValue(), false);
+            serialSerialArea.clear();
+            serialPrintAllButton.setDisable(false);
+        });
+        printTask.setOnFailed(e -> {
+            statusLabel.textProperty().unbind();
+            updateStatus("A critical error occurred during printing. Check printer connection.", true);
+            serialPrintAllButton.setDisable(false);
+        });
+
+        new Thread(printTask).start();
+    }
+
     private void setupMenuToggles() {
         menuDeployDevice.setUserData(deployDevicePane);
         menuPrintSingle.setUserData(printSinglePane);
@@ -264,9 +351,7 @@ public class LabelPrintingController {
         menuDeployDevice.setSelected(true);
     }
 
-    // --- UPDATED: Now creates and stores popups ---
     private void setupAutocomplete() {
-        // This now calls the new, stricter search method
         imageSkuPopup = new AutoCompletePopup(imageSkuField, () -> skuDAO.findSkusWithSkuNumberLike(imageSkuField.getText())).setOnSuggestionSelected(selectedValue -> {
             String sku = selectedValue.split(" - ")[0];
             selectAndSetText(imageSkuPopup, imageSkuField, sku);
@@ -278,8 +363,6 @@ public class LabelPrintingController {
         });
     }
 
-
-    // --- NEW: Helper method to handle suppression logic ---
     private void selectAndSetText(AutoCompletePopup popup, TextField field, String value) {
         Platform.runLater(() -> {
             popup.suppressListener(true);
@@ -289,15 +372,12 @@ public class LabelPrintingController {
         });
     }
 
-    // --- All other methods remain the same ---
     private void setupSearchableSkuFields() {
-        // This single call will now apply the fix to all four search panes
         setupSearchableSkuField(deploySkuSearchField, deploySkuListView, deploySkuField, deployDescriptionField, deploySerialField);
         setupSearchableSkuField(singleSkuSearchField, singleSkuListView, singleSkuField, null, singleSkuField);
         setupSearchableSkuField(multiSkuSearchField, multiSkuListView, multiSkuField, null, multiCopiesField);
         setupSearchableSkuField(serialSkuSearchField, serialSkuListView, serialSkuField, null, serialSerialField);
     }
-
 
     private void setupSearchableSkuField(TextField searchField, ListView<String> listView, TextField targetSkuField, TextField targetDescriptionField, Control nextFocusTarget) {
         searchField.textProperty().addListener((obs, oldVal, newVal) -> {
@@ -305,12 +385,10 @@ public class LabelPrintingController {
                 listView.getItems().clear();
                 return;
             }
-            // This now calls the new, stricter search method
             List<String> suggestions = skuDAO.findSkusWithSkuNumberLike(newVal);
             listView.setItems(FXCollections.observableArrayList(suggestions));
         });
 
-        // The rest of this method is unchanged
         listView.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
             if (newSelection != null) {
                 String[] parts = newSelection.split(" - ", 2);
@@ -435,14 +513,7 @@ public class LabelPrintingController {
         updateStatus("Printed " + successCount + " of " + copies + " labels for SKU: " + sku, successCount != copies);
     }
 
-    /**
-     * Helper method to get the current window (Stage) for displaying dialogs.
-     *
-     * @return The current Stage.
-     */
     private Stage getStage() {
-        // We can get the stage from any UI element that is part of the scene.
-        // statusLabel is a good, reliable choice.
         return (Stage) statusLabel.getScene().getWindow();
     }
 
@@ -467,7 +538,6 @@ public class LabelPrintingController {
     @FXML
     private void handlePrintAssetTag() {
         String serial = assetSerialField.getText().trim();
-        // Use the checkbox selection to decide whether to get the text.
         String imei = assetImeiCheckbox.isSelected() ? assetImeiField.getText().trim() : null;
         String esim = assetEsimCheckbox.isSelected() ? assetEsimField.getText().trim() : null;
 
@@ -484,7 +554,6 @@ public class LabelPrintingController {
             return;
         }
 
-        // Call the updated service method with all three parameters.
         String zpl = ZplPrinterService.getAssetTagZpl(serial, imei, esim);
 
         if (printerService.sendZplToPrinter(assetPrinterNameField.getValue(), zpl)) {
@@ -499,6 +568,71 @@ public class LabelPrintingController {
         } else {
             updateStatus("Failed to print asset tag.", true);
         }
+    }
+
+    @FXML
+    private void handlePrintAllAssetTagsFromList() {
+        String printerName = assetPrinterNameField.getValue();
+        String assetTagData = assetTagArea.getText();
+
+        if (printerName == null) {
+            showAlert(Alert.AlertType.WARNING, "Printer Missing", "Please select an Asset Tag printer.");
+            assetPrinterNameField.requestFocus();
+            return;
+        }
+        if (assetTagData == null || assetTagData.isBlank()) {
+            showAlert(Alert.AlertType.WARNING, "Input Missing", "Please paste asset data into the text area.");
+            assetTagArea.requestFocus();
+            return;
+        }
+
+        String[] lines = assetTagData.trim().split("\\r?\\n");
+        List<String[]> validLines = Arrays.stream(lines).map(line -> line.split("\\s+")) // Split by one or more whitespace characters
+                .filter(parts -> parts.length > 0 && !parts[0].isBlank()).collect(Collectors.toList());
+
+        if (validLines.isEmpty()) {
+            showAlert(Alert.AlertType.WARNING, "Input Missing", "No valid asset data found in the text area.");
+            return;
+        }
+
+        Task<String> printTask = new Task<>() {
+            @Override
+            protected String call() throws Exception {
+                int successCount = 0;
+                int totalCount = validLines.size();
+                for (int i = 0; i < totalCount; i++) {
+                    if (isCancelled()) break;
+                    String[] parts = validLines.get(i);
+                    String serial = parts.length > 0 ? parts[0] : "";
+                    String imei = parts.length > 1 ? parts[1] : null;
+                    String esim = parts.length > 2 ? parts[2] : null;
+
+                    updateMessage("Printing " + (i + 1) + "/" + totalCount + ": S/N " + serial);
+
+                    String zpl = ZplPrinterService.getAssetTagZpl(serial, imei, esim);
+                    if (printerService.sendZplToPrinter(printerName, zpl)) {
+                        successCount++;
+                    }
+                    updateProgress(i + 1, totalCount);
+                }
+                return String.format("Finished. Successfully printed asset tags for %d of %d devices.", successCount, totalCount);
+            }
+        };
+
+        statusLabel.textProperty().bind(printTask.messageProperty());
+
+        printTask.setOnSucceeded(e -> {
+            statusLabel.textProperty().unbind();
+            updateStatus(printTask.getValue(), false);
+            assetTagArea.clear();
+        });
+
+        printTask.setOnFailed(e -> {
+            statusLabel.textProperty().unbind();
+            updateStatus("A critical error occurred during printing. Check printer connection.", true);
+        });
+
+        new Thread(printTask).start();
     }
 
     @FXML
