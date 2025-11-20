@@ -207,8 +207,20 @@ public class DashboardController {
 
                 intakeProcessedChart.setAnimated(false); // Disable animation during the update
 
-                intakeSeries.getData().setAll(intakeData);
-                processedSeries.getData().setAll(processedData);
+                Platform.runLater(() -> {
+                    intakeProcessedChart.getData().clear();
+
+                    XYChart.Series<String, Number> intakeSeries = new XYChart.Series<>();
+                    intakeSeries.setName("Intake");
+                    intakeSeries.getData().addAll(intakeData);
+
+                    XYChart.Series<String, Number> processedSeries = new XYChart.Series<>();
+                    processedSeries.setName("Processed");
+                    processedSeries.getData().addAll(processedData);
+
+                    intakeProcessedChart.getData().addAll(intakeSeries, processedSeries);
+                });
+
 
                 // Re-enable animation on the next UI pulse
                 Platform.runLater(() -> intakeProcessedChart.setAnimated(true));

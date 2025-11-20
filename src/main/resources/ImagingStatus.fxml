@@ -73,6 +73,7 @@
                     <TableColumn fx:id="serialNumberCol" text="Serial Number" prefWidth="150"/>
                     <TableColumn fx:id="reimageTimeCol" text="Reimage Duration" prefWidth="120"/>
                     <TableColumn fx:id="failedInstallsCol" text="Failed Installs" prefWidth="300"/>
+                    <TableColumn fx:id="receivedTimeCol" text="Email Received" prefWidth="180.0"/>
                 </columns>
                 <placeholder>
                     <Label text="No imaging results to display."/>

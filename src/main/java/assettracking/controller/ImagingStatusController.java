@@ -21,6 +21,7 @@ import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.HBox;
+import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
@@ -30,6 +31,7 @@ import java.io.InputStreamReader;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -50,9 +52,13 @@ public class ImagingStatusController {
     private final AppSettingsDAO settingsDAO = new AppSettingsDAO();
     private final MachineRemovalService machineRemovalService = new MachineRemovalService();
     private final ImagingEmailService emailService = new ImagingEmailService();
-    private int refreshIntervalMinutes = 5;
 
+    private int refreshIntervalMinutes = 5;
     private Timeline autoRefreshTimeline;
+
+    // Track whether we’ve already done an initial load
+    private boolean initialLoadDone = false;
+
     @FXML
     private ToggleButton autoRefreshToggle;
     @FXML
@@ -69,6 +75,7 @@ public class ImagingStatusController {
     private ProgressBar progressBar;
     @FXML
     private TextArea logTextArea;
+
     @FXML
     private TableView<ImagingResult> resultsTable;
     @FXML
@@ -80,34 +87,88 @@ public class ImagingStatusController {
     @FXML
     private TableColumn<ImagingResult, String> failedInstallsCol;
     @FXML
-    private ListView<String> adResultsList;
+    private TableColumn<ImagingResult, String> receivedTimeCol;
+
     @FXML
-    private RadioButton rangeModeRadio; // New RadioButton
+    private ListView<String> adResultsList;
+
+    @FXML
+    private RadioButton rangeModeRadio;
     @FXML
     private RadioButton dateModeRadio;
     @FXML
-    private HBox datePickerBox;          // New HBox container
+    private HBox datePickerBox;
     @FXML
-    private DatePicker endDatePicker;        // New DatePicker
+    private DatePicker endDatePicker;
     @FXML
-    private Label toLabel;               // New Label
+    private Label toLabel;
 
     @FXML
     public void initialize() {
         loadSettings();
         setupAutoRefresh();
+
         computerNameCol.setCellValueFactory(new PropertyValueFactory<>("computerName"));
         serialNumberCol.setCellValueFactory(new PropertyValueFactory<>("serialNumber"));
         reimageTimeCol.setCellValueFactory(new PropertyValueFactory<>("reimageTime"));
+
+        // Pretty display for failed installs
         failedInstallsCol.setCellValueFactory(new PropertyValueFactory<>("failedInstalls"));
+        failedInstallsCol.setCellFactory(col -> new TableCell<ImagingResult, String>() {
+            private final Text text = new Text();
+            private final Tooltip tip = new Tooltip();
+
+            {
+                text.wrappingWidthProperty().bind(col.widthProperty().subtract(12));
+                setGraphic(text);
+                setPrefHeight(Control.USE_COMPUTED_SIZE);
+                setStyle("-fx-alignment: TOP-LEFT;");
+
+                tip.setWrapText(true);
+                tip.setMaxWidth(600);
+            }
+
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+
+                if (empty || item == null || item.isBlank() || item.trim().equals("0")) {
+                    text.setText("0");
+                    setTooltip(null);
+                    return;
+                }
+
+                // split on semicolons OR newlines (defensive)
+                List<String> parts = Arrays.stream(item.split("\\s*;\\s*|\\r?\\n")).map(String::trim).filter(s -> !s.isBlank()).toList();
+
+                // what we show in the cell (cap to avoid huge rows)
+                int maxVisible = 3;
+                String cellText;
+                if (parts.size() <= maxVisible) {
+                    cellText = parts.stream().map(p -> "• " + p).collect(Collectors.joining("\n"));
+                } else {
+                    cellText = parts.subList(0, maxVisible).stream().map(p -> "• " + p).collect(Collectors.joining("\n")) + "\n• +" + (parts.size() - maxVisible) + " more...";
+                }
+
+                text.setText(cellText);
+
+                // tooltip always shows full list
+                tip.setText(parts.stream().map(p -> "• " + p).collect(Collectors.joining("\n")));
+                setTooltip(tip);
+            }
+        });
+
+        receivedTimeCol.setCellValueFactory(new PropertyValueFactory<>("receivedTime"));
+
         resultsTable.setItems(imagingResults);
         setupRowFactoryForCopy();
+
+        // Range mode UI wiring
         if (datePicker.getParent() instanceof HBox) {
             datePickerBox = (HBox) datePicker.getParent();
             toLabel = new Label("To:");
             endDatePicker = new DatePicker(LocalDate.now());
 
-            // Add them to the layout, but keep them hidden initially
             datePickerBox.getChildren().addAll(toLabel, endDatePicker);
             toLabel.setVisible(false);
             toLabel.setManaged(false);
@@ -124,12 +185,12 @@ public class ImagingStatusController {
             datePicker.setVisible(isDateMode || isRangeMode);
             datePicker.setManaged(isDateMode || isRangeMode);
 
-            // Show the "To" label and end date picker only for range mode
             toLabel.setVisible(isRangeMode);
             toLabel.setManaged(isRangeMode);
             endDatePicker.setVisible(isRangeMode);
             endDatePicker.setManaged(isRangeMode);
         });
+
         resultsTable.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal != null && !"Not Found".equals(newVal.getSerialNumber())) {
                 checkForDuplicates(newVal.getSerialNumber());
@@ -148,6 +209,7 @@ public class ImagingStatusController {
             if (isAutoRefresh) autoRefreshToggle.setSelected(false);
             return;
         }
+
         String folderPath = settingsDAO.getSetting(FOLDER_KEY).orElse("");
         if (folderPath.isEmpty()) {
             statusLabel.setText("Error: Outlook Folder Path is not set. Please configure it in Settings.");
@@ -156,9 +218,8 @@ public class ImagingStatusController {
         }
 
         checkEmailsButton.setDisable(true);
-        if (!isAutoRefresh) {
-            logTextArea.clear();
-        }
+        if (!isAutoRefresh) logTextArea.clear();
+
         appendToLog(isAutoRefresh ? "Auto-Refresh triggered..." : "Manual email check started...");
         statusLabel.setText("Checking for emails...");
         progressBar.setVisible(true);
@@ -171,21 +232,17 @@ public class ImagingStatusController {
             command.add("--subject_filter");
             command.add(s);
         });
+
         settingsDAO.getSetting(IP_KEY).filter(s -> !s.isBlank()).ifPresent(s -> {
             command.add("--ip_filter");
             command.add(s);
         });
 
-        // --- THIS IS THE CORRECTED AND SIMPLIFIED LOGIC ---
-        // We will now always provide values for start_date and end_date.
-        String startDateParam = "none";
-        String endDateParam = "none";
-
+        // --- SEARCH MODE + DATE PARAMS ---
         if (isAutoRefresh || unreadModeRadio.isSelected()) {
             command.add("--search_mode");
             command.add("UNREAD");
             if (isAutoRefresh) appendToLog("Auto-Refresh: Forcing search mode to 'UNREAD'.");
-
         } else if (rangeModeRadio.isSelected()) {
             LocalDate startDate = datePicker.getValue();
             LocalDate endDate = endDatePicker.getValue();
@@ -195,26 +252,21 @@ public class ImagingStatusController {
             }
             command.add("--search_mode");
             command.add("RANGE");
-            startDateParam = startDate.format(DateTimeFormatter.ISO_LOCAL_DATE);
-            endDateParam = endDate.format(DateTimeFormatter.ISO_LOCAL_DATE);
-
-        } else { // Single Date Mode is the only remaining option
-            LocalDate startDate = datePicker.getValue();
-            if (startDate == null) {
+            command.add("--start_date");
+            command.add(startDate.format(DateTimeFormatter.ISO_LOCAL_DATE));
+            command.add("--end_date");
+            command.add(endDate.format(DateTimeFormatter.ISO_LOCAL_DATE));
+        } else {
+            LocalDate date = datePicker.getValue();
+            if (date == null) {
                 resetUiOnError("Please select a date for the search.");
                 return;
             }
             command.add("--search_mode");
             command.add("DATE");
-            startDateParam = startDate.format(DateTimeFormatter.ISO_LOCAL_DATE);
-            // endDateParam remains "none"
+            command.add("--start_date");
+            command.add(date.format(DateTimeFormatter.ISO_LOCAL_DATE));
         }
-
-        command.add("--start_date");
-        command.add(startDateParam);
-        command.add("--end_date");
-        command.add(endDateParam);
-        // --- END OF CORRECTED LOGIC ---
 
         command.add("--kw_serial");
         command.add(settingsDAO.getSetting(SERIAL_KEY).orElse("Serial Number"));
@@ -226,49 +278,69 @@ public class ImagingStatusController {
         CompletableFuture<List<ImagingResult>> future = emailService.fetchAndParseEmails(command);
 
         future.thenAccept(results -> Platform.runLater(() -> {
-            if (results != null && !results.isEmpty()) {
-                Set<String> existingSerials = imagingResults.stream().map(ImagingResult::getSerialNumber).collect(Collectors.toSet());
-                List<ImagingResult> newUniqueResults = results.stream().filter(r -> !existingSerials.contains(r.getSerialNumber())).toList();
-                if (!newUniqueResults.isEmpty()) {
-                    imagingResults.addAll(0, newUniqueResults);
-                    String title = "New Imaging Results";
-                    String message = "Successfully processed " + newUniqueResults.size() + " new email(s).";
-                    statusLabel.setText(message);
-                    DesktopNotifier.showNotification(title, message);
-                } else {
-                    statusLabel.setText("No *new* imaging emails found matching the criteria.");
-                }
-            } else {
+
+            boolean firstLoad = !initialLoadDone;
+            initialLoadDone = true;
+
+            if (results == null || results.isEmpty()) {
                 statusLabel.setText("No imaging emails found matching the criteria.");
+                return;
             }
+
+            Set<String> existingSerials = imagingResults.stream().map(ImagingResult::getSerialNumber).collect(Collectors.toSet());
+
+            List<ImagingResult> newUniqueResults = results.stream().filter(r -> !existingSerials.contains(r.getSerialNumber())).toList();
+
+            if (newUniqueResults.isEmpty()) {
+                statusLabel.setText("No new imaging emails found matching the criteria.");
+                return;
+            }
+
+            imagingResults.addAll(0, newUniqueResults);
+
+            // ---- TOAST LOGIC ----
+            if (firstLoad) {
+                String msg = newUniqueResults.size() + " computers are ready";
+                statusLabel.setText("Loaded " + newUniqueResults.size() + " imaging result(s).");
+                DesktopNotifier.showNotification("Imaging Results Loaded", msg);
+            } else {
+                if (newUniqueResults.size() == 1) {
+                    ImagingResult r = newUniqueResults.get(0);
+                    String msg = r.getComputerName() + " is finished";
+                    statusLabel.setText("New imaging result: " + r.getComputerName());
+                    DesktopNotifier.showNotification("Imaging Finished", msg);
+                } else {
+                    String msg = newUniqueResults.size() + " computers are ready";
+                    statusLabel.setText("Successfully processed " + newUniqueResults.size() + " new email(s).");
+                    DesktopNotifier.showNotification("New Imaging Results", msg);
+                }
+            }
+
         })).whenComplete((v, throwable) -> Platform.runLater(() -> {
             checkEmailsButton.setDisable(false);
             progressBar.setVisible(false);
         }));
     }
 
-    // --- NEW HELPER METHOD TO REDUCE CODE DUPLICATION ---
     private void resetUiOnError(String message) {
         statusLabel.setText("Error: " + message);
         checkEmailsButton.setDisable(false);
         progressBar.setVisible(false);
     }
 
-
-    // --- The rest of the file is unchanged ---
-
     private void setupRowFactoryForCopy() {
         resultsTable.setRowFactory(tv -> {
             TableRow<ImagingResult> row = new TableRow<>();
             ContextMenu contextMenu = new ContextMenu();
             MenuItem copyMenuItem = new MenuItem("Copy Row for Excel");
+
             copyMenuItem.setOnAction(event -> {
                 ImagingResult item = row.getItem();
-                if (item != null) {
-                    copySingleRowToClipboard(item);
-                }
+                if (item != null) copySingleRowToClipboard(item);
             });
+
             contextMenu.getItems().add(copyMenuItem);
+
             row.setOnMouseClicked(event -> {
                 if (!row.isEmpty()) {
                     if (event.getButton() == MouseButton.PRIMARY && event.getClickCount() == 2) {
@@ -278,17 +350,28 @@ public class ImagingStatusController {
                     }
                 }
             });
+
             return row;
         });
     }
 
     private void copySingleRowToClipboard(ImagingResult result) {
         if (result == null) return;
-        String excelFormattedString = String.join("\t", "", result.getSerialNumber(), "", "", result.getComputerName(), result.getReimageTime(), result.getFailedInstalls());
-        final ClipboardContent content = new ClipboardContent();
+
+        String failed = result.getFailedInstalls();
+
+        // If no failed apps, don't copy "0"
+        if (failed == null || failed.isBlank() || failed.equals("0") || failed.toLowerCase().startsWith("0 items")) {
+            failed = "";
+        }
+
+        String excelFormattedString = String.join("\t", result.getComputerName(), result.getReimageTime(), failed);
+
+        ClipboardContent content = new ClipboardContent();
         content.putString(excelFormattedString);
         Clipboard.getSystemClipboard().setContent(content);
-        statusLabel.setText("Copied row for S/N: " + result.getSerialNumber());
+
+        statusLabel.setText("Copied row for: " + result.getComputerName());
     }
 
     @FXML
@@ -312,6 +395,7 @@ public class ImagingStatusController {
     private void setupAutoRefresh() {
         autoRefreshTimeline = new Timeline(new KeyFrame(Duration.minutes(refreshIntervalMinutes), e -> handleCheckEmails()));
         autoRefreshTimeline.setCycleCount(Animation.INDEFINITE);
+
         autoRefreshToggle.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
             if (isSelected) {
                 autoRefreshToggle.setText("Auto-Refresh: ON");
@@ -346,11 +430,14 @@ public class ImagingStatusController {
         try {
             boolean wasRunning = autoRefreshTimeline.getStatus() == Animation.Status.RUNNING;
             if (wasRunning) autoRefreshTimeline.stop();
+
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/ImagingSettingsDialog.fxml"));
             Parent root = loader.load();
             ImagingSettingsController controller = loader.getController();
             Stage stage = StageManager.createCustomStage(resultsTable.getScene().getWindow(), "Imaging Settings", root);
+
             stage.showAndWait();
+
             if (controller.isSaved()) {
                 loadSettings();
                 statusLabel.setText("Settings have been updated.");
@@ -368,6 +455,25 @@ public class ImagingStatusController {
         }
     }
 
+    private String formatFailedInstalls(String raw) {
+        if (raw == null) return "";
+        String s = raw.trim();
+        if (s.isEmpty() || s.equals("0")) return "0";
+
+        // Split on semicolons OR newlines
+        String[] parts = s.split("\\s*(?:;|\\r?\\n)+\\s*");
+
+        List<String> cleaned = Arrays.stream(parts).map(String::trim).filter(p -> !p.isBlank())
+                // extra safety to strip any leftover noise
+                .filter(p -> !p.equalsIgnoreCase("NOTINSTALLED")).filter(p -> !p.matches("[0-9a-fA-F-]{8,}")).filter(p -> !p.toLowerCase().startsWith("application")).toList();
+
+        if (cleaned.isEmpty()) return s;
+        if (cleaned.size() == 1) return cleaned.get(0);
+
+        return cleaned.stream().map(p -> "• " + p).collect(Collectors.joining("\n"));
+    }
+
+
     @FXML
     private void handleClearResults() {
         imagingResults.clear();
@@ -383,6 +489,7 @@ public class ImagingStatusController {
     private void checkForDuplicates(String serialNumber) {
         adResultsList.getItems().clear();
         adResultsList.getItems().add("Searching AD/SCCM for serial: " + serialNumber + "...");
+
         machineRemovalService.search(List.of(serialNumber)).thenAccept(adResults -> Platform.runLater(() -> {
             adResultsList.getItems().clear();
             if (adResults.isEmpty()) {
